@@ -1,0 +1,164 @@
+#-
+#- $Id$
+#-
+MODS1 = mod_orchidee_para_var.F90 \
+        xios_orchidee.f90 \
+        mod_orchidee_mpi_data.F90 \
+	mod_orchidee_omp_data.F90 \
+	timer.f90 \
+        mod_orchidee_mpi_transfert.F90 \
+        mod_orchidee_omp_transfert.F90 \
+        mod_orchidee_transfert_para.F90 \
+        mod_orchidee_para.F90 \
+	tools_para.f90 \
+	ioipsl_para.f90 \
+	orch_write_field.f90 \
+	write_field.f90 \
+	orch_write_field_p.f90 \
+	write_field_p.f90
+
+
+PARAM_LIB=$(LIBDIR)/libparameters.a
+FILTERf90=$(filter %.f90,$(MODS1))
+FILTERF90=$(filter %.F90,$(MODS1))
+OBJSMODS1=$(FILTERf90:.f90=.o) $(FILTERF90:.F90=.o)
+#-
+.PRECIOUS : $(MODEL_LIB)
+#-Q- sxnec  .PRECIOUS : $(SXMODEL_LIB)
+#-Q- sx6nec .PRECIOUS : $(SXMODEL_LIB)
+#-Q- eshpux .PRECIOUS : $(SXMODEL_LIB)
+#-Q- sx8brodie .PRECIOUS : $(SXMODEL_LIB)
+#-
+all:
+	$(M_K) m_all
+	@echo parallel is OK
+
+m_all: $(MODEL_LIB)($(OBJSMODS1))
+#-Q- intel m_all: WORK_MOD $(MODEL_LIB)($(OBJSMODS1))
+
+$(MODEL_LIB)(%.o) : %.f90
+	$(F_C) $(F_O) -I$(NCDF_INC) $*.f90
+	$(A_C) $(MODEL_LIB) $*.o
+	$(A_C) $(ORCHIDEE_LIB) $*.o
+#-Q- sxnec 	$(A_X) $(SXMODEL_LIB) $*.o
+#-Q- sxnec 	mv $*.mod $(MODDIR)
+#-Q- sx6nec 	$(A_X) $(SXMODEL_LIB) $*.o
+#-Q- sx6nec 	mv $*.mod $(MODDIR)
+#-Q- eshpux 	$(A_X) $(SXMODEL_LIB) $*.o
+#-Q- eshpux 	mv $*.mod $(MODDIR)
+#-Q- sx8mercure 	mv $*.mod $(MODDIR)
+#-Q- sx9mercure 	mv $*.mod $(MODDIR)
+#-Q- sx8brodie 	$(A_X) $(SXMODEL_LIB) $*.o
+#-Q- sx8brodie 	mv $*.mod $(MODDIR)
+#-Q- solaris 	mv $*.mod $(MODDIR)
+	$(RM) $*.o
+#-Q- intel
+#-Q- intel WORK_MOD :
+#-Q- intel 	$(RM) work.pcl
+#-Q- intel 	@echo "work.pc" > work.pcl
+#-Q- intel 	@echo "../src_parameters/work.pc" >> work.pcl
+#-Q- intel 	@echo "../src_stomate/work.pc" >> work.pcl
+#-Q- intel 	@echo "../../IOIPSL/src/work.pc" >> work.pcl
+
+$(MODEL_LIB)(%.o) : %.F90
+	$(F_C) $(F_O) -I$(NCDF_INC) $*.F90
+	$(A_C) $(MODEL_LIB) $*.o
+	$(A_C) $(ORCHIDEE_LIB) $*.o
+#-Q- sxnec 	$(A_X) $(SXMODEL_LIB) $*.o
+#-Q- sxnec 	mv $*.mod $(MODDIR)
+#-Q- sx6nec 	$(A_X) $(SXMODEL_LIB) $*.o
+#-Q- sx6nec 	mv $*.mod $(MODDIR)
+#-Q- eshpux 	$(A_X) $(SXMODEL_LIB) $*.o
+#-Q- eshpux 	mv $*.mod $(MODDIR)
+#-Q- sx8mercure 	mv $*.mod $(MODDIR)
+#-Q- sx9mercure 	mv $*.mod $(MODDIR)
+#-Q- sx8brodie 	$(A_X) $(SXMODEL_LIB) $*.o
+#-Q- sx8brodie 	mv $*.mod $(MODDIR)
+#-Q- solaris 	mv $*.mod $(MODDIR)
+	$(RM) $*.o
+
+
+$(PARAM_LIB)(pft_parameters_var.o) : ../src_parameters/pft_parameters_var.f90
+	$(F_C) $(F_O) -I$(NCDF_INC) ../src_parameters/pft_parameters_var.f90
+	$(A_C) $(PARAM_LIB) pft_parameters_var.o
+	$(A_C) $(ORCHIDEE_LIB) pft_parameters_var.o
+	$(RM) ../src_parallel/pft_parameters_var.o
+
+$(PARAM_LIB)(constantes_var.o) : ../src_parameters/constantes_var.f90
+	$(F_C) $(F_O) -I$(NCDF_INC) ../src_parameters/constantes_var.f90
+	$(A_C) $(PARAM_LIB) constantes_var.o
+	$(A_C) $(ORCHIDEE_LIB) constantes_var.o
+	$(RM) ../src_parallel/constantes_var.o
+
+$(PARAM_LIB)(constantes_soil_var.o) : ../src_parameters/constantes_soil_var.f90
+	$(F_C) $(F_O) -I$(NCDF_INC) ../src_parameters/constantes_soil_var.f90
+	$(A_C) $(PARAM_LIB) constantes_soil_var.o
+	$(A_C) $(ORCHIDEE_LIB) constantes_soil_var.o
+	$(RM) ../src_parallel/constantes_soil_var.o
+
+config : 
+	$(BINDIR)/Fparser -name PARALLEL $(MODS1)
+	echo 'Configuration of PARALLEL done'
+
+clean:
+	$(RM) $(MODEL_LIB)
+
+$(MODEL_LIB)(mpi_dummy.o):
+
+$(MODEL_LIB)(mod_orchidee_para_var.o):
+
+$(MODEL_LIB)(xios_orchidee.o): \
+       $(MODEL_LIB)(mod_orchidee_para_var.o) \
+       $(MODEL_LIB)(mod_orchidee_transfert_para.o) \
+       $(MODEL_LIB)(ioipsl_para.o) \
+       $(PARAM_LIB)(pft_parameters_var.o) \
+       $(PARAM_LIB)(constantes_var.o) \
+       $(PARAM_LIB)(constantes_soil_var.o)
+
+$(MODEL_LIB)(mod_orchidee_mpi_data.o): \
+    $(MODEL_LIB)(mod_orchidee_para_var.o) \
+    $(MODEL_LIB)(xios_orchidee.o) 
+
+$(MODEL_LIB)(mod_orchidee_omp_data.o): \
+    $(MODEL_LIB)(mod_orchidee_para_var.o)
+
+$(MODEL_LIB)(timer.o): \
+    $(MODEL_LIB)(mod_orchidee_para_var.o)
+
+$(MODEL_LIB)(orch_write_field.o): \
+    $(MODEL_LIB)(mod_orchidee_para.o)
+
+$(MODEL_LIB)(write_field.o): \
+  $(MODEL_LIB)(orch_write_field.o)
+
+$(MODEL_LIB)(mod_orchidee_mpi_transfert.o): \
+  $(MODEL_LIB)(mod_orchidee_para_var.o) \
+  $(MODEL_LIB)(timer.o)
+
+$(MODEL_LIB)(mod_orchidee_omp_transfert.o): \
+  $(MODEL_LIB)(mod_orchidee_omp_data.o)
+
+$(MODEL_LIB)(mod_orchidee_transfert_para.o): \
+  $(MODEL_LIB)(mod_orchidee_para_var.o) \
+  $(MODEL_LIB)(mod_orchidee_mpi_transfert.o) \
+  $(MODEL_LIB)(mod_orchidee_omp_transfert.o)
+
+$(MODEL_LIB)(mod_orchidee_para.o): \
+  $(MODEL_LIB)(mod_orchidee_mpi_data.o) \
+  $(MODEL_LIB)(mod_orchidee_omp_data.o) \
+  $(MODEL_LIB)(mod_orchidee_transfert_para.o)
+
+$(MODEL_LIB)(ioipsl_para.o): \
+  $(MODEL_LIB)(mod_orchidee_transfert_para.o) \
+  $(MODEL_LIB)(mod_orchidee_para_var.o)
+
+$(MODEL_LIB)(tools_para.o): \
+  $(MODEL_LIB)(mod_orchidee_para_var.o)
+
+$(MODEL_LIB)(orch_write_field_p.o): \
+  $(MODEL_LIB)(mod_orchidee_para.o) \
+  $(MODEL_LIB)(write_field.o)
+
+$(MODEL_LIB)(write_field_p.o): \
+  $(MODEL_LIB)(orch_write_field_p.o)
+

@@ -486,13 +486,16 @@ END SUBROUTINE init_top_main
 !!!  real*8 Function gamma(xx)
 SUBROUTINE gamma(xx,gamma_re)
   IMPLICIT NONE
-  REAL(r_std), INTENT(IN)   :: xx
-  REAL(r_std), INTENT(OUT)   :: gamma_re 
-  REAL cof(6),stp,half,one,fpf,x,tmp,ser
+!  REAL(r_std), INTENT(IN)   :: xx
+  REAL(r_std*2), INTENT(IN)   :: xx    !!Arsene 19-12-2014
+!  REAL(r_std), INTENT(OUT)   :: gamma_re 
+  REAL(r_std*2), INTENT(OUT)   :: gamma_re   !!Arsene 19-12-2014 Changes
+  REAL cof(6),half,one,fpf,x,ser   !!tmp,stp remove by Arsene
   INTEGER j
   DATA cof,stp /76.18009173d0,-86.50532033d0,24.01409822d0,  &
        -1.231739516d0,0.120858003d-2,-0.536382d-5,2.50662827465d0/
   DATA half,one,fpf /0.5d0,1.0d0,5.5d0/
+  DOUBLE PRECISION  ::   tmp,stp    !!Arsene 19-12-2014  Add
   x=xx-one
 !  PRINT*, 'x',x
   tmp=x+fpf

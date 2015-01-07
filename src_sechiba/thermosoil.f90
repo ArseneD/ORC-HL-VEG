@@ -318,6 +318,8 @@ REAL(r_std),SAVE :: so_cond = 1.5396
   LOGICAL, SAVE                                :: use_soilc_tempdiff = .TRUE. 
   LOGICAL, ALLOCATABLE, SAVE, DIMENSION(:,:)   :: veget_mask_2d
   LOGICAL, SAVE                                :: satsoil = .FALSE.
+!  REAL(r_std), PARAMETER                :: so_capa_ice = 2.11e6 !!Add from Tao.. but not running. On constantes_var.f90
+
 
 CONTAINS
 
@@ -920,7 +922,8 @@ CONTAINS
 ! computes cgrd and dgrd coefficient
     !WRITE(numout,*) 'zd _coef 1 ','ptn(1,:,10)',ptn(1,:,10)
     CALL thermosoil_coef (kjpindex, dtradia, temp_sol_new, snow, ptn,soilcap, soilflx, zz,&
-    & dz1, dz2, z1, zdz1,zdz2, cgrnd, dgrnd, zdz1_soil, zdz2_soil, cgrnd_soil, dgrnd_soil, pcapa, pcapa_en, pkappa, profil_froz, pcappa_supp, stempdiag,&
+    & dz1, dz2, z1, zdz1,zdz2, cgrnd, dgrnd, zdz1_soil, zdz2_soil, cgrnd_soil, dgrnd_soil,&
+    & pcapa, pcapa_en, pkappa, profil_froz, pcappa_supp, stempdiag,&
     & organic_layer_thick, soilc_total,veget_max_bg,snowdz)
     !WRITE(numout,*) 'zd _coef 2 ','ptn(1,:,10)',ptn(1,:,10)
 
@@ -2439,7 +2442,8 @@ endif
 !-------------------------------------------------------------------
 
 !Isa ajout from thermosoil_bruno
-  SUBROUTINE thermosoil_getdiff( kjpindex, ptn, wetdiaglong, pkappa, pcapa, pcapa_en,profil_froz, pcappa_supp, organic_layer_thick, soilc_total)
+  SUBROUTINE thermosoil_getdiff( kjpindex, ptn, wetdiaglong, pkappa, pcapa, pcapa_en,&
+                      & profil_froz, pcappa_supp, organic_layer_thick, soilc_total)
    !
    ! Computes soil heat capacity and conductivity   
    !

@@ -584,92 +584,92 @@ CONTAINS
 
        ALLOCATE (airvol_soil(kjpindex,ndeep,nvm),stat=ier)       
        IF (ier.NE.0) THEN 
-           WRITE (numout,*) ' error in airvol_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,' words = '&
-              & , kjpindex*ndeep*nvm
+           WRITE (numout,*) ' error in airvol_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,&
+              &' words = ', kjpindex*ndeep*nvm
            STOP 'deep_carbcycle'
        END IF
        
        ALLOCATE (totporO2_soil(kjpindex,ndeep,nvm),stat=ier)
        IF (ier.NE.0) THEN
-           WRITE (numout,*) ' error in totporO2_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,' words = '&
-              & , kjpindex*ndeep*nvm
+           WRITE (numout,*) ' error in totporO2_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,&
+              &' words = ', kjpindex*ndeep*nvm
            STOP 'deep_carbcycle'
        END IF
 
        ALLOCATE (totporCH4_soil(kjpindex,ndeep,nvm),stat=ier)
        IF (ier.NE.0) THEN
-           WRITE (numout,*) ' error in totporCH4_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,' words = '&
-              & , kjpindex*ndeep*nvm
+           WRITE (numout,*) ' error in totporCH4_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,&
+              &' words = ', kjpindex*ndeep*nvm
            STOP 'deep_carbcycle'
        END IF
 
        ALLOCATE (conduct_soil(kjpindex,ndeep,nvm),stat=ier)
        IF (ier.NE.0) THEN
-           WRITE (numout,*) ' error in conduct_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,' words = '&
-              & , kjpindex*ndeep*nvm
+           WRITE (numout,*) ' error in conduct_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,&
+              &' words = ', kjpindex*ndeep*nvm
            STOP 'deep_carbcycle'
        END IF
 
        ALLOCATE (diffO2_soil(kjpindex,ndeep,nvm),stat=ier)
        IF (ier.NE.0) THEN
-           WRITE (numout,*) ' error in diffO2_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,' words = '&
-              & , kjpindex*ndeep*nvm
+           WRITE (numout,*) ' error in diffO2_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,&
+              &' words = ', kjpindex*ndeep*nvm
            STOP 'deep_carbcycle'
        END IF
 
        ALLOCATE (diffCH4_soil(kjpindex,ndeep,nvm),stat=ier)
        IF (ier.NE.0) THEN
-           WRITE (numout,*) ' error in diffCH4_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,' words = '&
-              & , kjpindex*ndeep*nvm
+           WRITE (numout,*) ' error in diffCH4_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,&
+              &' words = ', kjpindex*ndeep*nvm
            STOP 'deep_carbcycle'
        END IF
 
        ALLOCATE (airvol_snow(kjpindex,nsnow,nvm),stat=ier)
        IF (ier.NE.0) THEN
-           WRITE (numout,*) ' error in airvol_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,' words = '&
-              & , kjpindex*nsnow*nvm
+           WRITE (numout,*) ' error in airvol_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,&
+              &' words = ', kjpindex*nsnow*nvm
            STOP 'deep_carbcycle'
        END IF
 
        ALLOCATE (totporO2_snow(kjpindex,nsnow,nvm),stat=ier)
        IF (ier.NE.0) THEN
-           WRITE (numout,*) ' error in totporO2_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,' words = '&
-              & , kjpindex*nsnow*nvm
+           WRITE (numout,*) ' error in totporO2_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,&
+              &' words = ', kjpindex*nsnow*nvm
            STOP 'deep_carbcycle'
        END IF
 
        ALLOCATE (totporCH4_snow(kjpindex,nsnow,nvm),stat=ier)
        IF (ier.NE.0) THEN
-           WRITE (numout,*) ' error in totporCH4_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,' words = '&
-              & , kjpindex*nsnow*nvm
+           WRITE (numout,*) ' error in totporCH4_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,&
+              &' words = ', kjpindex*nsnow*nvm
            STOP 'deep_carbcycle'
        END IF
 
        ALLOCATE (conduct_snow(kjpindex,nsnow,nvm),stat=ier)
        IF (ier.NE.0) THEN
-           WRITE (numout,*) ' error in conduct_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,' words = '&
-              & , kjpindex*nsnow*nvm
+           WRITE (numout,*) ' error in conduct_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,&
+              &' words = ', kjpindex*nsnow*nvm
            STOP 'deep_carbcycle'
        END IF
 
        ALLOCATE (diffO2_snow(kjpindex,nsnow,nvm),stat=ier)
        IF (ier.NE.0) THEN
-           WRITE (numout,*) ' error in diffO2_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,' words = '&
-              & , kjpindex*nsnow*nvm
+           WRITE (numout,*) ' error in diffO2_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,&
+              &' words = ', kjpindex*nsnow*nvm
            STOP 'deep_carbcycle'
        END IF
 
        ALLOCATE (diffCH4_snow(kjpindex,nsnow,nvm),stat=ier)
        IF (ier.NE.0) THEN
-           WRITE (numout,*) ' error in diffCH4_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,' words = '&
-              & , kjpindex*nsnow*nvm
+           WRITE (numout,*) ' error in diffCH4_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,&
+              &' words = ', kjpindex*nsnow*nvm
            STOP 'deep_carbcycle'
        END IF
 
        ALLOCATE (deepc_pftmean(kjpindex,ndeep,ncarb),stat=ier)
        IF (ier.NE.0) THEN
-           WRITE (numout,*) ' error in deepc_pftmean allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',ncarb,' words = '&
-              & , kjpindex*ndeep*ncarb
+           WRITE (numout,*) ' error in deepc_pftmean allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',ncarb,&
+              &' words = ', kjpindex*ndeep*ncarb
            STOP 'deep_carbcycle'
        END IF
 
@@ -1466,71 +1466,71 @@ CONTAINS
 
       ALLOCATE (alphaO2_soil(kjpindex,ndeep,nvm),stat=ier)
       IF (ier.NE.0) THEN
-          WRITE (numout,*) ' error in alphaO2_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,' words = '&
-             & , kjpindex*ndeep*nvm
+          WRITE (numout,*) ' error in alphaO2_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,&
+             &' words = ', kjpindex*ndeep*nvm
           STOP 'deep_carbcycle'
       END IF
    
       ALLOCATE (betaO2_soil(kjpindex,ndeep,nvm),stat=ier)
       IF (ier.NE.0) THEN
-          WRITE (numout,*) ' error in betaO2_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,' words = '&
-             & , kjpindex*ndeep*nvm
+          WRITE (numout,*) ' error in betaO2_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,&
+             &' words = ', kjpindex*ndeep*nvm
           STOP 'deep_carbcycle'
       END IF
  
       ALLOCATE (alphaCH4_soil(kjpindex,ndeep,nvm),stat=ier)
       IF (ier.NE.0) THEN
-          WRITE (numout,*) ' error in alphaCH4_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,' words = '&
-             & , kjpindex*ndeep*nvm
+          WRITE (numout,*) ' error in alphaCH4_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,&
+             &' words = ', kjpindex*ndeep*nvm
           STOP 'deep_carbcycle'
       END IF
 
       ALLOCATE (betaCH4_soil(kjpindex,ndeep,nvm),stat=ier)
       IF (ier.NE.0) THEN
-          WRITE (numout,*) ' error in betaCH4_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,' words = '&
-             & , kjpindex*ndeep*nvm
+          WRITE (numout,*) ' error in betaCH4_soil allocation. We stop. We need', kjpindex, ' fois ',ndeep, ' fois ',nvm,&
+             &' words = ', kjpindex*ndeep*nvm
           STOP 'deep_carbcycle'
       END IF
 
       ALLOCATE (alphaO2_snow(kjpindex,nsnow,nvm),stat=ier)
       IF (ier.NE.0) THEN
-          WRITE (numout,*) ' error in alphaO2_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,' words = '&
-             & , kjpindex*nsnow*nvm
+          WRITE (numout,*) ' error in alphaO2_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,&
+             &' words = ', kjpindex*nsnow*nvm
           STOP 'deep_carbcycle'
       END IF
 
       ALLOCATE (betaO2_snow(kjpindex,nsnow,nvm),stat=ier)
       IF (ier.NE.0) THEN
-          WRITE (numout,*) ' error in betaO2_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,' words = '&
-             & , kjpindex*nsnow*nvm
+          WRITE (numout,*) ' error in betaO2_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,&
+             &' words = ', kjpindex*nsnow*nvm
           STOP 'deep_carbcycle'
       END IF
 
       ALLOCATE (alphaCH4_snow(kjpindex,nsnow,nvm),stat=ier)
       IF (ier.NE.0) THEN
-          WRITE (numout,*) ' error in alphaCH4_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,' words = '&
-             & , kjpindex*nsnow*nvm
+          WRITE (numout,*) ' error in alphaCH4_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,&
+             &' words = ', kjpindex*nsnow*nvm
           STOP 'deep_carbcycle'
       END IF
  
       ALLOCATE (betaCH4_snow(kjpindex,nsnow,nvm),stat=ier)
       IF (ier.NE.0) THEN
-          WRITE (numout,*) ' error in betaCH4_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,' words = '&
-             & , kjpindex*nsnow*nvm
+          WRITE (numout,*) ' error in betaCH4_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,&
+             &' words = ', kjpindex*nsnow*nvm
           STOP 'deep_carbcycle'
       END IF
 
       ALLOCATE (zf_coeff_snow(kjpindex,0:nsnow,nvm),stat=ier)
       IF (ier.NE.0) THEN
-          WRITE (numout,*) ' error in zf_coeff_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow+1, ' fois ',nvm,' words = '&
-             & , kjpindex*(nsnow+1)*nvm
+          WRITE (numout,*) ' error in zf_coeff_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow+1, ' fois ',nvm,&
+             &' words = ', kjpindex*(nsnow+1)*nvm
           STOP 'deep_carbcycle'
       END IF
 
       ALLOCATE (zi_coeff_snow(kjpindex,nsnow,nvm),stat=ier)
       IF (ier.NE.0) THEN
-          WRITE (numout,*) ' error in zi_coeff_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,' words = '&
-             & , kjpindex*nsnow*nvm
+          WRITE (numout,*) ' error in zi_coeff_snow allocation. We stop. We need', kjpindex, ' fois ',nsnow, ' fois ',nvm,&
+             &' words = ', kjpindex*nsnow*nvm
           STOP 'deep_carbcycle'
       END IF
 
@@ -3279,15 +3279,15 @@ END SUBROUTINE get_gasdiff
 
           ALLOCATE (xc_cryoturb(kjpindex,ndeep,nvm),stat=ier)
           IF (ier.NE.0) THEN
-             WRITE (numout,*) ' error in xc_cryoturb allocation. We stop. We need ',kjpindex,' fois ',ndeep,' fois ',nvm,' words = '&
-              & , kjpindex*ndeep*nvm
+             WRITE (numout,*) ' error in xc_cryoturb allocation. We stop. We need ',kjpindex,' fois ',ndeep,' fois ',nvm,&
+              &' words = ', kjpindex*ndeep*nvm
              STOP 'deep_carbcycle'
           END IF
 
           ALLOCATE (xd_cryoturb(kjpindex,ndeep,nvm),stat=ier)
           IF (ier.NE.0) THEN
-             WRITE (numout,*) ' error in xd_cryoturb allocation. We stop. We need ',kjpindex,' fois ',ndeep,' fois ',nvm,' words = '&
-              & , kjpindex*ndeep*nvm
+             WRITE (numout,*) ' error in xd_cryoturb allocation. We stop. We need ',kjpindex,' fois ',ndeep,' fois ',nvm,&
+              &' words = ', kjpindex*ndeep*nvm
              STOP 'deep_carbcycle'
           END IF
 

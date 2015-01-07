@@ -648,7 +648,8 @@ CONTAINS
               STOP 
             ENDIF
             !
-            IF (is_root_prc) CALL flinopen(filename, .FALSE., iml, jml, lml, lon_rel, lat_rel, lev, tml, pssitau, pssdate, pssdt, fid)
+            IF (is_root_prc) CALL flinopen(filename, .FALSE., iml, jml, lml, lon_rel,&
+                                       & lat_rel, lev, tml, pssitau, pssdate, pssdt, fid)
             CALL bcast(lon_rel)
             CALL bcast(lat_rel)
             CALL bcast(pssitau)
@@ -677,7 +678,8 @@ CONTAINS
                DO ip = 1, kjpindex
                   dlonmin = HUGE(1.)
                   DO ix = 1,iml
-                     dlon = MIN( ABS(lalo(ip,2)-lon_temp(ix)), ABS(lalo(ip,2)+360.-lon_temp(ix)), ABS(lalo(ip,2)-360.-lon_temp(ix)) )
+                     dlon = MIN( ABS(lalo(ip,2)-lon_temp(ix)), ABS(lalo(ip,2)+360.-lon_temp(ix)),&
+                                          & ABS(lalo(ip,2)-360.-lon_temp(ix)) )
                      IF ( dlon .LT. dlonmin ) THEN
                         imin = ix
                         dlonmin = dlon
@@ -923,7 +925,8 @@ CONTAINS
              & pgflux,frac_nobio,totfrac_nobio,&
              & gtemp,gthick,gpkappa,zdz1_soil,zdz2_soil,cgrnd_soil,dgrnd_soil,vevapsno, &
              & snow_age,snow_nobio_age,snow_nobio,snowrho,snowgrain,snowdz,snowtemp,snowheat,snowliq,&
-             & snow,subsnownobio,grndflux,snowmelt,tot_melt,soilflxresid,subsinksoil,snowflx,snowcap,pkappa_snow,lambda_snow,cgrnd_snow,dgrnd_snow,temp_sol_add)
+             & snow,subsnownobio,grndflux,snowmelt,tot_melt,soilflxresid,subsinksoil,snowflx,snowcap,&
+             & pkappa_snow,lambda_snow,cgrnd_snow,dgrnd_snow,temp_sol_add)
  
     ELSE
        ! Bucket snow model

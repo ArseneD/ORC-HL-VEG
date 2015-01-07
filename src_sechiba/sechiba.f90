@@ -531,7 +531,8 @@ CONTAINS
        !! 1.1 Initialize most of sechiba's variables
        CALL sechiba_init (kjit, ldrestart_read, kjpij, kjpindex, index, rest_id, control_in, lalo)
      
-       ALLOCATE(runoff1 (kjpindex),drainage1 (kjpindex), soilcap1 (kjpindex),soilflx1 (kjpindex),snowcap1 (kjpindex),snowflx1 (kjpindex))
+       ALLOCATE(runoff1 (kjpindex),drainage1 (kjpindex), soilcap1 (kjpindex),soilflx1 (kjpindex),&
+              & snowcap1 (kjpindex),snowflx1 (kjpindex))
        ALLOCATE(shumdiag1(kjpindex,nbdl))
         
        !! 1.2 Initialize some variables of energy budget from restart file     

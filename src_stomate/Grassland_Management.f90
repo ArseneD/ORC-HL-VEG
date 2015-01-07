@@ -907,7 +907,7 @@ CONTAINS
       CALL getin ('F_GRAZING_MAP',f_grazing_map)
       WRITE(numout,*)  'F_GRAZING_MAP',f_grazing_map
    
-      IF (f_management_map) THEN
+      IF (f_management_map .EQ. 1) THEN    !! Arsene 19-12-2014. before: IF (f_management_map) THEN
         management_map='/ccc/work/cont003/dsm/p529chan/data/eur_management_interpolated.nc'
         CALL getin('MANAGEMENT_MAP',management_map)
         WRITE(numout,*) 'MANAGEMENT_MAP',management_map
@@ -1174,7 +1174,7 @@ CONTAINS
         year_count2 = 21
       ENDIF
       ! get_map of spatial .nc file or old txt/dat file  
-      IF (f_management_map) THEN
+      IF (f_management_map .EQ. 1) THEN    !! Arsene 19-12-2014. before: IF (f_management_map) THEN
         ! re-initial management variables
         tcut(:,:,:) = 500.0
         tfert(:,:,:) = 500.0
@@ -1614,9 +1614,9 @@ CONTAINS
         DO j=2,nvm
           IF (is_grassland_manag(j) )THEN
 
-            IF (ANY(tcut_verif(:,j,k) .EQ. .FALSE.)) THEN
+            IF (ANY(tcut_verif(:,j,k) .EQV. .FALSE.)) THEN
               WHERE ((tjulian .GE. tcut(:,j,k)) .AND. (tjulian .LE. tcut(:,j,k)+0.9) .AND. &
-                (tcut_verif(:,j,k) .EQ. .FALSE.))
+                (tcut_verif(:,j,k) .EQV. .FALSE.))
 
                 tcut_verif(:,j,k) = .TRUE. 
                 flag_cutting(:,j) = 1

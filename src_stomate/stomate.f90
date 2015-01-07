@@ -2202,7 +2202,8 @@ SUBROUTINE stomate_main &
                sfluxCH4_deep, sfluxCO2_deep, &
                deepC_a, deepC_s, deepC_p, O2_soil, CH4_soil, O2_snow, CH4_snow,&
                zz_deep, zz_coef_deep, depth_organic_soil,soilcarbon_input_inst,&
-               veget_max, rprof, altmax, carbon, carbon_surf,resp_hetero_soil,dtradia, fbact, fixed_cryoturbation_depth,snowdz,snowrho)
+               veget_max, rprof, altmax, carbon, carbon_surf,resp_hetero_soil,&
+               dtradia, fbact, fixed_cryoturbation_depth,snowdz,snowrho)
 
           resp_hetero_soil(:,:) = resp_hetero_soil(:,:) * dtradia/one_day
           ! Total heterothrophic respiration during time step ::dtradia @tex
@@ -2291,7 +2292,8 @@ SUBROUTINE stomate_main &
                   sfluxCH4_deep, sfluxCO2_deep, &
                   deepC_a, deepC_s, deepC_p, O2_soil, CH4_soil,O2_snow,CH4_snow, &
                   zz_deep, zz_coef_deep,depth_organic_soil,soilcarbon_input_daily, &
-                  veget_max, rprof, altmax, carbon,carbon_surf,resp_hetero_soil, dtradia, fbact_daily,fixed_cryoturbation_depth,snowdz_daily,snowrho_daily)
+                  veget_max, rprof, altmax, carbon,carbon_surf,resp_hetero_soil, dtradia, &
+                  fbact_daily,fixed_cryoturbation_depth,snowdz_daily,snowrho_daily)
 
              resp_hetero_radia =  resp_hetero_soil
              resp_hetero_d = resp_hetero_d + resp_hetero_radia

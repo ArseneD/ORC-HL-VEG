@@ -437,7 +437,7 @@ CONTAINS
     END IF init_animal
 
     ! one per year
-    n_year : IF (new_year .EQ. .TRUE. ) THEN
+    n_year : IF (new_year .EQV. .TRUE. ) THEN
 
       IF (blabla_pasim) PRINT *, 'PASIM Animals : initialisation pour une nouvelle année'
 
@@ -1006,7 +1006,7 @@ CONTAINS
     END IF n_year
 
     ! one per day
-    n_day : IF (new_day .EQ. .TRUE. ) THEN
+    n_day : IF (new_day .EQV. .TRUE. ) THEN
 
       IF (blabla_pasim) PRINT *, 'PASIM Animals : initialisation for new_day'
 
@@ -5774,7 +5774,7 @@ print *,'BM_threshold',BM_threshold,BM_threshold_turnout
      
         
      
-     DO WHILE(NOT(ALL(fin)))  
+     DO WHILE(.NOT.(ALL(fin)))  
          Loop_count=Loop_count+1  
          EDh(:,:)=NELherbage(:,:)/(7.12*FVh(:,:))
          A(:,:,1)=(0.0004*MPcow2(:,:,1)**2)+(2.39*EDh(:,:)**2)-&

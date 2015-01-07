@@ -132,7 +132,7 @@ CONTAINS
                    table(:,2,i+1)*(absc - table(:,1,i))/(table(:,1,i+1)-table(:,1,i))
             emplacement = i
                 
-          ELSE IF ((table(1,2,i+1).EQ. -999.0).AND. (calcul(1) .EQ. .FALSE.)) THEN
+          ELSE IF ((table(1,2,i+1).EQ. -999.0).AND. (calcul(1) .EQV. .FALSE.)) THEN 
             calcul(:) = .TRUE.
             resultat(:) = table(:,2,i-1)*(table(:,1,i)-absc)/ &
                    (table(:,1,i)-table(:,1,i-1)) + &
@@ -176,7 +176,7 @@ CONTAINS
                  (table(:,1,emplacement+1)-table(:,1,emplacement))
               
           
-        ELSE IF ((table(1,2,emplacement+1).EQ. -999.0).AND. (calcul(1) .EQ. .FALSE.)) THEN
+        ELSE IF ((table(1,2,emplacement+1).EQ. -999.0).AND. (calcul(1) .EQV. .FALSE.)) THEN
               !emplacement ne change pas
           calcul(:) = .TRUE.
           resultat(:) = table(:,2,emplacement-1)*(table(:,1,emplacement)-absc)/ &
@@ -200,7 +200,7 @@ CONTAINS
                      (table(:,1,emplacement+1)-table(:,1,emplacement))
               
                   
-          ELSE IF ((table(1,2,emplacement+1).EQ. -999.0).AND. (calcul(1) .EQ. .FALSE.)) THEN
+          ELSE IF ((table(1,2,emplacement+1).EQ. -999.0).AND. (calcul(1) .EQV. .FALSE.)) THEN
             !emplacement ne change pas
             calcul(:) = .TRUE.
             resultat(:) = table(:,2,emplacement-1)*(table(:,1,emplacement)-absc)/ &

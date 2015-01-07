@@ -23,7 +23,8 @@ CONTAINS
              pgflux,frac_nobio,totfrac_nobio,&
              gtemp,gthick,gpkappa,zdz1_soil,zdz2_soil,cgrnd_soil,dgrnd_soil,vevapsno,&
              snow_age,snow_nobio_age,snow_nobio,snowrho,snowgrain,snowdz,snowtemp,snowheat,snowliq,&
-             snow,subsnownobio,grndflux,snowmelt,tot_melt,soilflxresid,subsinksoil,snowflx,snowcap,pkappa_snow,lambda_snow,cgrnd_snow,dgrnd_snow,temp_sol_add)
+             snow,subsnownobio,grndflux,snowmelt,tot_melt,soilflxresid,subsinksoil,snowflx,snowcap,&
+             pkappa_snow,lambda_snow,cgrnd_snow,dgrnd_snow,temp_sol_add)
 
     !! 0. Variable and parameter declaration
 
@@ -1477,7 +1478,9 @@ CONTAINS
 !! FLOWCHART    : None
 !! \n
 !_ ================================================================================================================================
-  SUBROUTINE explicitsnow_coef(kjpindex, dtradia,pb, temp_sol_new, snowdz,snowrho, cgrnd_soil,dgrnd_soil,zdz1_soil,zdz2_soil,gtemp,gthick,snowtemp,  snowflx,snowcap,cgrnd_snow,dgrnd_snow,lambda_snow,pkappa_snow)
+  SUBROUTINE explicitsnow_coef(kjpindex, dtradia,pb, temp_sol_new, snowdz,snowrho, cgrnd_soil,&
+                         & dgrnd_soil,zdz1_soil,zdz2_soil,gtemp,gthick,snowtemp,snowflx,snowcap,&
+                         & cgrnd_snow,dgrnd_snow,lambda_snow,pkappa_snow)
 
   !! 0. Variables and parameter declaration
 
@@ -1667,7 +1670,8 @@ CONTAINS
   !! 1. Computes the soil temperatures ptn.
     DO ji = 1,kjpindex
       IF (SUM(snowdz(ji,:)) .GT. 0) THEN
-        snowtemp(ji,1) = (lambda_snow(ji) * cgrnd_snow(ji,1) + (temp_sol_new(ji)+temp_sol_add(ji))) / (lambda_snow(ji) * (un - dgrnd_snow(ji,1)) + un)
+        snowtemp(ji,1) = (lambda_snow(ji) * cgrnd_snow(ji,1) + (temp_sol_new(ji)+temp_sol_add(ji))) &
+                                    & / (lambda_snow(ji) * (un - dgrnd_snow(ji,1)) + un)
         temp_sol_add(ji) = zero 
         DO jg = 1,nsnow-1
             snowtemp(ji,jg+1) = cgrnd_snow(ji,jg) + dgrnd_snow(ji,jg) * snowtemp(ji,jg)

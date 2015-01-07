@@ -348,7 +348,7 @@ MODULE constantes_var
 
   !! Heat capacity
   REAL(r_std), PARAMETER :: capa_ice = 2.228*1.E3       !! Heat capacity of ice (J/kg/K)
-  REAL(r_std), SAVE      :: so_capa_ice                 !! Heat capacity of saturated frozen soil (J/K/m3)
+  REAL(r_std), SAVE      :: so_capa_ice = 2.11e6        !! Heat capacity of saturated frozen soil (J/K/m3)  !! Arsene 19-12-2014 Value add from Tao
 !$OMP THREADPRIVATE(so_capa_ice)
   REAL(r_std), PARAMETER :: rho_water = 1000.           !! Density of water (kg/m3)
   REAL(r_std), PARAMETER :: rho_ice = 920.              !! Density of ice (kg/m3)

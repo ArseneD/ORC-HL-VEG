@@ -3471,7 +3471,8 @@ CONTAINS
             DO jv = 1, nvm
                WRITE(part_str,'(I2)') jv
                IF (jv < 10) part_str(1:1) = '0'
-               CALL histdef(hist_id,'shum_ngrnd_perma_'//part_str(1:LEN_TRIM(part_str)), 'Saturation degree on thethermal axes', '-', &
+               CALL histdef(hist_id,'shum_ngrnd_perma_'//part_str(1:LEN_TRIM(part_str)), 'Saturation degree on thethermal axes',&
+                    & '-', &
                     & iim,jjm, hori_id, ngrnd, 1, ngrnd, solax_id, 32, avescatter(6),  dt,dw)
             END DO
 

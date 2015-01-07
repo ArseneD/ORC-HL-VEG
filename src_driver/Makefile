@@ -45,30 +45,32 @@ endif
 ######-Q- ada      F_O = -DCPP_PARA -p -g -traceback -fp-stack-check -ftrapuv -check bounds $(F_D) $(F_P) -I$(MODDIR) -module $(MODDIR)
 ####-Q- curie  F_O = -DCPP_PARA -p -g -traceback -fp-stack-check -ftrapuv -check bounds $(F_D) $(F_P) -I$(MODDIR) -module $(MODDIR)
 ######-Q- cur_mono  F_O = -DCPP_PARA -p -g -traceback -fp-stack-check -ftrapuv -check bounds $(F_D) $(F_P) -I$(MODDIR) -module $(MODDIR)
-#- Global definitions for Intel compiler (ifort) with MPI at obelix/LSCE
-FCM_ARCH=ifort_LSCE
-M_K = gmake
+#- Global definitions for gfortran, generic system
+M_K = make
 P_C = cpp
-P_O = -P -C $(P_P)
-F_C = mpif90 -c -cpp
+FCM_ARCH = gfortran 
+P_O = -fpreprocessed -P -C -traditional $(P_P)
+F_C = gfortran -c -cpp
 F_D =
-F_P = -i4 -r8
-F_O = -DCPP_PARA -O3 $(F_D) $(F_P) -I$(MODDIR) -module $(MODDIR) -fp-model precise
-#####-Q- lxiv8    F_O = -DCPP_PARA -O3 -check bounds -traceback $(F_D) $(F_P) -I$(MODDIR) -module $(MODDIR) -fp-model precise
-#####-Q- lxiv8    F_O = -DCPP_PARA -p -g -traceback -fp-stack-check -ftrapuv -check bounds $(F_D) $(F_P) -I$(MODDIR) -module $(MODDIR)
-F_L = mpif90
+F_P = -fdefault-real-8
+w_w = -O3 -funroll-all-loops $(F_D) $(F_P) -I$(MODDIR)
+F_O = $(w_w) -J$(MODDIR)
+F_L = gfortran
 M_M = 0
 L_X = 0
-L_O = -Vaxlib
-A_C = ar -r
+L_O =
+A_C = ar -rs
 A_G = ar -x
 C_C = cc -c
 C_O =
 C_L = cc
 #-
-NCDF_INC = /usr/local/include
-NCDF_LIB = -L/usr/local/lib -lnetcdff -lnetcdf
+NCDF_INC = /opt/local/include
+NCDF_LIB = -L/opt/local/lib -lnetcdff -lnetcdf
+##-Q- gfortran  NCDF_LIB = -L/usr/local/lib -lnetcdf
 #-
+#####-Q- lxiv8    F_O = -DCPP_PARA -O3 -check bounds -traceback $(F_D) $(F_P) -I$(MODDIR) -module $(MODDIR) -fp-model precise
+#####-Q- lxiv8    F_O = -DCPP_PARA -p -g -traceback -fp-stack-check -ftrapuv -check bounds $(F_D) $(F_P) -I$(MODDIR) -module $(MODDIR)
 RM      = rm -f
 STRIP   = strip
 SIZE    = size

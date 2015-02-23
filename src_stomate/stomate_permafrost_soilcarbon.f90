@@ -156,7 +156,7 @@ MODULE stomate_permafrost_soilcarbon
   LOGICAL,DIMENSION(:,:),ALLOCATABLE,  SAVE             :: veget_mask_2d      !! whether there is vegetation 
   !$OMP THREADPRIVATE(veget_mask_2d)
   REAL(r_std), PARAMETER                        :: fslow =  36.7785   !  37. Dmitry original   ! facteurs de vitesse pour reservoirs slow et passif
-  REAL(r_std), PARAMETER                        :: fpassive = 1617.45 !1600. Dmitry original
+  REAL(r_std), PARAMETER                        :: fpassive = 1617.45 !2372 represents 2000 years for passive at reference of 5 degrees!1617.45 !666.667 !1617.45 !1600. Dmitry original
 
 CONTAINS
 
@@ -2390,7 +2390,7 @@ END SUBROUTINE get_gasdiff
     INTEGER                                           :: ii, ij, ik
     REAL, DIMENSION(i_ind, j_ind, k_ind)              :: moistfunc_result
     REAL(r_std), parameter                            :: q10 = 2.0
-    REAL(r_std), PARAMETER                            :: stomate_tau = 4.699E6  
+    REAL(r_std), PARAMETER                            :: stomate_tau = 4.699E6  !4.7304E7 !4.699E6  
     logical, parameter                                :: limit_decomp_moisture = .true.
 
     temp_kelvin(:,:,:) = temp(:,:,:) + ZeroCelsius
@@ -3429,11 +3429,29 @@ END SUBROUTINE get_gasdiff
                       deepC_s(ip,il,iv) = alpha_s(ip,il-1,iv)*deepC_s(ip,il-1,iv) + beta_s(ip,il-1,iv)
                       deepC_p(ip,il,iv) = alpha_p(ip,il-1,iv)*deepC_p(ip,il-1,iv) + beta_p(ip,il-1,iv)
                    ENDDO
-                   
+                    ! 3. recalculate the total soil carbon in the active layer
+                    DO il = 1, ndeep
+                       altC_a(ip,iv) = altC_a(ip,iv) + deepC_a(ip,il,iv)*(zf_soil(il)-zf_soil(il-1))
+                       altC_s(ip,iv) = altC_s(ip,iv) + deepC_s(ip,il,iv)*(zf_soil(il)-zf_soil(il-1))
+                       altC_p(ip,iv) = altC_p(ip,iv) + deepC_p(ip,il,iv)*(zf_soil(il)-zf_soil(il-1))
+                    ENDDO
+                    ! 4. subtract the soil carbon in the top layer(s) so that the total carbon content of the active layer is conserved.             
+                    ! for now remove this correction term...
+                    surfC_totake_a(ip,iv) = (altC_a(ip,iv)-altC_a_old(ip,iv))/(zf_soil(altmax_ind(ip,iv))-zf_soil(0))
+                    surfC_totake_s(ip,iv) = (altC_s(ip,iv)-altC_s_old(ip,iv))/(zf_soil(altmax_ind(ip,iv))-zf_soil(0))
+                    surfC_totake_p(ip,iv) = (altC_p(ip,iv)-altC_p_old(ip,iv))/(zf_soil(altmax_ind(ip,iv))-zf_soil(0))
+                    deepC_a(ip,1:altmax_ind(ip,iv),iv) = deepC_a(ip,1:altmax_ind(ip,iv),iv) - surfC_totake_a(ip,iv)
+                    deepC_s(ip,1:altmax_ind(ip,iv),iv) = deepC_s(ip,1:altmax_ind(ip,iv),iv) - surfC_totake_s(ip,iv)
+                    deepC_p(ip,1:altmax_ind(ip,iv),iv) = deepC_p(ip,1:altmax_ind(ip,iv),iv) - surfC_totake_p(ip,iv)
+        
                 ENDIF
              ENDDO
           ENDDO
-          
+         
+          WHERE (deepC_a(:,:,:) .LT. zero)   deepC_a(:,:,:) = zero
+          WHERE (deepC_s(:,:,:) .LT. zero)   deepC_s(:,:,:) = zero
+          WHERE (deepC_p(:,:,:) .LT. zero)   deepC_p(:,:,:) = zero
+ 
        ENDIF
        
        

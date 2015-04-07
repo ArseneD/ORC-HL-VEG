@@ -1190,6 +1190,16 @@ CONTAINS
        !Config Units = [days]    
        CALL getin_p('RESERVE_TIME_TREE',reserve_time_tree)
        !
+!! Arsene 31-07-2014 modifications
+       !Config Key   = RESERVE_TIME_SHRUB 
+       !Config Desc  = maximum time during which reserve is used (shrub) 
+       !Config If    = OK_STOMATE 
+       !Config Def   = 25.
+       !Config Help  = 
+       !Config Units = [days]    
+       CALL getin_p('RESERVE_TIME_SHRUB',reserve_time_shrub)
+!! Arsene 31-07-2014 modifications
+       !
        !Config Key   = RESERVE_TIME_GRASS 
        !Config Desc  = maximum time during which reserve is used (grasses) 
        !Config If    = OK_STOMATE 
@@ -1346,6 +1356,16 @@ CONTAINS
        !Config Help  = 
        !Config Units = [-]   
        CALL getin_p('ALPHA_TREE',alpha_tree)
+       !
+!! Arsene 31-07-2014 modifications
+       !Config Key   = ALPHA_SHRUB
+       !Config Desc  = sapling characteristics : alpha's 
+       !Config If    = OK_STOMATE 
+       !Config Def   = 0.8
+       !Config Help  = 
+       !Config Units = [-]   
+       CALL getin_p('ALPHA_SHRUB',alpha_shrub)
+!! Arsene 31-07-2014 modifications
        !-
        !
        !Config Key   = MASS_RATIO_HEART_SAP
@@ -1525,6 +1545,16 @@ CONTAINS
        !Config Units = [m/year]   
        CALL getin_p('MIGRATE_TREE',migrate_tree)
        !
+!! Arsene 31-07-2014 modifications
+       !Config Key   = MIGRATE_SHRUB
+       !Config Desc  = 
+       !Config If    = OK_STOMATE 
+       !Config Def   = 10000.
+       !Config Help  = 
+       !Config Units = [m/year]   
+       CALL getin_p('MIGRATE_SHRUB',migrate_shrub)
+!! Arsene 31-07-2014 modifications
+       !
        !Config Key   = MIGRATE_GRASS
        !Config Desc  = 
        !Config If    = OK_STOMATE 
@@ -1540,6 +1570,16 @@ CONTAINS
        !Config Help  = 
        !Config Units = [m^2/m^2]  
        CALL getin_p('LAI_INITMIN_TREE',lai_initmin_tree)
+       !
+!! Arsene 31-07-2014 modifications
+       !Config Key   = LAI_INITMIN_SHRUB
+       !Config Desc  = 
+       !Config If    = OK_STOMATE 
+       !Config Def   = 0.2
+       !Config Help  = 
+       !Config Units = [m^2/m^2]  
+       CALL getin_p('LAI_INITMIN_SHRUB',lai_initmin_shrub)
+!! Arsene 31-07-2014 modifications
        !
        !Config Key   = LAI_INITMIN_GRASS 
        !Config Desc  = 
@@ -1774,6 +1814,16 @@ CONTAINS
        !Config Units = [-]   
        CALL getin_p('MOIAVAIL_ALWAYS_TREE',moiavail_always_tree)
        !
+!! Arsene 31-07-2014 modifications
+       !Config Key   = MOIAVAIL_ALWAYS_SHRUB
+       !Config Desc  = moisture availability above which moisture tendency doesn't matter 
+       !Config If    = OK_STOMATE 
+       !Config Def   = 0.9 
+       !Config Help  = 
+       !Config Units = [-]   
+       CALL getin_p('MOIAVAIL_ALWAYS_SHRUB',moiavail_always_shrub)
+!! Arsene 31-07-2014 modifications
+       !
        !Config Key   = MOIAVAIL_ALWAYS_GRASS 
        !Config Desc  = moisture availability above which moisture tendency doesn't matter
        !Config If    = OK_STOMATE 
@@ -1965,6 +2015,16 @@ CONTAINS
        !Config Help  = 
        !Config Units = [-] 
        CALL getin_p('LEAF_AGE_CRIT_COEFF',leaf_age_crit_coeff)
+       !
+!! Arsene 25-06-2014 NPPcumul parameters
+       !Config Key   = NPP0_CUMUL_PARAM 
+       !Config Desc  = 
+       !Config If    = OK_STOMATE
+       !Config Def   = 20., 70., 130., 0.01 
+       !Config Help  = 
+       !Config Units = [days,days,days,-] 
+       CALL getin_p('NPP0_CUMUL_PARAM',npp0_c)
+!! Arsene 25-06-2014 NPPcumul
 
        !-
        ! vmax parameters

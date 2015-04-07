@@ -262,7 +262,7 @@ PROGRAM forcesoil
      ENDDO
   ENDIF
   
-  ! 5. Allocate and initialize natural and is_c4
+  ! 5. Allocate and initialize natural and is_c4     & vascular ! Arsene 18-02-2014
   
   ! 5.1 Memory allocation
   l_error = .FALSE.
@@ -274,10 +274,19 @@ PROGRAM forcesoil
      STOP 'natural or is_c4 (forcesoil only) : error in memory allocation'
   ENDIF
 
+  l_error = .FALSE.                   ! Arsene 18-02-2014
+  ALLOCATE(vascular(nvm),stat=ier)    ! Arsene 18-02-2014
+  IF (l_error) THEN
+     STOP 'vascular (forcesoil only) : error in memory allocation'   ! Arsene 18-02-2014
+  ENDIF
+
+
+
   ! 5.2 Initialisation
   DO i = 1, nvm
      natural(i) = natural_mtc(pft_to_mtc(i))
      is_c4(i) = is_c4_mtc(pft_to_mtc(i))
+     vascular(i) = vascular_mtc(pft_to_mtc(i))     ! Arsene 18-02-2014
   ENDDO
 
 !-

@@ -713,6 +713,8 @@ CONTAINS
 
     IF ( is_tree(j) ) THEN
        moiavail_always = moiavail_always_tree
+    ELSEIF ( is_shrub(j) ) THEN                         !! Arsene 31-07-2014 modifications
+       moiavail_always = moiavail_always_shrub          !! Arsene 31-07-2014 modifications
     ELSE
        moiavail_always = moiavail_always_grass
     ENDIF
@@ -889,6 +891,8 @@ CONTAINS
 
     IF ( is_tree(j) ) THEN
        moiavail_always = moiavail_always_tree
+    ELSEIF ( is_shrub(j) ) THEN                         !! Arsene 31-07-2014 modifications
+       moiavail_always = moiavail_always_shrub          !! Arsene 31-07-2014 modifications
     ELSE
        moiavail_always = moiavail_always_grass
     ENDIF
@@ -1109,6 +1113,8 @@ CONTAINS
 
     IF ( is_tree(j) ) THEN
        moiavail_always = moiavail_always_tree
+    ELSEIF ( is_shrub(j) ) THEN                         !! Arsene 31-07-2014 modifications
+       moiavail_always = moiavail_always_shrub          !! Arsene 31-07-2014 modifications
     ELSE
        moiavail_always = moiavail_always_grass
     ENDIF
@@ -1334,6 +1340,8 @@ CONTAINS
 
     IF ( is_tree(j) ) THEN
        moiavail_always = moiavail_always_tree
+    ELSEIF ( is_shrub(j) ) THEN                         !! Arsene 31-07-2014 modifications
+       moiavail_always = moiavail_always_shrub          !! Arsene 31-07-2014 modifications
     ELSE
        moiavail_always = moiavail_always_grass
     ENDIF

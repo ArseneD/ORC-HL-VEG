@@ -34,7 +34,7 @@ MODULE pft_parameters_var
   !
   ! PFT GLOBAL
   !
-  INTEGER(i_std), SAVE :: nvm = 13                               !! Number of vegetation types (2-N, unitless)
+  INTEGER(i_std), SAVE :: nvm = 15        !! Arsene 04-03-2015                !! Number of vegetation types (2-N, unitless)
 !$OMP THREADPRIVATE(nvm)
 
   INTEGER(i_std), ALLOCATABLE, SAVE, DIMENSION(:) :: pft_to_mtc  !! Table of conversion : we associate one pft to one metaclass 
@@ -64,6 +64,9 @@ MODULE pft_parameters_var
   LOGICAL, ALLOCATABLE, SAVE, DIMENSION(:) :: is_tree               !! Is the vegetation type a tree ? (true/false)
 !$OMP THREADPRIVATE(is_tree)
 
+  LOGICAL, ALLOCATABLE, SAVE, DIMENSION(:) :: is_shrub              !! Is the vegetation type a shrub ? (true/false)  !! Arsene 31-07-2014 modifications
+!$OMP THREADPRIVATE(is_shrub)                                                                                        !! Arsene 31-07-2014 modifications
+
   LOGICAL, ALLOCATABLE, SAVE, DIMENSION(:) :: is_deciduous          !! Is PFT deciduous ? (true/false)
 !$OMP THREADPRIVATE(is_deciduous)
 
@@ -78,6 +81,10 @@ MODULE pft_parameters_var
 
   LOGICAL, ALLOCATABLE, SAVE, DIMENSION(:) :: natural               !! natural? (true/false)
 !$OMP THREADPRIVATE(natural)
+
+  LOGICAL, ALLOCATABLE, SAVE, DIMENSION(:) :: vascular               !! vascular? (true/false)   !! Arsene 18-02-2014
+!$OMP THREADPRIVATE(vascular)                                                                    !! Arsene 18-02-2014
+
 !JCADD
   ! Is the vegetation type a managed grassland ?
   LOGICAL,ALLOCATABLE, SAVE, DIMENSION (:) :: is_grassland_manag

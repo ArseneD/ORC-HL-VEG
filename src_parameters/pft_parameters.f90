@@ -17,6 +17,9 @@
 !!
 !! RECENT CHANGE(S): Josefine Ghattas 2013 : The declaration part has been extracted and moved to module pft_parameters_var
 !!
+!!                   Add PFT 14  (New one for non vascular plants - moss & lichen - Arsene)
+!!                   Add PFT 15 (similar to boreal brodleaf trees for shrubs - Arsene)
+!!
 !! REFERENCE(S)	: None
 !!
 !! SVN          :
@@ -128,7 +131,7 @@ CONTAINS
       !! Initialisation of the correspondance table
       IF (nvm == nvmc) THEN
          WRITE(numout,*) 'Message to the user : we will use ORCHIDEE to its standard configuration' 
-         pft_to_mtc = (/ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 /)
+         pft_to_mtc = (/ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 /)
       ELSE
          pft_to_mtc(:) = undef_int
       ENDIF !(nvm  == nvmc)
@@ -287,6 +290,7 @@ CONTAINS
    height_presc(:) = height_presc_mtc(pft_to_mtc(:))
    type_of_lai(:) = type_of_lai_mtc(pft_to_mtc(:))
    natural(:) = natural_mtc(pft_to_mtc(:))
+   vascular(:) = vascular_mtc(pft_to_mtc(:))        !! Arsene 18-02-2014
 !JCADD
       is_grassland_manag(:) = is_grassland_manag_mtc(pft_to_mtc(:))
       is_grassland_cut(:) = is_grassland_cut_mtc(pft_to_mtc(:))
@@ -351,22 +355,27 @@ CONTAINS
    !
    is_tree(:) = .FALSE.
    DO jv = 1,nvm
-      IF ( leaf_tab(jv) <= 2 ) is_tree(jv) = .TRUE.
+      IF ( leaf_tab(jv) == 2 .OR. leaf_tab(jv) == 3 ) is_tree(jv) = .TRUE.       !! Arsene 31-07-2014 modifications
    END DO
-      !
+   !
+   is_shrub(:) = .FALSE.                                                         !! Arsene 31-07-2014 modifications
+   DO jv = 1,nvm                                                                 !! Arsene 31-07-2014 modifications
+      IF ( leaf_tab(jv) == 5 .OR. leaf_tab(jv) == 6 ) is_shrub(jv) = .TRUE.      !! Arsene 31-07-2014 modifications
+   END DO                                                                        !! Arsene 31-07-2014 modifications
+   !   
    is_deciduous(:) = .FALSE.
    DO jv = 1,nvm
-      IF ( is_tree(jv) .AND. (pheno_model(jv) /= "none") ) is_deciduous(jv) = .TRUE.
+      IF ( (is_tree(jv) .OR. is_shrub(jv)) .AND. (pheno_model(jv) /= "none") ) is_deciduous(jv) = .TRUE.     !! Arsene 31-07-2014 modifications
    END DO
    !
    is_evergreen(:) = .FALSE.
    DO jv = 1,nvm
-      IF ( is_tree(jv) .AND. (pheno_model(jv) == "none") ) is_evergreen(jv) = .TRUE.
+      IF ( (is_tree(jv) .OR. is_shrub(jv)) .AND. (pheno_model(jv) == "none") ) is_evergreen(jv) = .TRUE.     !! Arsene 31-07-2014 modifications
    END DO
    !
    is_needleleaf(:) = .FALSE.
    DO jv = 1,nvm
-      IF ( leaf_tab(jv) == 2 ) is_needleleaf(jv) = .TRUE.
+      IF ( leaf_tab(jv) == 3 .OR. leaf_tab(jv) == 6) is_needleleaf(jv) = .TRUE.                              !! Arsene 31-07-2014 modifications
    END DO
 
 
@@ -599,12 +608,31 @@ CONTAINS
       STOP 'pft_parameters_alloc'
    END IF
 
+!! Arsene 31-07-2014 modifications
+   ALLOCATE(is_shrub(nvm),stat=ier)
+   l_error = l_error .OR. (ier /= 0)
+   IF (l_error) THEN
+      WRITE(numout,*) ' Memory allocation error for is_shrub. We stop. We need nvm words = ',nvm
+      STOP 'pft_parameters_alloc'
+   END IF
+!! Arsene 31-07-2014 modifications
+
    ALLOCATE(natural(nvm),stat=ier)
    l_error = l_error .OR. (ier /= 0)
    IF (l_error) THEN
       WRITE(numout,*) ' Memory allocation error for natural. We stop. We need nvm words = ',nvm
       STOP 'pft_parameters_alloc'
    END IF
+
+!! Arsene 18-02-2014
+   ALLOCATE(vascular(nvm),stat=ier)
+   l_error = l_error .OR. (ier /= 0)
+   IF (l_error) THEN
+      WRITE(numout,*) ' Memory allocation error for vascular. We stop. We need nvm words = ',nvm
+      STOP 'pft_parameters_alloc'
+   END IF
+!! Arsene 18-02-2014
+
 !JCADD
    ALLOCATE(is_grassland_manag(nvm),stat=ier)
    l_error = l_error .OR. (ier .NE. 0)
@@ -1707,25 +1735,31 @@ CONTAINS
       
       !! Redefine the values for is_tree, is_deciduous, is_needleleaf, is_evergreen if values have been modified
       !! in run.def
+      !! Redefine the values for is_shrub !! Arsene 31-07-2014 modifications
 
       is_tree(:) = .FALSE.
       DO jv = 1,nvm
-         IF ( leaf_tab(jv) <= 2 ) is_tree(jv) = .TRUE.
+         IF ( leaf_tab(jv) == 2 .OR. leaf_tab(jv) == 3 ) is_tree(jv) = .TRUE.       !! Arsene 31-07-2014 modifications
       END DO
+      !
+      is_shrub(:) = .FALSE.                                                          !! Arsene 31-07-2014 modifications
+      DO jv = 1,nvm                                                                  !! Arsene 31-07-2014 modifications
+         IF ( leaf_tab(jv) == 5 .OR. leaf_tab(jv) == 6 ) is_shrub(jv) = .TRUE.       !! Arsene 31-07-2014 modifications
+      END DO                                                                         !! Arsene 31-07-2014 modifications
       !
       is_deciduous(:) = .FALSE.
       DO jv = 1,nvm
-         IF ( is_tree(jv) .AND. (pheno_model(jv) /= "none") ) is_deciduous(jv) = .TRUE.
+         IF ( (is_tree(jv) .OR. is_shrub(jv)) .AND. (pheno_model(jv) /= "none") ) is_deciduous(jv) = .TRUE.       !! Arsene 31-07-2014 modifications
       END DO
       !
       is_evergreen(:) = .FALSE.
       DO jv = 1,nvm
-         IF ( is_tree(jv) .AND. (pheno_model(jv) == "none") ) is_evergreen(jv) = .TRUE.
+         IF ( (is_tree(jv) .OR. is_shrub(jv)) .AND. (pheno_model(jv) == "none") ) is_evergreen(jv) = .TRUE.       !! Arsene 31-07-2014 modifications
       END DO
       !
       is_needleleaf(:) = .FALSE.
       DO jv = 1,nvm
-         IF ( leaf_tab(jv) == 2 ) is_needleleaf(jv) = .TRUE.
+         IF ( leaf_tab(jv) == 3 .OR. leaf_tab(jv) == 6 ) is_needleleaf(jv) = .TRUE.                               !! Arsene 31-07-2014 modifications
       END DO
 !JCADD
      !Config  Key  = IS_GRASSLAND_MANAG
@@ -1793,6 +1827,16 @@ CONTAINS
       !Config Help  =
       !Config Units = [BOOLEAN]
       CALL getin_p('NATURAL',natural)
+
+!! Arsene 18-02-2014
+      !Config Key   = VASCULAR
+      !Config Desc  = vascular? 
+      !Config if    = OK_SECHIBA, OK_STOMATE
+      !Config Def   = n, y, y, y, y, y, y, y, y, y, y, y, y, n, y 
+      !Config Help  =
+      !Config Units = [BOOLEAN]
+      CALL getin_p('VASCULAR',vascular)
+!! Arsene 18-02-2014
 
       
       !
@@ -2970,7 +3014,9 @@ CONTAINS
    IF (ALLOCATED(height_presc)) DEALLOCATE(height_presc)   
    IF (ALLOCATED(type_of_lai)) DEALLOCATE(type_of_lai)
    IF (ALLOCATED(is_tree)) DEALLOCATE(is_tree)
+   IF (ALLOCATED(is_shrub)) DEALLOCATE(is_shrub)        !! Arsene 31-07-2014 modifications
    IF (ALLOCATED(natural)) DEALLOCATE(natural)
+   IF (ALLOCATED(vascular)) DEALLOCATE(vascular)        !! Arsene 18-02-2014
    IF (ALLOCATED(is_deciduous)) DEALLOCATE(is_deciduous)
    IF (ALLOCATED(is_evergreen)) DEALLOCATE(is_evergreen)
    IF (ALLOCATED(is_needleleaf)) DEALLOCATE(is_needleleaf)

@@ -96,7 +96,7 @@ CONTAINS
   
     SUBROUTINE constraints (npts, dt, &
        t2m_month, t2m_min_daily, when_growthinit, &
-       adapted, regenerate, Tseason)
+       adapted, regenerate, Tseason)  !!, snowdz_min)     !! Arsene 19-08-2014 Add snowdz_min
     
     !! 0. Variable and parameter declaration
     
@@ -107,10 +107,12 @@ CONTAINS
     REAL(r_std), DIMENSION(npts), INTENT(in)        :: t2m_month       !! "Monthly" 2-meter temperature by defualt 
                                                                        !! monthly spans 20 days a (K)
     ! DZ modify: "seasonal" 2-meter temperature (K)
-    REAL(r_std), DIMENSION(npts), INTENT(in)          :: Tseason
+    REAL(r_std), DIMENSION(npts), INTENT(in)        :: Tseason
 
     REAL(r_std), DIMENSION(npts), INTENT(in)        :: t2m_min_daily   !! Daily minimum 2-meter temperature (K)
     REAL(r_std), DIMENSION(npts,nvm), INTENT(in)    :: when_growthinit !! Days since beginning of growing season (days)
+
+!    REAL(r_std), DIMENSION(npts,nsnow), INTENT(in)  :: snowdz_min      !! Min daily snow layer thicknesse     !! Arsene 19-08-2014 Add
 
     !! 0.2 Output variables
 
@@ -125,7 +127,7 @@ CONTAINS
     REAL(r_std)                                     :: tau_regenerate  !! Memory length for regeneration (days)
     REAL(r_std)                                     :: regenerate_min  !! Critical value of "regenerate" below which plant 
                                                                        !! dies (unitless)
-    INTEGER(i_std)                                  :: j               !! Index
+    INTEGER(i_std)                                  :: j, ji           !! Index                               !! Arsene 19-08-2014 Add ji
 !_ ================================================================================================================================
 
     IF (bavard.GE.3) WRITE(numout,*) 'Entering constraints' ! diagnostic level in implimentation
@@ -172,7 +174,9 @@ CONTAINS
 
           !! 2.1.1.2 Frost occured in frost sensitive PFTs
           !          For example, tropical plants will die if frost, below the treshold, occured
-!          ELSE
+
+!          ELSEIF ( .NOT. is_shrub(j) ) THEN                                          !! Arsene 19-08-2014 Change "ELSE" in "ELSEIF"
+
 !
 !             WHERE ( t2m_min_daily(:) .LT. tmin_crit(j) )
 !                adapted(:,j) = zero
@@ -182,13 +186,23 @@ CONTAINS
 !             ! and if the cold shock do not happen too often, it will get forgotten.
 !             ! No reference found for this approach
 !             adapted(:,j) = un - ( un - adapted(:,j) ) * (tau_adapt- dt)/tau_adapt 
+
+!!! Arsene 19-08-2014 START if shrub
+!          ELSE
+!             DO ji = 1, npts
+!                IF ( SUM(snowdz_min(ji,:)) .LT. min_stomate .AND. t2m_min_daily(ji)  .LT. tmin_crit(j) ) THEN
+!                    adapted(ji,j) = zero
+!                ENDIF
+!             ENDDO
+!             adapted(:,j) = un - ( un - adapted(:,j) ) * (tau_adapt- dt)/tau_adapt !! Arsene 19-08-2014 S'il y a de la neige, il reste adapté et on regarde dedans
+!!! Arsene 19-08-2014 END if shrub
              
           ENDIF
 
           !! 2.1.2 Seasonal trees die if leafage does not show a clear seasonality.
           !        Seasonal trees die if leafage does not show a clear seasonality
           !        (i.e. if the start of the growing season is never detected).
-          IF ( is_tree(j) .AND. ( pheno_model(j) .NE. 'none' ) ) THEN
+          IF ( ( is_tree(j) .OR. is_shrub(j) ) .AND. ( pheno_model(j) .NE. 'none' ) ) THEN         !! Arsene 31-07-2014 modifications OK
 
              WHERE ( when_growthinit(:,j) .GT. too_long*one_year .AND. when_growthinit(:,j).LT. large_value)
                 adapted(:,j) = zero
@@ -203,6 +217,11 @@ CONTAINS
 
               WHERE ( Tseason(:) .LT. (7+ZeroCelsius) )
                         adapted(:,j)=zero
+              ENDWHERE
+
+          ELSEIF ( is_shrub(j) ) THEN                           !! Arsene 03-03-2014
+              WHERE ( Tseason(:) .LT. (4+ZeroCelsius) )         !! Arsene 03-03-2014   Care : How adapt for shrub ?
+                        adapted(:,j)=zero                       !! Arsene 03-03-2014   CARE : If not, on kill ?...
               ENDWHERE
 
           ENDIF

@@ -536,7 +536,7 @@ CONTAINS
              & gtemp,gthick,gpkappa,zdz1_soil,zdz2_soil,cgrnd_soil,dgrnd_soil,vevapsno, &
              & snow_age,snow_nobio_age,snow_nobio,snowrho,snowgrain,snowdz,snowtemp,snowheat,snowliq,&
              & snow,subsnownobio,grndflux,snowmelt,tot_melt,soilflxresid,subsinksoil,snowflx,snowcap,&
-             & pkappa_snow,lambda_snow,cgrnd_snow,dgrnd_snow,temp_sol_add)
+             & pkappa_snow,lambda_snow,cgrnd_snow,dgrnd_snow,temp_sol_add, veget_max)  !! Arsene 04-03-2014 Add veget_max for snowcompact
     ELSE
        CALL hydrolc_snow(kjpindex, dtradia, precip_rain, precip_snow, temp_sol_new, soilcap, &
             frac_nobio, totfrac_nobio, vevapnu, vevapsno, snow, snow_age, snow_nobio, snow_nobio_age, &

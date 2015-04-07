@@ -256,7 +256,7 @@ CONTAINS
 
        !! 2.1.4 Reserve biomass
        !        Use aboveground temperature for trees and belowground temeperature for grasses
-       IF ( is_tree(j) ) THEN
+       IF ( is_tree(j) .OR. is_shrub(j) ) THEN      !! Arsene 31-07-2014 modifications - En accord par principe --> reservent non souterraines
           t_maint_radia(:,icarbres) = t2m(:)
        ELSE
           t_maint_radia(:,icarbres) = t_root(:,j)

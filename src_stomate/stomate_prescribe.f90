@@ -89,7 +89,7 @@ CONTAINS
 
  SUBROUTINE prescribe (npts, &
                         veget_max, dt, PFTpresent, everywhere, when_growthinit, &
-                        biomass, leaf_frac, ind, cn_ind, co2_to_bm)
+                        biomass, leaf_frac, ind, cn_ind, co2_to_bm, height)   !! Arsene 04-09-2014 - add height
 
 !! 0. Parameters and variables declaration
 
@@ -113,6 +113,7 @@ CONTAINS
                                                                                  !! reserve at the beginning of the
                                                                                  !! growing season @tex ($gC m^{-2} 
                                                                                  !! of total ground/day$) @endtex 
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(inout)           :: height          !! Height of vegetation (m) 
 
     !! 0.4 Local variables
 
@@ -120,7 +121,8 @@ CONTAINS
     REAL(r_std), DIMENSION(npts)                              :: woodmass        !! woodmass (gC/(m^2 of ground))
     REAL(r_std), DIMENSION(npts)                              :: woodmass_ind    !! woodmass of an individual (gC)
     INTEGER(i_std)                                            :: i,j             !! index (unitless)
-
+    REAL(r_std)                                               :: height2, woodmass2, ratio         !! local height (m) !! Arsene 04-09-2014
+    REAL(r_std), DIMENSION(nvm)                               :: mindia !! Arsene 29-10-2014
 !_ ================================================================================================================================
 
     DO j = 2,nvm
@@ -135,7 +137,7 @@ CONTAINS
 
         cn_ind(:,j) = zero
 
-        IF ( is_tree(j) ) THEN
+        IF ( is_tree(j) .OR. is_shrub(j) ) THEN        !! Arsene 31-07-2014 modifications 
 
           !
           !! 1.1 treat for trees
@@ -154,56 +156,122 @@ CONTAINS
 
               IF ( woodmass(i) .GT. min_stomate ) THEN
 
-                !! 1.1.2 calculate critical individual density
-!?? the logic for 1.1.3 and 1.1.2 is strange, it should be the case that first to calculate critical woodmass per individual,
-!?? then calculate critical density.
+!!!!!!!!!!!!!!!!!!!!!!!!!!
+!! Arsene 30-10-2014 -START- New Version... Because the version before was tooooooooo full of bugs
 
+                ratio=2.
+                IF ( is_shrub(j) .AND. ind(i,j).GT.min_stomate) THEN
 
-                ! how to derive the following equation:
-                ! first, TreeHeight=pipe_tune2 * Diameter^{pipe_tune3}
-                ! we assume the tree is an ideal cylinder, so it volume is: Volume = pi*(Dia/2)^2*Height = pi/4 * Dia * pipe_tune2*Dia^{pipe_tune3} 
-                !                                                                  = pi/4 * pipe_tune2 * Dia^{2+pipe_tune3}
-                ! last, the woodmass_per_individual = pipe_density * Volume = pipe_density*pi/4.*pipe_tune2 * Dia^{2+pipe_tune3}             
-                ind(i,j) = woodmass(i) / &
-                           ( pipe_density*pi/4.*pipe_tune2 * maxdia(j)**(2.+pipe_tune3) )
+                !
+                !! 1. We have to compare the height save and the height from number of ind ==> height2 
+                !
 
-                !! 1.1.3 individual biomass corresponding to this critical density of individuals
+                  height2 = pipe_tune2 * (veget_max(i,j) / (ind(i,j) * pipe_tune1))**(pipe_tune3/pipe_tune_exp_coeff)
 
-                woodmass_ind(i) = woodmass(i) / ind(i,j)
+                  !! Intermediate Calcul
+                  !cn_ind(i,j) = veget_max(i,j) / ind(i,j)
+                  !pipe_tune1 * dia(i) ** pipe_tune_exp_coeff = veget_max(i,j) / ind(i,j)
+                  !dia(i) = (veget_max(i,j) / (ind(i,j) * pipe_tune1))**(1/pipe_tune_exp_coeff)
 
-                !! 1.1.4 calculate stem diameter per individual tree
+                  !With relation:
+                  ! (1) ind(i,j) = veget_max(i,j) / cn_ind(i,j) WITHOUT DGVM veget_max=cst
+                  ! (2) cn_ind(i,j) = pipe_tune1 * dia(i) ** pipe_tune_exp_coeff
+                  ! (3) height2 = pipe_tune2 * dia(i)**(pipe_tune3)
 
-                dia(i) = ( woodmass_ind(i) / ( pipe_density * pi/4. * pipe_tune2 ) ) ** &
-                         ( un / ( 2. + pipe_tune3 ) )
+                !
+                !! 2. If the relation is not true, that mean the shrub was cut
+                !
+                !!      Care ! Can also be if height > height_presc(j) or if height < height min (from mindia)
+                !!           => for the second point, we need height min (from mindia) < height min (cut on snow) -> stomate_lpj
 
-                !! 1.1.5 calculate provisional tree crown area for per individual tree
+                  IF ((height2-height(i,j)) .GT. 0.001 .AND. height(i,j).LT.height_presc(j)  &
+                              .AND. height(i,j).GT.(height_presc(j)/5) ) THEN !! .AND. height(i,j).GT.minheight) ??
+!write(*,*) "on redimensionne"
+!read(*,*)
+                  !! 3. In this case the shrub maintain the basis of its cylinder, but the lost in only on height
+                  !!      That mean: ind=cst & cn_ind=cst & dia=cst. We have ind ==> we can recalculate the both other
+                  !
 
-                ! equation: CrownArea=pipe_tune1 * Diameter^{1.6}
-                cn_ind(i,j) = pipe_tune1 * MIN( maxdia(j), dia(i) ) ** pipe_tune_exp_coeff
+                    cn_ind(i,j) = veget_max(i,j) / ind(i,j)
+                    dia = (cn_ind(i,j)/pipe_tune1)**(1/pipe_tune_exp_coeff)
 
-                !! 1.1.6 If total tree crown area for this tree PFT exceeds its veget_max, tree density is recalculated.
+                  !
+                  !! 4. With a homogeneous vertical density on shrub, the lost of biomass is a linear fonction with height
+                  !!      We can calcul the height with simple comparison between theorical woodmass (with the dia) and the woodmass
+                  !
+                    woodmass2 = ind(i,j) * pipe_density*pi/4.*pipe_tune2 * (height2/(pipe_tune2))**((2.+pipe_tune3)/ pipe_tune3)
 
-                IF ( cn_ind(i,j) * ind(i,j) .GT. 1.002* veget_max(i,j) ) THEN
+                  !!      After we deduce ce ratio between bot and we calculate the new height
+                    ratio=woodmass(i)/woodmass2
+                    height(i,j)=ratio*height2
 
-                  ind(i,j) = veget_max(i,j) / cn_ind(i,j)
-
-                ELSE
-
-                   ind(i,j) = ( veget_max(i,j) / &
-                        &     ( pipe_tune1 * (woodmass(i)/(pipe_density*pi/4.*pipe_tune2)) &
-                        &     **(pipe_tune_exp_coeff/(2.+pipe_tune3)) ) ) &
-                        &     ** (1./(1.-(pipe_tune_exp_coeff/(2.+pipe_tune3))))
-                   
-
-                  woodmass_ind(i) = woodmass(i) / ind(i,j)
-
-                  dia(i) = ( woodmass_ind(i) / ( pipe_density * pi/4. * pipe_tune2 ) ) ** &
-                           ( un / ( 2. + pipe_tune3 ) )
-
-                  ! final crown area
-                  cn_ind(i,j) = pipe_tune1 * MIN( maxdia(j), dia(i) ) ** pipe_tune_exp_coeff
-
+                  ENDIF
                 ENDIF
+
+                IF ( ratio .GE. 1. ) THEN
+                   !
+                   !! 5. Calculate the provisionnal vegetation area
+                   !
+
+                   !! 5.1 Calculate stem diameter per individual tree (dia)        !! Arsene 03-09-2014
+                   ! With min and max dia (to don't have no realistique value when DGVM is desactivate)
+                   !dia(i) = ( height(i,j) / pipe_tune2 ) **(1/ pipe_tune3 ) !! Arsene 29-10-2014
+                   maxdia(j)= (height_presc(j)/(pipe_tune2))**(1/ pipe_tune3)
+                   mindia(j)= (height_presc(j)/(10*pipe_tune2))**(1/ pipe_tune3)       !! Arsene 02-04-2015 Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
+
+                   dia(i) = MAX(MIN( maxdia(j), ( woodmass(i) / (veget_max(i,j) * pipe_density*pi/4. &
+                         & *pipe_tune2/pipe_tune1) )**(1/(2.+pipe_tune3-pipe_tune_exp_coeff)) ),mindia(j))
+
+                   !! Because 1. ind(i,j) = woodmass(i) / ( pipe_density*pi/4.*pipe_tune2 * dia(i)**(2.+pipe_tune3) ) 
+                   !!         2. cn_ind(i,j) * ind(i,j) =  veget_max(i,j) because without DGVM
+                   !!         3. cn_ind(i,j) = pipe_tune1 * MIN( maxdia(j), dia(i) ) ** pipe_tune_exp_coeff avec MIN( maxdia(j), dia(i)) = dia(i)
+                   !!         4. simplification
+                   !!         5. dia(i) = MAX( (MIN( maxdia(j), dia(i))), mindia )
+
+                   !! 5.2 So, 1. give:
+                   ind(i,j) = woodmass(i) / &
+                           ( pipe_density*pi/4.*pipe_tune2 * dia(i)**(2.+pipe_tune3) )
+
+                   !! 5.3 Individual biomass corresponding to this critical density of individuals
+
+                   woodmass_ind(i) = woodmass(i) / ind(i,j)
+                   !So : woodmass_ind(i) =  ( pipe_density*pi/4.*pipe_tune2 * dia(i)**(2.+pipe_tune3) )
+
+
+                   !! 5.4 Calculate provisional tree crown area for per individual tree
+
+                   ! equation: CrownArea=pipe_tune1 * Diameter^{1.6}
+                   cn_ind(i,j) = pipe_tune1 * MIN( maxdia(j), dia(i) ) ** pipe_tune_exp_coeff
+
+                   !
+                   !! 6. If total tree crown area for this tree PFT exceeds its veget_max, tree density is recalculated.
+                   !
+  
+                   IF ( cn_ind(i,j) * ind(i,j) .GT. 1.002* veget_max(i,j) ) THEN
+                       ind(i,j) = veget_max(i,j) / cn_ind(i,j)
+                   ELSEIF ( cn_ind(i,j) * ind(i,j) .LT. 1.002* veget_max(i,j) ) THEN
+                       cn_ind(i,j) = veget_max(i,j) / ind(i,j)
+                   ENDIF
+
+                   !
+                   !! 7. In this case, we recalculate the height
+                   !
+
+                   woodmass_ind(i) = woodmass(i) / ind(i,j)
+
+                   dia(i) = ( woodmass_ind(i) / ( pipe_density * pi/4. * pipe_tune2 ) ) ** &
+                              ( un / ( 2. + pipe_tune3 ) )
+
+                   height(i,j)=pipe_tune2 * dia(i)**(pipe_tune3)
+
+                   IF ( height(i,j) .GT. height_presc(j) ) THEN
+                       height(i,j)=height_presc(j)
+                   ENDIF
+
+                 ENDIF  !! Arsene 30-10-2014
+
+!! Arsene 30-10-2014 -END- New Version... Because the version before was tooooooooo full of bugs
+!!!!!!!!!!!!!!!!!!!!!!!!!!
 
               ELSE !woodmas=0  => impose some value
 
@@ -275,7 +343,7 @@ CONTAINS
             !!     then set all the leaf age as 1.
             !
             ! if tree PFT and biomass too small, prescribe the biomass to a value.
-            IF ( is_tree(j) .AND. &
+            IF ( ( is_tree(j) .OR. is_shrub(j)) .AND. &           !! Arsene 31-07-2014 modifications - A verif
                  ( veget_max(i,j) .GT. min_stomate ) .AND. &
                  ( SUM( biomass(i,j,:,icarbon) ) .LE. min_stomate ) ) THEN
                !!? here the code is redundant, as "veget_max(i,j) .GT. min_stomate" is already met in the above if condition.
@@ -308,11 +376,15 @@ CONTAINS
             !! 2.2 for grasses, set only the carbon reserve pool to "sapling" carbon reserve pool.
             !!     and set all leaf age to 1.
 
-            IF ( ( .NOT. is_tree(j) ) .AND. &
+            IF ( (( .NOT. is_tree(j) ) .AND. (.NOT. is_shrub(j)) ) .AND. &          !! Arsene 31-07-2014 modifications
                  ( veget_max(i,j) .GT. min_stomate ) .AND. &
                  ( SUM( biomass(i,j,:,icarbon) ) .LE. min_stomate ) ) THEN
 
               biomass(i,j,icarbres,:) = bm_sapl(j,icarbres,:) * ind(i,j) / veget_max(i,j)
+
+              IF ( .NOT. vascular(j)) THEN  !! Arsene 18-04-2014
+                 biomass(i,j,ileaf,:) = bm_sapl(j,ileaf,:) * ind(i,j) / veget_max(i,j)
+              ENDIF
 
               ! set leaf age classes
               leaf_frac(i,j,:) = zero

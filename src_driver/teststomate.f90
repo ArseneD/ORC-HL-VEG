@@ -112,7 +112,8 @@ PROGRAM teststomate
   REAL(r_std),DIMENSION(:),ALLOCATABLE      :: zz_deep
   REAL(r_std),DIMENSION(:),ALLOCATABLE      :: zz_coef_deep
   REAL(r_std),DIMENSION(:,:,:),ALLOCATABLE      :: soilc_total
-  REAL(r_std),DIMENSION(:,:),ALLOCATABLE      :: snowdz
+  REAL(r_std),DIMENSION(:,:),ALLOCATABLE      :: snowdz                             ! Arsene - Use by - to CALL slowproc_main
+  REAL(r_std),DIMENSION(:,:),ALLOCATABLE      :: snowtemp                           !! snow temperature profile (K)  !! Arsene 18-11-2014 Add for CALL slowproc_main
   REAL(r_std),DIMENSION(:,:),ALLOCATABLE      :: snowrho
   INTEGER(i_std) :: hist_stomate_deepsoil
   INTEGER(i_std)     :: hist_stomate_snow
@@ -681,8 +682,10 @@ PROGRAM teststomate
   a_er = a_er .OR. (ier.NE.0)
   ALLOCATE (soilc_total(kjpindex,ndeep,nvm),stat=ier)
   a_er = a_er .OR. (ier.NE.0)
-  ALLOCATE (snowdz(kjpindex,nsnow),stat=ier)
+  ALLOCATE (snowdz(kjpindex,nsnow),stat=ier)    ! Arsene - Use By
   a_er = a_er .OR. (ier.NE.0)
+  ALLOCATE (snowtemp(kjpindex,nbdl),stat=ier)   !! Arsene 18-11-2014 Add
+  a_er = a_er .OR. (ier.NE.0)                   !! Arsene 18-11-2014 Add
   ALLOCATE (snowrho(kjpindex,nsnow),stat=ier)
   a_er = a_er .OR. (ier.NE.0)
   IF (a_er) THEN
@@ -708,6 +711,8 @@ PROGRAM teststomate
        SIZE(t2m_min)*KIND(t2m_min) + &
        SIZE(temp_sol)*KIND(temp_sol) + &
        SIZE(soiltemp)*KIND(soiltemp) + &
+       SIZE(snowtemp)*KIND(snowtemp) + &  !! Arsene 18-11-2014 Add to be conform with structure, but why ?
+       SIZE(snowdz)*KIND(snowdz) + &      !! Arsene 18-11-2014 Add to be conform with structure, but why ? no snowrho ???
        SIZE(soilhum)*KIND(soilhum) + &
        SIZE(precip_rain)*KIND(precip_rain) + &
        SIZE(precip_snow)*KIND(precip_snow) + &
@@ -1043,7 +1048,7 @@ PROGRAM teststomate
  &   tdeep, hsdeep_long, snow, heat_Zimov, pb, &
  &   sfluxCH4_deep, sfluxCO2_deep, &
  &   thawed_humidity, depth_organic_soil, zz_deep, zz_coef_deep, &
- &   soilc_total,snowdz,snowrho)
+ &   soilc_total,snowdz,snowrho, snowtemp)    !! Arsene 18-11-2014 Add snowtemp (and need snowdz)
   ! correct date
 
 
@@ -1093,6 +1098,10 @@ PROGRAM teststomate
      temp_sol(:) = tsurf_daily_fm(:,iisf)
      soiltemp(:,:) = tsoil_daily_fm(:,:,iisf)
      soilhum(:,:) = soilhum_daily_fm(:,:,iisf)
+     snowtemp(:,1) = t2m(:)                      !! Arsene 18-11-2014 Add
+     snowtemp(:,2) = (soiltemp(:,1)+t2m(:))/2    !! Arsene 18-11-2014 Add
+     snowtemp(:,3) = soiltemp(:,1)               !! Arsene 18-11-2014 Add
+     snowdz(:,:) = zero                          !! Arsene 18-11-2014 Add
      precip_rain(:) = precip_fm(:,iisf)
      gpp_x(:,:) = gpp_daily_fm(:,:,iisf)
      veget_force_x(:,:) = veget_fm(:,:,iisf)
@@ -1134,7 +1143,7 @@ PROGRAM teststomate
  &   tdeep, hsdeep_long, snow, heat_Zimov, pb, &
  &   sfluxCH4_deep, sfluxCO2_deep, &
  &   thawed_humidity, depth_organic_soil, zz_deep, zz_coef_deep, &
- &   soilc_total,snowdz,snowrho)
+ &   soilc_total,snowdz,snowrho, snowtemp)    !! Arsene 18-11-2014 Add snowtemp (and need snowdz)
      day_counter = one_day - dt_force
   ENDDO ! end of the time loop
 
@@ -1204,7 +1213,7 @@ PROGRAM teststomate
  &   tdeep, hsdeep_long, snow, heat_Zimov, pb, &
  &   sfluxCH4_deep, sfluxCO2_deep, &
  &   thawed_humidity, depth_organic_soil, zz_deep, zz_coef_deep, &
- &   soilc_total,snowdz,snowrho)
+ &   soilc_total,snowdz,snowrho, snowtemp)    !! Arsene 18-11-2014 Add snowtemp (and need snowdz)
 !-
 ! close files
 !-

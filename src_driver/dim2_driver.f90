@@ -1771,5 +1771,6 @@ PROGRAM driver
 
 !-
   WRITE(numout,*) 'END of dim2_driver'
+  WRITE(*,*) 'END of dim2_driver. ===> End of ORCHIDEE MICT'    ! Arsene 17-02-2014 Important to see on screen (or Oar.out file)
 !---------------
 END PROGRAM driver

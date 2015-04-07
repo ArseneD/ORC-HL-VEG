@@ -351,7 +351,7 @@ CONTAINS
        ! will be updated after fire. The fraction of tree individuals that are 
        ! supposed to die in fire is the fire fraction multiplied by the tree PFT fire 
        ! resistance which reflect survivorship of different tree PFTs during fire.  
-       IF ( is_tree(j) ) THEN
+       IF ( is_tree(j) .OR. is_shrub(j) ) THEN   !! Arsene 31-07-2014 modifications OK
 
           !! 4.1.1 Disturban,ce factor for trees 
           !        Trees are disturbed over the whole year. A resistance factor is  
@@ -382,7 +382,7 @@ CONTAINS
           ! for tree PFT, all biomass compartments are burned.
           ! for grass biomass compartments, all are burned except root and carbon reserve
           ! IF concerning PFT is tree; OR (the PFT is grass, but not root or carbon reserve biomass); then it's burned.
-          IF ( .NOT. ( ( .NOT. is_tree(j) ) .AND. ( ( k.EQ.iroot ) .OR. ( k.EQ.icarbres ) ) ) ) THEN
+          IF ( .NOT. ( ( .NOT. is_tree(j)  .OR. .NOT. is_shrub(j) ) .AND. ( ( k.EQ.iroot ) .OR. ( k.EQ.icarbres ) ) ) ) THEN  !! Arsene 31-07-2014 modifications ok
 
              !! 4.2.1 Fraction to the atmosphere.
              co2_fire(:,j) =  co2_fire(:,j)+ biomass(:,j,k,icarbon) * fire_disturb(:) * co2frac(k) / dt
@@ -423,7 +423,7 @@ CONTAINS
           DO k = 1, nparts
 
              ! **2
-             IF ( .NOT. ( ( .NOT. is_tree(j) ) .AND. ( ( k.EQ.iroot ) .OR. ( k.EQ.icarbres) ) ) ) THEN
+             IF ( .NOT. ( ( .NOT. is_tree(j)  .OR. .NOT. is_shrub(j)) .AND. ( ( k.EQ.iroot ) .OR. ( k.EQ.icarbres) ) ) ) THEN
                 
                 biomass(:,j,k,m) = ( un - fire_disturb(:) ) * biomass(:,j,k,m)
                 
@@ -435,7 +435,7 @@ CONTAINS
 
 
        !! 4.3.2 If vegetation is dynamic, then decrease the density of tree individuals.
-       IF ( (control%ok_dgvm .OR. .NOT.lpj_gap_const_mort) .AND. is_tree(j) ) THEN
+       IF ( (control%ok_dgvm .OR. .NOT.lpj_gap_const_mort) .AND. ( is_tree(j) .OR. is_shrub(j) )) THEN  !! Arsene 31-07-2014 modifications  Quite ok : fire burn all shrub or not....
 
           firedeath(:,j) = fire_disturb(:) / dt
 

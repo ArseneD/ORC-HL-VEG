@@ -24,7 +24,7 @@ CONTAINS
              gtemp,gthick,gpkappa,zdz1_soil,zdz2_soil,cgrnd_soil,dgrnd_soil,vevapsno,&
              snow_age,snow_nobio_age,snow_nobio,snowrho,snowgrain,snowdz,snowtemp,snowheat,snowliq,&
              snow,subsnownobio,grndflux,snowmelt,tot_melt,soilflxresid,subsinksoil,snowflx,snowcap,&
-             pkappa_snow,lambda_snow,cgrnd_snow,dgrnd_snow,temp_sol_add)
+             pkappa_snow,lambda_snow,cgrnd_snow,dgrnd_snow,temp_sol_add,veget_max)  !! Arsene 04-03-2015 Add veget_max
 
     !! 0. Variable and parameter declaration
 
@@ -55,6 +55,9 @@ CONTAINS
     REAL(r_std), DIMENSION (kjpindex),INTENT(inout)             :: soilflxresid
     REAL(r_std),DIMENSION (kjpindex), INTENT(in)             :: gthick           !! First soil layer thickness
     REAL(r_std),DIMENSION (kjpindex), INTENT(in)             :: gpkappa          !! First soil conductivity
+
+    REAL(r_std),DIMENSION(kjpindex,nvm),INTENT (in)          :: veget_max     !! Arsene 14-08-2014 Add veget_max  !! Max. fraction of vegetation type (LAI -> infty)
+
 
     !! 0.2 Output fields
 
@@ -135,7 +138,7 @@ CONTAINS
         END DO
 
         ! 2.5 snow compaction
-        CALL explicitsnow_compactn(kjpindex,dtradia,snowtemp,snowrho,snowdz)
+        CALL explicitsnow_compactn(kjpindex,dtradia,snowtemp,snowrho,snowdz,veget_max)    !! Arsene 14-08-2014 Add veget_max
         ! Update snow heat 
         DO ji = 1, kjpindex
               snowheat(ji,:) = snow3lheat_1d(snowliq(ji,:),snowrho(ji,:),snowdz(ji,:),snowtemp(ji,:))
@@ -584,13 +587,16 @@ CONTAINS
 !================================================================================================================================
 
 
-   SUBROUTINE explicitsnow_compactn(kjpindex,dtradia,snowtemp,snowrho,snowdz)
+   SUBROUTINE explicitsnow_compactn(kjpindex,dtradia,snowtemp,snowrho,snowdz,veget_max)    !! Arsene 14-08-2014 Add veget_max
 
          !! 0.1 Input variables
 
          INTEGER(i_std),INTENT(in)                                 :: kjpindex         !! Domain size
          REAL(r_std),INTENT(in)                                    :: dtradia          !! Time step in seconds
          REAL(r_std),DIMENSION(kjpindex,nsnow),INTENT(in)          :: snowtemp         !! Snow temperature
+
+         REAL(r_std),DIMENSION(kjpindex,nvm),INTENT (in)           :: veget_max        !! Arsene 14-08-2014 Add veget_max 
+                                                                                       !! Max. fraction of vegetation type (LAI -> infty)
 
          !! 0.2 Output variables
 
@@ -601,23 +607,50 @@ CONTAINS
 
          !! 0.4 Local variables
 
-         REAL(r_std),DIMENSION(kjpindex,nsnow)                     :: zwsnowdz,zsmass,zsnowrho2,zviscocity,zsettle 
+         REAL(r_std),DIMENSION(kjpindex,nsnow)                     :: zwsnowdz,zsmass,snowdz_old  !! zsnowrho2,zviscocity,zsettle !! Arsene 15-08-2014 remove 3 var (redef param)  + add snowdz_old
          REAL(r_std),DIMENSION(kjpindex)                           :: zsmassc          !! cummulative snow mass (kg/m2)
          REAL(r_std),DIMENSION(kjpindex)                           :: snowdepth_crit
-         INTEGER(i_std)                                            :: ji,jj
+         INTEGER(i_std)                                            :: ji,jj,jv         !! Arsene 14-08-2014 add jv
+
+         REAL(r_std),DIMENSION(kjpindex,3)                         :: veget_layer     !! Arsene 14-08-2014  veget_max by layer : grasses + shrubs + trees
+         REAL(r_std),DIMENSION(kjpindex,nsnow,3)                   :: zsettle,zsnowrho2,zviscocity,snowdzz !! Arsene 15-08-2014   Add veget_layer Dependent parameters
+         REAL(r_std)                              :: SNOWCMPCT_V0, SNOWCMPCT_VT, SNOWCMPCT_VR
+         REAL(r_std)                              :: SNOWCMPCT_ACM, SNOWCMPCT_BCM, SNOWCMPCT_CCM, SNOWCMPCT_RHOD
+
 
         !! 1. initialize
 
-        zsnowrho2  = snowrho
-        zsettle(:,:)    = ZSNOWCMPCT_ACM
-        zviscocity(:,:) = ZSNOWCMPCT_V0
+!! old        zsnowrho2  = snowrho
+!! old        zsettle(:,:)    = ZSNOWCMPCT_ACM
+!! old        zviscocity(:,:) = ZSNOWCMPCT_V0
+
+
+        !! Arsene 14-08-2014 START1
+        veget_layer(:,:)=zero
+!        snowdzz(:,:,:)=zero
+        DO ji=1, kjpindex 
+            DO jv=1, nvm
+                IF ( is_tree(jv) ) THEN
+                    veget_layer(ji,3)=veget_layer(ji,3)+veget_max(ji,jv)     !! Trees
+                ELSEIF ( is_shrub(jv) ) THEN
+                    veget_layer(ji,2)=veget_layer(ji,2)+veget_max(ji,jv)     !! Shrubs
+                ELSE
+                    veget_layer(ji,1)=veget_layer(ji,1)+veget_max(ji,jv)     !! Grasse & bare soil
+                ENDIF
+            ENDDO
+        ENDDO
+
+        snowdz_old = snowdz   !! Arsene 15-08-2014 new var
+
+        !! Arsene 14-08-2014 END1 
+
 
         !! 2. Calculating Cumulative snow mass (kg/m2):
 
         DO ji=1, kjpindex
 
 
-            IF (SUM(snowdz(ji,:)) .GT. 0.0) THEN 
+            IF (SUM(snowdz(ji,:)) .GT. min_sechiba ) THEN         !! 03-03-2015 Add min_sechiba
 
               zwsnowdz(ji,:)= snowdz(ji,:)*snowrho(ji,:)
 
@@ -636,36 +669,75 @@ CONTAINS
               !
               DO jj=1,nsnow
                  IF (snowrho(ji,jj) .LT. xrhosmax) THEN
+
+
+!! Arsene 15-08-2014 STAR2 Calcul each snow compaction by vegetation layer
+
+!! Arsene 15-08-2014 : On calcul pour chaque épaisseur de végétation, comme s'il n'y avait qu'un type de végétation.
+!!                     Ensuite on pondére les résultats via les fractions de chaque type de végétation.
+!!                     Globalement, la hauteur et la densitée moyenne prend en compte la proportion de chaque type de veget.
+!!                     Le calcul permet de garder un historique moyen de la végétation présente, mais n'influence pas la masse.
+
+                    DO jv=1,3     !! Arsene 15-08-2014 1:grass&bare-soil 2:shrub 3:tree
+
+                        !
+                        ! Before first: fix constant     !! Arsene 15-08-2014
+                        !  
+
+                        SNOWCMPCT_RHOD=ZSNOWCMPCT_RHOD(jv)
+                        SNOWCMPCT_ACM=ZSNOWCMPCT_ACM(jv)
+                        SNOWCMPCT_BCM=ZSNOWCMPCT_BCM(jv)
+                        SNOWCMPCT_CCM=ZSNOWCMPCT_CCM(jv)
+                        SNOWCMPCT_V0=ZSNOWCMPCT_V0(jv)
+                        SNOWCMPCT_VT=ZSNOWCMPCT_VT(jv)
+                        SNOWCMPCT_VR=ZSNOWCMPCT_VR(jv)
+
             
               !
               ! First calculate settling due to freshly fallen snow: (NOTE:bug here for the snow temperature profile)
               !
-             
-              zsettle(ji,jj)     = ZSNOWCMPCT_ACM*EXP(                                      &
-                                     -ZSNOWCMPCT_BCM*(tp_00-MIN(tp_00,snowtemp(ji,jj)))                      &
-                                     -ZSNOWCMPCT_CCM*MAX(0.0,                                  &
-                                      snowrho(ji,jj)-ZSNOWCMPCT_RHOD))
+
+!! Arsene 15-08-2014  Change zsettle by veget_layer              
+                        zsettle(ji,jj,jv) = SNOWCMPCT_ACM*EXP(                                      &
+                                             -SNOWCMPCT_BCM*(tp_00-MIN(tp_00,snowtemp(ji,jj)))      &
+                                             -SNOWCMPCT_CCM*MAX(0.0,                                &
+                                             snowrho(ji,jj)-SNOWCMPCT_RHOD))
+
+!! Arsene 15-08-2014 Change zviscocity, zsnowrho2, snowdzz by veget_layer 
               !
               ! Snow viscocity:
               !
-              zviscocity(ji,jj)   = ZSNOWCMPCT_V0*EXP( ZSNOWCMPCT_VT*(tp_00-MIN(tp_00,snowtemp(ji,jj))) +        &
-                                  ZSNOWCMPCT_VR*snowrho(ji,jj) )
+
+                        zviscocity(ji,jj,jv) = SNOWCMPCT_V0*EXP( SNOWCMPCT_VT*(tp_00-               &
+                               MIN(tp_00,snowtemp(ji,jj))) +  SNOWCMPCT_VR*snowrho(ji,jj) )
 
               ! Calculate snow density: compaction from weight/over-burden
               ! Anderson 1976 method:
-              zsnowrho2(ji,jj)    = snowrho(ji,jj) + snowrho(ji,jj)*dtradia*(          &
-                                   (cte_grav*zsmass(ji,jj)/zviscocity(ji,jj))                 &
-                                    + zsettle(ji,jj) )
+
+
+                        zsnowrho2(ji,jj,jv)    = snowrho(ji,jj) + snowrho(ji,jj)*dtradia*(          &
+                                      (cte_grav*zsmass(ji,jj)/zviscocity(ji,jj,jv))                 &
+                                      + zsettle(ji,jj,jv) )
+
               ! Conserve mass by decreasing grid thicknesses in response
               ! to density increases
               !
-              snowdz(ji,jj)  = snowdz(ji,jj)*(snowrho(ji,jj)/zsnowrho2(ji,jj))
 
-                 ENDIF
+                        snowdzz(ji,jj,jv)  = snowdz(ji,jj)*(snowrho(ji,jj)/zsnowrho2(ji,jj,jv))
+
+                    ENDDO   !! Arsene 15-08-2014  On recalcule a chaque fois la hauteur de toute la plante en fonction de sa hauteur précédente
+
+                 snowdz(ji,jj) = snowdzz(ji,jj,1)*veget_layer(ji,1) + snowdzz(ji,jj,2)*veget_layer(ji,2) + &
+                          snowdzz(ji,jj,3)*veget_layer(ji,3)
+
+!! Arsene 15-08-2014 END2 Calcul of news snowdz, inflencing by snow compaction in each vegetation layer 
+
+                 ENDIF      !! Arsene 23-09-2014 Limite à laisser ? Ou pas ? ==> Changer en fonction deveget layer ?
+
+                 ! Update density (kg m-3):
+                 snowrho(ji,jj) = snowrho(ji,jj)*snowdz_old(ji,jj)/snowdz(ji,jj)  !! Arsene 15-08-2014 adapt with news variables
+
               ENDDO
-
-              ! Update density (kg m-3):
-              snowrho(ji,:) = zsnowrho2(ji,:)
 
             ENDIF
 

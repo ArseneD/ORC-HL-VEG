@@ -3769,7 +3769,10 @@ CONTAINS
           IF ( control_flags%ok_co2 ) THEN
              CALL histdef(hist_id, 'gsmean', 'mean stomatal conductance', 'umol/m2/s', &
                   & iim,jjm, hori_id, nvm, 1, nvm, vegax_id, 32, avescatter(8), dt,dw)
+             CALL histdef(hist_id, 'gs', 'mean stomatal conductance', 'umol/m2/s', &    !! Arsene 10-05-2014
+                  & iim,jjm, hori_id, nvm, 1, nvm, vegax_id, 32, avescatter(8), dt,dw)  !! Arsene 10-05-2014
           ENDIF
+
           CALL histdef(hist_id, 'humrel', 'Soil moisture stress', '-',  &
                & iim,jjm, hori_id, nvm,1,nvm, vegax_id, 32, avescatter(8), dt,dw)
           !-
@@ -3829,6 +3832,9 @@ CONTAINS
           CALL histdef(hist_id, 'treeFrac', "Tree Cover Fraction", "%", &
                & iim,jjm, hori_id, 1, 1, 1, -99, 32, avescatter(11), dt,dw)
           
+          CALL histdef(hist_id, 'shrubFrac', "Shrub Cover Fraction", "%", &           !! Arsene 31-07-2014 modifications
+               & iim,jjm, hori_id, 1, 1, 1, -99, 32, avescatter(11), dt,dw)           !! Arsene 31-07-2014 modifications
+
           CALL histdef(hist_id, 'grassFrac', "Natural Grass Fraction", "%", &
                & iim,jjm, hori_id, 1, 1, 1, -99, 32, avescatter(11), dt,dw)
           
@@ -5731,6 +5737,23 @@ CONTAINS
             &               TRIM("-                   "), iim,jjm, hist_hori_id, &
             &               nvm,1,nvm, hist_PFTaxis_id,32, ave(3), dt, hist_dt)
 
+!! Arsene 13-05-2014 100/100 Arsene
+       ! monthly moisture stress        !! Arsene 13-05-2014 100/100 Arsene 
+       CALL histdef (hist_id_stom, &
+            &               TRIM("MOISTRESS_month     "), &
+            &               TRIM("monthly moisture stress                           "), &
+            &               TRIM("-                   "), iim,jjm, hist_hori_id, &
+            &               nvm,1,nvm, hist_PFTaxis_id,32, ave(3), dt, hist_dt)
+
+
+       ! dayly moisture stress         !! Arsene 13-05-2014 100/100 Arsene
+       CALL histdef (hist_id_stom, &
+            &               TRIM("MOISTRESS_daily     "), &
+            &               TRIM("dayly moisture stress                             "), &
+            &               TRIM("-                   "), iim,jjm, hist_hori_id, &
+            &               nvm,1,nvm, hist_PFTaxis_id,32, ave(1), dt, hist_dt)
+!! Arsene 13-05-2014 100/100 Arsene
+
        ! Maximum rate of carboxylation                     
        CALL histdef (hist_id_stom, &
             &               TRIM("VCMAX               "), &
@@ -7532,15 +7555,15 @@ CONTAINS
 
     ! Total Primary Deciduous Tree Cover Fraction
     CALL histdef (hist_id_stom_IPCC, &
-         &               TRIM("treeFracPrimDec"), &
-         &               TRIM("Total Primary Deciduous Tree Cover Fraction"), &
+         &               TRIM("woodFracPrimDec"), &                               !! Arsene 31-07-2014 modifications name (old: treeFracPrimDec) ==> shrub+tree
+         &               TRIM("Total Primary Deciduous Wood Cover Fraction"), &   !! Arsene 31-07-2014 modifications name (old: Tree Cover) ==> shrub+tree
          &               TRIM("%"), iim,jjm, hist_hori_id, &
          &               1,1,1, -99,32, ave(1), dt, hist_dt)
 
     ! Total Primary Evergreen Tree Cover Fraction
     CALL histdef (hist_id_stom_IPCC, &
-         &               TRIM("treeFracPrimEver"), &
-         &               TRIM("Total Primary Evergreen Tree Cover Fraction"), &
+         &               TRIM("treeFracPrimEver"), &                              !! Arsene 31-07-2014 modifications name (old: treeFracPrimEver) ==> shrub+tree
+         &               TRIM("Total Primary Evergreen Wood Cover Fraction"), &   !! Arsene 31-07-2014 modifications name (old: [Tree] Cover) ==> shrub+tree 
          &               TRIM("%"), iim,jjm, hist_hori_id, &
          &               1,1,1, -99,32, ave(1), dt, hist_dt)
 

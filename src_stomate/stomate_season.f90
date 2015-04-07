@@ -145,7 +145,8 @@ CONTAINS
 !!                        :: gdd_m5_dormance, :: gdd_midwinter, 
 !!                        :: ncd_dormance, :: ngd_minus5, :: time_lowgpp, 
 !!                        :: time_hum_min, :: hum_min_dormance 
-!!      
+!!                        :: npp0_cumul !! Arsene 25-06-2014 NPPcumul ADD 
+!!
 !! REFERENCES   : 
 !! - Krinner, G., N. Viovy, N. de Noblet-Ducoudre, J. Ogee, J. Polcher, P. 
 !! Friedlingstein, P. Ciais, S. Sitch and I.C. Prentice (2005), A dynamic global
@@ -182,7 +183,8 @@ CONTAINS
        npp_longterm, turnover_longterm, gpp_week, &
        gdd_m5_dormance, gdd_midwinter, ncd_dormance, ngd_minus5, &
        time_hum_min, hum_min_dormance, gdd_init_date , & 
-       gdd_from_growthinit, herbivores, Tseason, Tseason_length, Tseason_tmp, &
+       gdd_from_growthinit, herbivores, npp0_cumul, &  !! Arsene 25-06-2014 NPPcumul Add npp0_cumul
+       Tseason, Tseason_length, Tseason_tmp, &
        Tmin_spring, Tmin_spring_time, t2m_min_daily, begin_leaves, onset_date, &!)
 !JCADD
        t2m_14, sla_calc)
@@ -304,6 +306,9 @@ CONTAINS
     REAL(r_std), DIMENSION(npts,2), INTENT(inout)          :: gdd_init_date             !! inital date for gdd count
     REAL(r_std), DIMENSION(npts,nvm), INTENT(inout)        :: gdd_from_growthinit       !! growing degree days, threshold 0 deg. C 
                                                                                         !! since beginning of season
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(inout)        :: npp0_cumul                !! Arsene 25-06-2014 NPPcumul
+!! Arsene 25-06-2014 NPPcumul - Variable to count number of days since npp =0 or <0. Could become DIMENSION(npts:nvm) if we add the same for others pft
+
     !pss:+
     REAL(r_std), DIMENSION(npts), INTENT(inout)            :: tsurf_year                !! "annual" surface temperature (K)
     !pss-
@@ -542,6 +547,12 @@ CONTAINS
 
        ENDIF
 
+        !! 1.3.13 "cumul of null or negative" npp (::npp0_cumul):                           !! Arsene 25-06-2014 NPPcumul
+        IF ( ABS( SUM( npp0_cumul(:,2:nvm) ) ) .LT. min_stomate ) THEN                      !! Arsene 25-06-2014 NPPcumul
+           WRITE(numout,*) 'Warning! The cumul of null/negative  NPP is initialized to 0.'  !! Arsene 25-06-2014 NPPcumul
+           npp0_cumul(:,:)=zero                                                             !! Arsene 25-06-2014 NPPcumul
+        ENDIF                                                                               !! Arsene 25-06-2014 NPPcumul
+
        ALLOCATE(cloud(npts))
        cloud(:) = zero
        !
@@ -710,38 +721,62 @@ CONTAINS
     !
     ! calculate Tmin in spring (after onset)
     !
-    WHERE ( Tmin_spring_time(:,8)>0 .AND. (Tmin_spring_time(:,8)<40) )
-       Tmin_spring_time(:,8)=Tmin_spring_time(:,8)+1
-    ELSEWHERE 
-       Tmin_spring_time(:,8)=0
-    ENDWHERE
 
-    WHERE ( Tmin_spring_time(:,6)>0 .AND. (Tmin_spring_time(:,6)<40) )
-       Tmin_spring_time(:,6)=Tmin_spring_time(:,6)+1
-    ELSEWHERE 
-       Tmin_spring_time(:,6)=0
-    ENDWHERE
+!! Arsene 31-03-2015 Remplace code
+    DO j = 2,nvm
+       IF ( pheno_model(j) .EQ. "ncdgdd")  THEN   !! Arsene 31-03-2015 
+           WHERE ( Tmin_spring_time(:,j)>0 .AND. (Tmin_spring_time(:,j)<40) )
+              Tmin_spring_time(:,j)=Tmin_spring_time(:,j)+1
+           ELSEWHERE
+              Tmin_spring_time(:,j)=0
+           ENDWHERE
 
-    WHERE ( begin_leaves(:,8) )
-       Tmin_spring_time(:,8)=1
-    ENDWHERE
+           WHERE ( begin_leaves(:,j) )
+              Tmin_spring_time(:,j)=1
+           ENDWHERE
 
-    WHERE ( begin_leaves(:,6) )
-       Tmin_spring_time(:,6)=1
-    ENDWHERE
+           WHERE ( Tmin_spring_time(:,j)>0 .AND. (Tmin_spring_time(:,j)<41) )
+              Tmin_spring(:,j) = t2m_min_daily(:)
+           ELSEWHERE 
+              Tmin_spring(:,j)=999
+           ENDWHERE
+       ENDIF
+    ENDDO
+!! Arsene 31-03-2015 Remplace code
 
-    WHERE ( Tmin_spring_time(:,8)>0 .AND. (Tmin_spring_time(:,8)<41) )
-       Tmin_spring(:,8) = t2m_min_daily(:) 
-    ELSEWHERE 
-       Tmin_spring(:,8)=999
-    ENDWHERE
-
-    WHERE ( Tmin_spring_time(:,6)>0 .AND. (Tmin_spring_time(:,6)<41) )
-       Tmin_spring(:,6) = t2m_min_daily(:) 
-    ELSEWHERE 
-       Tmin_spring(:,6)=999
-    ENDWHERE
-
+!! Arsene 31-03-2015 REMOVE from DZ
+!    WHERE ( Tmin_spring_time(:,8)>0 .AND. (Tmin_spring_time(:,8)<40) )
+!       Tmin_spring_time(:,8)=Tmin_spring_time(:,8)+1
+!    ELSEWHERE 
+!       Tmin_spring_time(:,8)=0
+!    ENDWHERE
+!
+!    WHERE ( Tmin_spring_time(:,6)>0 .AND. (Tmin_spring_time(:,6)<40) )
+!       Tmin_spring_time(:,6)=Tmin_spring_time(:,6)+1
+!    ELSEWHERE 
+!       Tmin_spring_time(:,6)=0
+!    ENDWHERE
+!
+!    WHERE ( begin_leaves(:,8) )
+!       Tmin_spring_time(:,8)=1
+!    ENDWHERE
+!
+!    WHERE ( begin_leaves(:,6) )
+!       Tmin_spring_time(:,6)=1
+!    ENDWHERE
+!
+!    WHERE ( Tmin_spring_time(:,8)>0 .AND. (Tmin_spring_time(:,8)<41) )
+!       Tmin_spring(:,8) = t2m_min_daily(:) 
+!    ELSEWHERE 
+!       Tmin_spring(:,8)=999
+!    ENDWHERE
+!
+!    WHERE ( Tmin_spring_time(:,6)>0 .AND. (Tmin_spring_time(:,6)<41) )
+!       Tmin_spring(:,6) = t2m_min_daily(:) 
+!    ELSEWHERE 
+!       Tmin_spring(:,6)=999
+!    ENDWHERE
+!! Arsene 31-03-2015 REMOVE from DZ
 
     !
     !! 3.4 "weekly" (::t2m_week)
@@ -1174,6 +1209,27 @@ CONTAINS
           npp_longterm(:,j) = zero
        ENDWHERE
     ENDDO
+
+    ! 
+    !! Arsene 25-06-2014 NPPcumul -START
+    !! 12.2 Update the counter of number of day where npp is negative or =0
+    !!      If this number is too long, in stomate_turnover.f90 the  turnover go increase by stress !
+    !!      For the moment if one time npp > 0 one day, npp0_cumul go to be reset... maybe that need more than 1 day
+    !!      For the moment it is only for moss/lichen !!
+    !! Arsene 25-06-2014 NPPcumul
+    !
+
+    DO j = 2,nvm ! Loop over # PFTs
+          IF ( .NOT. vascular(j) ) THEN                    !! Arsene 25-06-2014 NPPcumul
+               WHERE ( npp_daily(:,j) .LT. min_stomate )   !! Arsene 25-06-2014 NPPcumul
+                    npp0_cumul(:,j) = npp0_cumul(:,j) + 1  !! Arsene 25-06-2014 NPPcumul
+               ELSEWHERE                                   !! Arsene 25-06-2014 NPPcumul
+                    npp0_cumul(:,j) = 0                    !! Arsene 25-06-2014 NPPcumul   RAJOUTER UNE CONTRAINTE DE TEMPS ?
+               ENDWHERE                                    !! Arsene 25-06-2014 NPPcumul
+          ENDIF                                            !! Arsene 25-06-2014 NPPcumul 
+    ENDDO                                                  !! Arsene 25-06-2014 NPPcumul
+    !! Arsene 25-06-2014 NPPcumul -END
+
 
     !
     !! 13. Update the "long term" turnover rates (in gC/m^2/year).

@@ -188,6 +188,7 @@ CONTAINS
     REAL(r_std), DIMENSION(npts,nvm), INTENT(inout)            :: rprof                 !! [DISPENSABLE] PFT rooting depth - not 
                                                                                         !! calculated in the current version of 
                                                                                         !! the model (m) 
+   !! Arsene 19-03-2014 rprof non use here ? 
     REAL(r_std), DIMENSION(npts,nvm,nparts), INTENT(out)       :: f_alloc		!! PFT fraction of NPP that is allocated to
                                                                                         !! the different components (0-1, unitless)
 !JCADD
@@ -450,6 +451,8 @@ CONTAINS
        !      may be used
        IF ( is_tree(j) ) THEN
           reserve_time = reserve_time_tree
+       ELSEIF ( is_shrub(j) ) THEN                 !! Arsene 31-07-2014 modifications
+          reserve_time = reserve_time_shrub        !! Arsene 31-07-2014 modifications
        ELSE
           reserve_time = reserve_time_grass
        ENDIF
@@ -462,7 +465,7 @@ CONTAINS
        WHERE ( ( biomass(:,j,ileaf,icarbon) .GT. zero ) .AND. & 
             ( .NOT. senescence(:,j) ) .AND. &
             ( lai(:,j) .LT. lai_happy(j) ) .AND. &
-            ( when_growthinit(:,j) .LT. reserve_time ) ) 
+            ( when_growthinit(:,j) .LT. reserve_time ) .AND. vascular(j) )    !! Arsene 08-04-2014 vérifier s'il faut rajouter
 
           ! Determine the mass from the carbohydrate reserve that can be used @tex $(gC m^{-2})$ @endtex. 
           ! Satisfy the demand or use everything that is available 
@@ -578,11 +581,11 @@ CONTAINS
 !JCADD
        alloc_leaf(:)=1.0
 !ENDJCADD
-       ! For trees, partitioning between above and belowground sapwood biomass is a function 
+       ! For trees, partitioning between above and belowground sapwood biomass is a function     !! Arsene 31-07-2014 For shrubs too
        ! of age. An older tree gets more allocation to the aboveground sapwoood than a younger tree.
        ! For the other PFTs it is prescribed. 
        ! ::alloc_min, ::alloc_max and ::demi_alloc are specified in stomate_constants.f90
-       IF ( is_tree(j) ) THEN
+       IF ( is_tree(j) .OR. is_shrub(j)) THEN      !! Arsene 31-07-2014 modifications
 
           alloc_sap_above(:) = alloc_min(j)+(alloc_max(j)-alloc_min(j))*(un-EXP(-age(:,j)/demi_alloc(j)))
        
@@ -612,7 +615,7 @@ CONTAINS
        !! 3.1 Calculate light stress, water stress and proxy for nitrogen stress.\n
        !      For the limiting factors a low value indicates a strong limitation
 !       IF (j.EQ.10) WRITE(numout,*) 'zd toLSR 1 ','RtoLSR(1)',RtoLSR(1),'limit_WorN(1)',limit_WorN(1),'lai_around(1,10)',lai_around(1,10),'moiavail_week(1,10)',moiavail_week(1,10),'h_nitrogen(1)',h_nitrogen(1),'t_nitrogen(1)',t_nitrogen(1),'tsoil_month(1,:)',tsoil_month(1,:),'rpc(1)',rpc(1),'soilhum_month(1,:)',soilhum_month(1,:)
-       WHERE ( biomass(:,j,ileaf,icarbon) .GT. min_stomate )
+       WHERE ( biomass(:,j,ileaf,icarbon) .GT. min_stomate  .AND. vascular(j) )   !! Arsene 08-04-2014 à rajouter ?
 
           !! 3.1.1 Light stress
           !        Light stress is a function of the mean lai on the natural part of the grid box 
@@ -723,7 +726,7 @@ CONTAINS
 
           IF ( biomass(i,j,ileaf,icarbon) .GT. min_stomate ) THEN
       
-             IF ( senescence(i,j) ) THEN
+             IF ( senescence(i,j) .AND. vascular(j) ) THEN   !! Arsene 08-04-2014 and vascular
                 
                 !! 3.3.1 Allocate all C to carbohydrate reserve
                 !        If the PFT is senescent allocate all C to carbohydrate reserve, 
@@ -754,6 +757,9 @@ CONTAINS
 		! appears. carb_rescale depends on the parameter (::ecureuil). 
                 ! (::ecureuil) is the fraction of primary leaf and root allocation put into 
                 ! reserve, it is specified in stomate_constants.f90 and is either 0 or 1.
+
+              IF ( vascular(j) ) THEN !! Arsene 08-04-2014 ! Is vascular
+
 !JCMODIF
 !                IF ( ( biomass(i,j,icarbres)*sla(j) ) .LT. 2*lai_max(j) ) THEN
                 IF ( ( biomass(i,j,icarbres,icarbon)*sla_calc(i,j) ) .LT. 2*lai_max(j) ) THEN
@@ -771,6 +777,14 @@ CONTAINS
                 f_alloc(i,j,iroot) = RtoLSR(i) * (un - f_alloc(i,j,ifruit) ) * carb_rescale(i)
                 f_alloc(i,j,icarbres) = ( un - carb_rescale(i) ) * ( un - f_alloc(i,j,ifruit) )
 
+              ELSE   !! Arsene 08-04-2014
+                    f_alloc(i,j,ifruit) = f_fruit/2 !Arsene A vérif     !! Arsene 08-04-2014 notemment suivant water stress and ligth stress..
+                    f_alloc(i,j,ileaf) = un - f_alloc(i,j,ifruit)/2     !! Arsene 08-04-2014
+                    f_alloc(i,j,isapabove) = zero                       !! Arsene 08-04-2014
+                    f_alloc(i,j,isapbelow) = zero                       !! Arsene 08-04-2014
+                    f_alloc(i,j,iroot) = zero                           !! Arsene 08-04-2014
+                    f_alloc(i,j,icarbres) = zero                        !! Arsene 08-04-2014
+              ENDIF !! Arsene 08-04-2014 ! Is vascular
              ENDIF  ! Is senescent?
 
           ENDIF  ! There are leaves

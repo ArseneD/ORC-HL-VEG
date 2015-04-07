@@ -547,7 +547,7 @@ SUBROUTINE routing_main(kjit, nbpt, dtradia, control_flags, ldrestart_read, ldre
     !! Computes the total fraction occupied by the grasses and the crops for each grid cell
     tot_vegfrac_nowoody(:) = zero
     DO jv  = 1, nvm
-       IF ( (jv /= ibare_sechiba) .AND. .NOT.(is_tree(jv)) ) THEN
+       IF ( (jv /= ibare_sechiba) .AND. (.NOT.(is_tree(jv)) .OR. .NOT.(is_shrub(jv))) ) THEN          !! Arsene 31-07-2014 modifications 
           tot_vegfrac_nowoody(:) = tot_vegfrac_nowoody(:) + veget_max(:,jv) 
        END IF
     END DO
@@ -555,7 +555,7 @@ SUBROUTINE routing_main(kjit, nbpt, dtradia, control_flags, ldrestart_read, ldre
     DO ig = 1, nbpt
        IF ( tot_vegfrac_nowoody(ig) .GT. min_sechiba ) THEN
           DO jv = 1,nvm
-             IF ( (jv /= ibare_sechiba) .AND. .NOT.(is_tree(jv)) ) THEN
+             IF ( (jv /= ibare_sechiba) .AND. (.NOT.(is_tree(jv)) .OR. .NOT.(is_shrub(jv))) ) THEN    !! Arsene 31-07-2014 modifications
                 transpot_mean(ig) = transpot_mean(ig) + transpot(ig,jv) * veget_max(ig,jv)/tot_vegfrac_nowoody(ig)  
              END IF
           END DO

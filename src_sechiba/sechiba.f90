@@ -519,6 +519,8 @@ CONTAINS
     REAL(r_std), DIMENSION(kjpindex)                         :: sum_grassfrac     !! Total fraction occupied by grasses (0-1, unitless)
     REAL(r_std), DIMENSION(kjpindex)                         :: sum_cropfrac      !! Total fraction occcupied by crops (0-1, unitess)
 
+    REAL(r_std), DIMENSION(kjpindex)                         :: sum_shrubfrac     !! Total fraction occcupied by shrubs (0-1, unitess)  !! Arsene 31-07-2014 modifications
+
 
 !_ ================================================================================================================================
 
@@ -609,7 +611,7 @@ CONTAINS
             tdeep, hsdeep, snow, heat_Zimov, pb, &
             sfluxCH4_deep, sfluxCO2_deep, &
             thawed_humidity, depth_organic_soil, zz_deep, zz_coef_deep, &
-            soilc_total,snowdz,snowrho)
+            soilc_total,snowdz,snowrho, snowtemp)    !! Arsene 19-08-2014 Add snowtemp (and snowdz) to stomate
        netco2flux(:) = zero
        DO jv = 2,nvm
           netco2flux(:) = netco2flux(:) + co2_flux(:,jv)*veget_max(:,jv)
@@ -748,7 +750,7 @@ CONTAINS
        CALL condveg_main (kjit, kjpindex, dtradia, ldrestart_read, ldrestart_write, index, &
             & lalo, neighbours, resolution, contfrac, veget, veget_max, frac_nobio, totfrac_nobio, &
             & zlev, snow, snow_age, snow_nobio, snow_nobio_age, &
-            & drysoil_frac, height,  emis, albedo, z0, roughheight, rest_id, hist_id, hist2_id)
+            & drysoil_frac, height,  emis, albedo, z0, roughheight, rest_id, hist_id, hist2_id, snowdz) !! Arsene 30-03-2015 Add snowdz
        
        !! 1.10 Initialization of soil thermodynamics
        !WRITE(numout,*) 'zd thermosoil_main 1 ','snowtemp(1,:)',snowtemp(1,:)
@@ -887,7 +889,7 @@ CONTAINS
     CALL condveg_main (kjit, kjpindex, dtradia, ldrestart_read, myfalse, index,&
          & lalo, neighbours, resolution, contfrac, veget, veget_max, frac_nobio, totfrac_nobio, &
          & zlev, snow, snow_age, snow_nobio, snow_nobio_age, &
-         & drysoil_frac, height,  emis, albedo, z0, roughheight, rest_id, hist_id, hist2_id)
+         & drysoil_frac, height,  emis, albedo, z0, roughheight, rest_id, hist_id, hist2_id, snowdz) !! Arsene 30-03-2015 Add snowdz
 
     !! 2.7 Compute soil thermodynamics
     !WRITE(numout,*) 'zd thermosoil_main 3 ','snowtemp(1,:)',snowtemp(1,:)
@@ -936,7 +938,7 @@ CONTAINS
          tdeep, hsdeep, snow, heat_Zimov, pb, &
          sfluxCH4_deep, sfluxCO2_deep, &
          thawed_humidity, depth_organic_soil, zz_deep, zz_coef_deep, &
-         soilc_total,snowdz,snowrho)
+         soilc_total,snowdz,snowrho, snowtemp)    !! Arsene 19-08-2014 Add snowtemp (and snowdz) to stomate
    
     !! 2.9 Compute global CO2 flux
     netco2flux(:) = zero
@@ -962,8 +964,11 @@ CONTAINS
     sum_grassfrac(:) = zero
     sum_cropfrac(:) = zero
     DO jv = 2, nvm 
-       IF (is_tree(jv) .AND. natural(jv)) THEN
+       IF (is_tree(jv) .AND. natural(jv) ) THEN
           sum_treefrac(:) = sum_treefrac(:) + veget_max(:,jv)
+       ELSE IF (is_shrub(jv) .AND. natural(jv)) THEN                                    !! Arsene 31-07-2014 modifications
+          sum_shrubfrac(:) = sum_shrubfrac(:) + veget_max(:,jv)                         !! Arsene 31-07-2014 modifications
+       ELSE IF ((.NOT. is_tree(jv)) .AND. (.NOT. is_shrub(jv)) .AND. natural(jv)) THEN  !! Arsene 31-07-2014 modifications
        ELSE IF ((.NOT. is_tree(jv))  .AND. natural(jv)) THEN
           sum_grassfrac(:) = sum_grassfrac(:) + veget_max(:,jv)
        ELSE 
@@ -1010,7 +1015,9 @@ CONTAINS
     histvar(:)=SUM(transpir(:,:),dim=2)
     CALL xios_orchidee_send_field("tran",histvar/dt_sechiba)
     histvar(:)= sum_treefrac(:)*100*contfrac(:)
-    CALL xios_orchidee_send_field("treeFrac",histvar)
+    CALL xios_orchidee_send_field("tran",histvar/dt_sechiba)
+    histvar(:)= sum_shrubfrac(:)*100*contfrac(:)         !! Arsene 26-02-2014 modifications
+    CALL xios_orchidee_send_field("shrubFrac",histvar)   !! Arsene 26-02-2014 modifications
     histvar(:)= sum_grassfrac(:)*100*contfrac(:)
     CALL xios_orchidee_send_field("grassFrac",histvar)
     histvar(:)= sum_cropfrac(:)*100*contfrac(:)
@@ -1117,6 +1124,9 @@ CONTAINS
 
        histvar(:)= sum_treefrac(:)*100*contfrac(:)
        CALL histwrite_p(hist_id, 'treeFrac', kjit, histvar, kjpindex, index) 
+
+       histvar(:)= sum_shrubfrac(:)*100*contfrac(:)                               !! Arsene 31-07-2014 modifications
+       CALL histwrite_p(hist_id, 'shrubFrac', kjit, histvar, kjpindex, index)     !! Arsene 31-07-2014 modifications
 
        histvar(:)= sum_grassfrac(:)*100*contfrac(:)
        CALL histwrite_p(hist_id, 'grassFrac', kjit, histvar, kjpindex, index) 
@@ -1322,7 +1332,7 @@ CONTAINS
        CALL condveg_main (kjit, kjpindex, dtradia, ldrestart_read, ldrestart_write, index, &
             & lalo, neighbours, resolution, contfrac, veget, veget_max, frac_nobio, totfrac_nobio, &
             & zlev, snow, snow_age, snow_nobio, snow_nobio_age, &
-            & drysoil_frac, height,  emis, albedo, z0, roughheight, rest_id, hist_id, hist2_id)
+            & drysoil_frac, height,  emis, albedo, z0, roughheight, rest_id, hist_id, hist2_id, snowdz) !! Arsene 30-03-2015 Add snowdz
  
        !! 3.5 Call soil thermodynamic to write restart files
        !WRITE(numout,*) 'zd thermosoil_main 5 ','snowtemp(1,:)',snowtemp(1,:)
@@ -1369,7 +1379,7 @@ CONTAINS
             tdeep, hsdeep, snow, heat_Zimov, pb, &
             sfluxCH4_deep, sfluxCO2_deep, &
             thawed_humidity, depth_organic_soil, zz_deep, zz_coef_deep, &
-            soilc_total,snowdz,snowrho)
+            soilc_total,snowdz,snowrho, snowtemp)    !! Arsene 19-08-2014 Add snowtemp (and snowdz) to stomate
        ! Compute global CO2 flux !*
        netco2flux(:) = zero
        DO jv = 2,nvm

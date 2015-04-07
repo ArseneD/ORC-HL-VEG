@@ -125,7 +125,7 @@ CONTAINS
   !! 2. Calculate (or prescribe) crown area
     
     DO j = 2,nvm ! loop over PFTs
-       IF (is_tree(j)) THEN
+       IF (is_tree(j) .OR. is_shrub(j)) THEN     !! Arsene 31-07-2014 modifications    A VERIFFFFF ==> def cn_ind
           
           !! 2.1 Trees
           IF (natural(j)) THEN

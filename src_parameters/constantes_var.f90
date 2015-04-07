@@ -424,13 +424,28 @@ MODULE constantes_var
   ! from Sun et al. (1999): based on data from Jordan (1991)
   ! see Boone, Meteo-France/CNRM Note de Centre No. 70 (2002)
   !
-  REAL(r_std), SAVE          :: ZSNOWCMPCT_RHOD  = 150.0        !! (kg/m3)
-  REAL(r_std), SAVE          :: ZSNOWCMPCT_ACM   = 2.8e-6       !! (1/s)
-  REAL(r_std), SAVE          :: ZSNOWCMPCT_BCM   = 0.04         !! (1/K) 
-  REAL(r_std), SAVE          :: ZSNOWCMPCT_CCM   = 460.         !! (m3/kg)
-  REAL(r_std), SAVE          :: ZSNOWCMPCT_V0    = 3.7e7        !! (Pa/s) 
-  REAL(r_std), SAVE          :: ZSNOWCMPCT_VT    = 0.081        !! (1/K)
-  REAL(r_std), SAVE          :: ZSNOWCMPCT_VR    = 0.018        !! (m3/kg)
+
+!! Arsene 23-09-2014 Change for snowpack - START
+!  REAL(r_std), SAVE          :: ZSNOWCMPCT_RHOD  = 150.0        !! (kg/m3)
+!  REAL(r_std), SAVE          :: ZSNOWCMPCT_ACM   = 2.8e-6       !! (1/s)
+!  REAL(r_std), SAVE          :: ZSNOWCMPCT_BCM   = 0.04         !! (1/K) 
+!  REAL(r_std), SAVE          :: ZSNOWCMPCT_CCM   = 460.         !! (m3/kg)
+!  REAL(r_std), SAVE          :: ZSNOWCMPCT_V0    = 3.7e7        !! (Pa/s) 
+!  REAL(r_std), SAVE          :: ZSNOWCMPCT_VT    = 0.081        !! (1/K)
+!  REAL(r_std), SAVE          :: ZSNOWCMPCT_VR    = 0.018        !! (m3/kg)
+
+!! Dimension = 3, for strate herbacée, arbustive et arborescente 
+  REAL(r_std), SAVE, DIMENSION(3)   :: ZSNOWCMPCT_RHOD  = (/  150.0,  150.0,  150.0 /)        ! (kg/m3)
+
+  REAL(r_std), SAVE, DIMENSION(3)   :: ZSNOWCMPCT_ACM   = (/ 1.4e-6, 4.2e-6, 4.2e-6 /)        ! (1/s)
+  REAL(r_std), SAVE, DIMENSION(3)   :: ZSNOWCMPCT_BCM   = (/   0.02,   0.06,   0.06 /)        ! (1/K) 
+  REAL(r_std), SAVE, DIMENSION(3)   :: ZSNOWCMPCT_CCM   = (/   230.,   690.,   290. /)        ! (m3/kg)
+
+  REAL(r_std), SAVE, DIMENSION(3)   :: ZSNOWCMPCT_V0    = (/ 1.85e7, 5.55e7, 5.55e7 /)        ! (Pa/s)
+  REAL(r_std), SAVE, DIMENSION(3)   :: ZSNOWCMPCT_VT    = (/ 0.0405,   0.12,   0.12 /)        ! (1/K)
+  REAL(r_std), SAVE, DIMENSION(3)   :: ZSNOWCMPCT_VR    = (/  0.009,  0.027,  0.027 /)        ! (m3/kg)
+
+!! Arsene 23-09-2014 Change for snowpack - END
 
   !
   ! BVOC : Biogenic activity  for each age class
@@ -715,6 +730,10 @@ MODULE constantes_var
                                                    !! carbohydrate reserve may be used for 
                                                    !! trees (days)
 !$OMP THREADPRIVATE(reserve_time_tree)
+  REAL(r_std), SAVE :: reserve_time_shrub = 25.    !! Maximum number of days during which   !! Arsene 31-07-2014 modifications
+                                                   !! carbohydrate reserve may be used for  !! Arsene 31-07-2014 modifications
+                                                   !! shrub (days)                          !! Arsene 31-07-2014 modifications
+!$OMP THREADPRIVATE(reserve_time_tree)
   REAL(r_std), SAVE :: reserve_time_grass = 20.    !! Maximum number of days during which
                                                    !! carbohydrate reserve may be used for 
                                                    !! grasses (days)
@@ -778,6 +797,8 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(alpha_grass)
   REAL(r_std), SAVE :: alpha_tree = 1.           !! alpha coefficient for trees (unitless)
 !$OMP THREADPRIVATE(alpha_tree)
+  REAL(r_std), SAVE :: alpha_shrub = 0.8         !! alpha coefficient for trees (unitless)     !! Arsene 31-07-2014 modifications
+!$OMP THREADPRIVATE(alpha_shrub)                                                               !! Arsene 31-07-2014 modifications
   REAL(r_std), SAVE :: mass_ratio_heart_sap = 3. !! mass ratio (heartwood+sapwood)/sapwood (unitless)
 !$OMP THREADPRIVATE(mass_ratio_heart_sap)
 
@@ -830,10 +851,14 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(cn_sapl_init)
   REAL(r_std), SAVE :: migrate_tree = 10.*1.E3          !!
 !$OMP THREADPRIVATE(migrate_tree)
+  REAL(r_std), SAVE :: migrate_shrub = 10.*1.E3         !! Arsene 31-07-2014 modifications
+!$OMP THREADPRIVATE(migrate_shrub)                      !! Arsene 31-07-2014 modifications
   REAL(r_std), SAVE :: migrate_grass = 10.*1.E3         !!
 !$OMP THREADPRIVATE(migrate_grass)
   REAL(r_std), SAVE :: lai_initmin_tree = 0.3           !!
 !$OMP THREADPRIVATE(lai_initmin_tree)
+  REAL(r_std), SAVE :: lai_initmin_shrub = 0.2          !! Arsene 31-07-2014 modifications
+!$OMP THREADPRIVATE(lai_initmin_shrub
   REAL(r_std), SAVE :: lai_initmin_grass = 0.1          !!
 !$OMP THREADPRIVATE(lai_initmin_grass)
   REAL(r_std), SAVE, DIMENSION(2) :: dia_coeff = (/ 4., 0.5 /)            !!
@@ -935,6 +960,9 @@ MODULE constantes_var
   REAL(r_std), SAVE :: moiavail_always_tree = 1.0  !! moisture monthly availability above which moisture tendency doesn't matter
                                                    !!  - for trees (0-1, unitless)
 !$OMP THREADPRIVATE(moiavail_always_tree)
+  REAL(r_std), SAVE :: moiavail_always_shrub = 0.9 !! moisture monthly availability above which moisture tendency doesn't matter  !! Arsene 31-07-2014 modifications
+                                                   !!  - for shrubs (0-1, unitless)                                               !! Arsene 31-07-2014 modifications
+!$OMP THREADPRIVATE(moiavail_always_shrub)                                                                                        !! Arsene 31-07-2014 modifications
   REAL(r_std), SAVE :: moiavail_always_grass = 0.6 !! moisture monthly availability above which moisture tendency doesn't matter
                                                    !! - for grass (0-1, unitless)
 !$OMP THREADPRIVATE(moiavail_always_grass)
@@ -1027,6 +1055,10 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(leaf_age_crit_tref)
   REAL(r_std), SAVE, DIMENSION(3) :: leaf_age_crit_coeff = (/ 1.5, 0.75, 10./) !! (unitless)
 !$OMP THREADPRIVATE(leaf_age_crit_coeff)
+
+  REAL(r_std), SAVE, DIMENSION(4) :: npp0_c = (/20., 60., 130., 0.01/) !!(/days,days,days,unitless) !! Arsene 25-06-2014 NPPcumul
+!$OMP THREADPRIVATE(npp0_c)                                                                         !! Arsene 25-06-2014 NPPcumul
+!! Arsene 25-06-2014 NPPcumul. 1: nb of day before impact of npp0_cumu. 2:max of impact. 3: end of impact. 4: max dturnover(%) by day
 
 
   !
@@ -1136,9 +1168,9 @@ MODULE constantes_var
   LOGICAL, SAVE           :: writehist_deltaC_litter = .false.
   LOGICAL, SAVE           :: writehist_gascoeff = .false.
 
-  LOGICAL,PARAMETER,DIMENSION(13) :: permafrost_veg_exists = &  !!! set all as true to avoid masking
+  LOGICAL,PARAMETER,DIMENSION(15) :: permafrost_veg_exists = &  !!! set all as true to avoid masking     !! Arsene 05-03-2015 remove 13 to nvm
    & (/ .TRUE., .TRUE., .TRUE., .TRUE., .TRUE.,  .TRUE., &
-   &    .TRUE., .TRUE.,  .TRUE.,  .TRUE., .TRUE., .TRUE., .TRUE./)
+   &    .TRUE., .TRUE.,  .TRUE.,  .TRUE., .TRUE., .TRUE., .TRUE., .TRUE., .TRUE. /)                       !! Arsene 05-03-2015 Add 2 PFT
 
 
 !pss:+

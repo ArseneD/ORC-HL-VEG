@@ -275,7 +275,7 @@ CONTAINS
 
        DO j = 2,nvm ! Loop over # PFTs
 
-          IF ( is_tree(j) .AND. natural(j) ) THEN
+          IF ( ( is_tree(j) .OR. is_shrub(j) ) .AND. natural(j) ) THEN       !! Arsene 31-07-2014 modifications
 
              ! total woody fpc
              WHERE ( PFTpresent(:,j) )
@@ -298,7 +298,7 @@ CONTAINS
 
        DO j = 2,nvm ! Loop over # PFTs
 
-          IF ( .NOT. is_tree(j) .AND. natural(j) ) THEN
+          IF ( .NOT. is_tree(j) .AND. .NOT. is_shrub(j) .AND. natural(j) ) THEN    !! Arsene 31-07-2014 modifications
 
              ! Count a PFT fully only if it is present on a grid.
              WHERE ( PFTpresent(:,j) )
@@ -356,7 +356,7 @@ CONTAINS
        !      is possible for the more productive PFT
        factor(:) = min_stomate
        DO j = 2,nvm ! Loop over # PFTs
-          IF ( natural(j) .AND. .NOT.is_tree(j)) & 
+          IF ( natural(j) .AND. .NOT.is_tree(j) .AND. .NOT.is_shrub(j) ) &           !! Arsene 31-07-2014 modifications
                factor(:) = factor(:) + npp_longterm(:,j) * &
 !JCMODIF
 !               lm_lastyearmax(:,j) * sla(j)
@@ -430,7 +430,7 @@ CONTAINS
              !      - Is modulated by space availability (avail_tree, avail_grass).
 
              !! 2.9.2.1 present and regenerative trees
-             IF ( is_tree(j) ) THEN
+             IF ( is_tree(j) .OR. is_shrub(j) ) THEN       !! Arsene 31-07-2014 modifications A vérif pour d_ind   utilise avail_tree et estab_rate_max_tree et spacefight_tree
 
                 WHERE ( PFTpresent(:,j) .AND. ( regenerate(:,j) .GT. regenerate_crit ) )
                    
@@ -480,7 +480,7 @@ CONTAINS
           ENDWHERE
 
           !! 3.1 For natural woody PFTs
-          IF ( natural(j) .AND. is_tree(j)) THEN 
+          IF ( natural(j) .AND. ( is_tree(j) .OR. is_shrub(j) ) ) THEN           !! Arsene 31-07-2014 modifications ok
 
              ! See Eq. (4) in tex file.            
              fpc_nat(:,j) =  MIN(un, cn_ind(:,j) * ind(:,j) * & 
@@ -497,7 +497,7 @@ CONTAINS
                 !        replaced by a better stand density criteria.
                 factor(:)=(un - exp(-establish_scal_fact * (un - fpc_nat(:,j))))*(un - fpc_nat(:,j))
 
-                estab_rate_max_tree(:) = estab_max_tree * factor(:) 
+                estab_rate_max_tree(:) = estab_max_tree * factor(:) !! Arsene 31-07-2014 modifications a vérif les variables associées a tree
 
                 !! 3.1.2 do establishment for natural PFTs\n
                 d_ind(:,j) = MAX( zero, estab_rate_max_tree(:) * dt/one_year)
@@ -512,7 +512,7 @@ CONTAINS
              ENDWHERE
 
           !! 3.2 For natural grass PFTs
-          ELSEIF ( natural(j) .AND. .NOT.is_tree(j)) THEN 
+          ELSEIF ( natural(j) .AND. .NOT.is_tree(j) .AND. .NOT.is_shrub(j) ) THEN         !! Arsene 31-07-2014 modifications ok
 
              WHERE (veget_max(:,j).GT.min_stomate)
 
@@ -581,7 +581,7 @@ CONTAINS
 
              ! SZ calculate new woodmass_ind and veget_max after establishment (needed for correct scaling!)
              ! essential correction for MERGE!
-             IF(is_tree(j))THEN
+             IF(is_tree(j) .OR. is_shrub(j))THEN                      !! Arsene 31-07-2014 modifications Vérif woodmass
                 DO i=1,npts ! Loop over # pixels - domain size
                    IF((d_ind(i,j)+ind(i,j)).GT.min_stomate) THEN
 
@@ -619,7 +619,7 @@ CONTAINS
           !! 4.3.2 without DGVM (static)\n
           ELSE 
              DO i=1,npts ! Loop over # pixels - domain size
-                IF(is_tree(j).AND.(d_ind(i,j)+ind(i,j)).GT.min_stomate) THEN
+                IF( (is_tree(j) .OR. is_shrub(j)) .AND. (d_ind(i,j)+ind(i,j)).GT.min_stomate) THEN     !! Arsene 31-07-2014 modifications woodmass...!! Arsene 31-07-2014 modifications woodmass...
                    IF(total_bm_c(i).LE.min_stomate) THEN
 
                       ! new wood mass of PFT

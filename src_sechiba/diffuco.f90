@@ -330,6 +330,8 @@ CONTAINS
     REAL(r_std),DIMENSION(kjpindex)          :: julian_diff_2d     !!
     REAL(r_std),DIMENSION(kjpindex)          :: year_length_2d     !!
 
+    REAL(r_std),DIMENSION(kjpindex,nvm)      :: gs_pft   !!Arsene 10-05-2014 nnn  ADD ONLY to have gs in sechiba_history.nc
+
 !_ ================================================================================================================================
     
   !! 1. Perform initialisation, if required
@@ -464,7 +466,7 @@ CONTAINS
       CALL diffuco_trans_co2 (kjpindex, dtradia, swdown, pb, qsurf, q2m, t2m, temp_growth, rau, u, v, q_cdrag, humrel, &
                               assim_param, ccanopy, &
                               veget, veget_max, lai, qsintveg, qsintmax, vbeta3, vbeta3pot, &
-                              rveget, rstruct, cimean, gsmean, gpp, vbeta23)
+                              rveget, rstruct, cimean, gsmean, gpp, vbeta23,  gs_pft)    !!Arsene 10-05-2014 add gs_pft
 
     ELSE
 
@@ -561,6 +563,10 @@ CONTAINS
        CALL histwrite_p(hist_id, 'Wind', kjit, wind, kjpindex, index)
        ! Fin ajouts Nathalie
        CALL histwrite_p(hist_id, 'qsatt', kjit, qsatt, kjpindex, index)
+
+       IF ( control%ok_co2 ) THEN                                                !! Arsene 10-05-2014
+           CALL histwrite_p(hist_id, 'gs', kjit, gs_pft, kjpindex*nvm, indexveg) !! Arsene 10-05-2014
+       ENDIF                                                                     !! Arsene 10-05-2014
 
        IF ( control%ok_inca ) THEN
           CALL histwrite_p(hist_id, 'PAR', kjit, PAR, kjpindex, index)
@@ -2189,7 +2195,7 @@ SUBROUTINE diffuco_snow (kjpindex, dtradia, qair, qsatt, rau, u, v,q_cdrag, &
 SUBROUTINE diffuco_trans_co2 (kjpindex, dtradia, swdown, pb, qsurf, q2m, t2m, temp_growth, rau, u, v, q_cdrag, humrel, &
                                 assim_param, Ca, &
                                 veget, veget_max, lai, qsintveg, qsintmax, vbeta3, vbeta3pot, rveget, rstruct, &
-                                cimean, gsmean, gpp, vbeta23)
+                                cimean, gsmean, gpp, vbeta23, gs_pft)  !!Arsene 10-05-2014 add gs
 
     !
     !! 0. Variable and parameter declaration
@@ -2251,6 +2257,9 @@ SUBROUTINE diffuco_trans_co2 (kjpindex, dtradia, swdown, pb, qsurf, q2m, t2m, te
     REAL(r_std),DIMENSION (kjpindex,nvm), INTENT (out)       :: gsmean           !! mean stomatal conductance to CO2 (umol m-2 s-1)
     REAL(r_Std),DIMENSION (kjpindex,nvm), INTENT (out)       :: gpp
  !! Assimilation ((gC m^{-2} s^{-1}), total area)
+
+    REAL(r_std), DIMENSION(kjpindex,nvm), INTENT (out)       :: gs_pft  !!Arsene 10-05-2014
+
     !
     !! 0.3 Modified variables
     !
@@ -2889,6 +2898,8 @@ SUBROUTINE diffuco_trans_co2 (kjpindex, dtradia, swdown, pb, qsurf, q2m, t2m, te
                ENDDO
             ENDIF
          ENDIF
+         !
+         gs_pft(:,jv)=gs(:)   !!Arsene 10-05-2014    ==> Save on sechiba_history.nc file
          !
          IF (nic .GT. 0) THEN
             !
@@ -3781,7 +3792,7 @@ END SUBROUTINE diffuco_trans_co2
        IF (control%ok_cropsfertil_NOx) THEN
           veget_max_nowoody(ji) = zero
           DO jv = 1,nvm
-             IF ( (jv /= ibare_sechiba) .AND. .NOT.(is_tree(jv)) ) THEN
+             IF ( (jv /= ibare_sechiba) .AND. (.NOT.(is_tree(jv)) .OR. .NOT.(is_shrub(jv))) ) THEN    !! Arsene 31-07-2014 modifications
                 veget_max_nowoody(ji) = veget_max_nowoody(ji) + veget_max(ji,jv)
              ENDIF
           ENDDO
@@ -4029,7 +4040,7 @@ END SUBROUTINE diffuco_trans_co2
           IF (control%ok_cropsfertil_NOx) THEN
              IF (veget_max_nowoody(ji) .NE. zero) THEN
                 ! Non-agricultural lands
-                IF ( (jv == ibare_sechiba) .OR. is_tree(jv) ) THEN
+                IF ( (jv == ibare_sechiba) .OR. is_tree(jv) .OR. is_shrub(jv) ) THEN    !! Arsene 31-07-2014 modifications
                    N_qt_WRICE_pft(ji,jv) = zero
                    N_qt_OTHER_pft(ji,jv) = zero
                 ! Grasslands or Croplands

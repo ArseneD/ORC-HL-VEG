@@ -193,7 +193,7 @@ CONTAINS
        convflux,cflux_prod10,cflux_prod100, harvest_above, carb_mass_total, lcchange, &
        fpc_max, Tseason, Tseason_length, Tseason_tmp, &
        Tmin_spring, Tmin_spring_time, begin_leaves, onset_date, &
-       MatrixA,&
+       MatrixA, npp0_cumul, snowtemp_min, snowdz_min, &  !! Arsene 25-06-2014 NPPcumul Add npp0_cumul !! Arsene 19-08-2014 Add snowtemp_min & snowdz_min)
        zz_coef_deep, deepC_a, deepC_s, deepC_p, & !pss:+
        ch4_flux_density_tot_0, ch4_flux_density_dif_0, ch4_flux_density_bub_0, ch4_flux_density_pla_0,&
        ch4_flux_density_tot_wet1,ch4_flux_density_dif_wet1,ch4_flux_density_bub_wet1,ch4_flux_density_pla_wet1,&
@@ -221,7 +221,7 @@ CONTAINS
     REAL(r_std), DIMENSION(npts), INTENT(in)                   :: clay                 !! Clay fraction (0 to 1, unitless)
     REAL(r_std), DIMENSION(npts,nvm), INTENT(in)               :: herbivores           !! Time constant of probability of a leaf to 
                                                                                        !! be eaten by a herbivore (days) 
-    REAL(r_std), DIMENSION(npts), INTENT(in)                   :: tsurf_daily          !! Daily surface temperatures (K)
+    REAL(r_std), DIMENSION(npts), INTENT(in)                   :: tsurf_daily          !! Daily surface temperatures (K)  !! Arsene 20-08-2014 N'est pas utilisé
     REAL(r_std), DIMENSION(npts,nbdl), INTENT(in)              :: tsoil_daily          !! Daily soil temperatures (K)
     REAL(r_std), DIMENSION(npts), INTENT(in)                   :: t2m_daily            !! Daily 2 meter temperatures (K)
     REAL(r_std), DIMENSION(npts), INTENT(in)                   :: t2m_min_daily        !! Daily minimum 2 meter temperatures (K)
@@ -291,6 +291,14 @@ CONTAINS
     LOGICAL, INTENT(in)                                        :: EndOfMonth           !! Flag set at end of each month to update 
                                                                                        !! monthly variable 
     REAL(r_std), DIMENSION(ndeep),   INTENT (in)               :: zz_coef_deep         !! deep vertical profile
+
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(in)               :: npp0_cumul           !! Arsene 25-06-2014 NPPcumul
+!! Arsene 25-06-2014 NPPcumul - Variable to count number of days since npp =0 or <0. Could become DIMENSION(npts:nvm) if we add the same for others pft
+    REAL(r_std), DIMENSION(npts,nsnow), INTENT(in)              :: snowtemp_min        !! Min daily snow layer temperature  !! Arsene 19-08-2014 Add
+    REAL(r_std), DIMENSION(npts,nsnow), INTENT(in)              :: snowdz_min          !! Min daily snow layer thicknesse   !! Arsene 19-08-2014 Add
+
+
+
   !! 0.2 Output variables
     
     REAL(r_std), DIMENSION(npts,nvm), INTENT(out)              :: npp_daily            !! Net primary productivity 
@@ -507,7 +515,7 @@ CONTAINS
                                                                                        !! (0 to 1, unitless) 
     REAL(r_std), DIMENSION(npts)                                :: avail_grass         !! Space availability for grasses 
                                                                                        !! (0 to 1, unitless) 
-    INTEGER                                                     :: j
+    INTEGER                                                     :: j,ji,i,m            !! Arsene 20-08-2014 Add ji & i & m
     REAL(r_std),DIMENSION(npts)                                 :: prod10_total        !! Total products remaining in the pool 
                                                                                        !! after the annual release 
                                                                                        !! @tex $(gC m^{-2})$ @endtex 
@@ -523,6 +531,10 @@ CONTAINS
                                                                                        !! step (0 to 1, unitless) 
     REAL(r_std), DIMENSION(npts)                                :: vartmp              !! Temporary variable used to add history
     REAL(r_std), DIMENSION(npts,nvm)                            :: histvar             !! History variables
+
+    REAL(r_std)                  :: za, zb, ta, tb, slope, offset, biomass_loss        !! Arsene 20-08-2014 / 03-04-2015 local variables to obtain biomass_loss
+    REAL(r_std), DIMENSION(npts,3)                              :: veget_layer         !! Arsene 20-08-2014  veget_max by layer : grasses + shrubs + trees
+
 !JCADD lcchange of managed grassland
     ! "maximal" coverage fraction of a PFT (LAI -> infinity) on ground
     INTEGER(i_std)                       :: ier
@@ -578,7 +590,7 @@ CONTAINS
     veget_max_old(:,:) = veget_max(:,:)
 
     !! 1.3 Calculate some vegetation characteristics
-    
+
     !! 1.3.1 Calculate some vegetation characteristics 
     !        Calculate cn_ind (individual crown mass) and individual height from
     !        state variables if running DGVM or dynamic mortality in static cover mode
@@ -613,12 +625,13 @@ CONTAINS
     !        the DGVM afterwards. At the first call, if the DGVM is not activated, 
     !        impose a minimum biomass for prescribed PFTs and declare them present.
     !WRITE(numout,*) 'zd leaffrac1 prescribe leaf_frac(1,10,:)', leaf_frac(1,10,:)
+write(*,*) "ind before:", ind(:,15), "height(:,j)", height(:,15)
     CALL prescribe (npts, &
          veget_max, dt_days, PFTpresent, everywhere, when_growthinit, &
-         biomass, leaf_frac, ind, cn_ind, co2_to_bm)
+         biomass, leaf_frac, ind, cn_ind, co2_to_bm, height)   !! Arsene 04-09-2014 - Add height
     !WRITE(numout,*) 'zd leaffrac2 prescribe leaf_frac(1,10,:)', leaf_frac(1,10,:)
     !WRITE(numout,*) 'zd bio3 prescribe biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
-
+write(*,*) "ind after", ind(:,15), "height(:,j)", height(:,15)
 
   !! 2. Climatic constraints for PFT presence and regenerativeness
 
@@ -626,9 +639,13 @@ CONTAINS
     !   are kept up to date for the moment when the DGVM is activated.
     CALL constraints (npts, dt_days, &
          t2m_month, t2m_min_daily,when_growthinit, &
-         adapted, regenerate, Tseason)
+         adapted, regenerate, Tseason)  !!, snowdz_min)             !! Arsene 19-08-2014 Add snowdz_min
 
-    
+!! 2.1 Protection of shrub by snow. BY Arsene   08-2014
+!! #############################     AVANT été placé ici la protection des SHRUBS     ###########################
+
+
+
   !! 3. Determine introduction and elimination of PTS based on climate criteria
  
     IF ( control%ok_dgvm ) THEN
@@ -855,9 +872,205 @@ CONTAINS
          npp_longterm, turnover_longterm, lm_lastyearmax, &
          PFTpresent, biomass, ind, bm_to_litter, mortality, t2m_min_daily, Tmin_spring, Tmin_spring_time, &!)
 !JCADD
-         sla_calc)
+         sla_calc, snowdz_min, snowtemp_min) !! Arsene 31-03-2015 Add snowdz_min & snowtemp_min
 !ENDJCADD
     !WRITE(numout,*) 'zd bio14 gap biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
+
+
+  !! 2.1 Protection of shrub by snow. BY Arsene   08-2014
+
+!! Arsene 20-08-2014 Add protection of shrub by snow. START.
+!!
+!! #############################     protection of shrub by snow     ###########################
+!! ## Ne prends pas en compte : -  Take care about "termal chock" : si T chute trop rapidement
+!! ##
+write(*,*) "height avant cut", height(:,15)
+    IF ( ANY(is_shrub(:)) ) THEN
+
+        !! ## On calcul la fration de strate de végétation, afin de "simuler" des différence de dépôt de masse / pixel
+        veget_layer(:,:)=zero
+        DO ji = 1, npts
+
+            DO j = 1, nvm
+                IF ( is_tree(j) ) THEN
+                    veget_layer(ji,3)=veget_layer(ji,3)+veget_max(ji,j)     !! Trees
+                ELSEIF ( is_shrub(j) ) THEN
+                    veget_layer(ji,2)=veget_layer(ji,2)+veget_max(ji,j)     !! Shrubs
+                ELSE
+                    veget_layer(ji,1)=veget_layer(ji,1)+veget_max(ji,j)     !! Grasse & bare soil
+                ENDIF
+            ENDDO
+        ENDDO
+
+        DO ji = 1, npts     !! Arsene 31-03-2015  On pourrait mettre à ce niveau le IF SUM(snowdz_min(ji,:)) .GT. min_stomate
+           DO j = 2,nvm
+              !! ## Si besoin : s'il y a de la neige, des buissons, de la vegetation,... On commence
+              IF ( is_shrub(j) .AND. ( SUM(snowdz_min(ji,:)) .GT. min_stomate ).AND. &
+                      ind(ji,j).GE.min_stomate .AND.  PFTpresent(ji,j) .AND. &
+                      ((.NOT.control%ok_dgvm.AND.(height(ji,j).GT.(height_presc(j)/10))) .OR. control%ok_dgvm)) THEN !! Arsene 03-04-2015 If no DGVM, need heigth >= min_height. Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
+
+                 !! ## Calcul des courbes de température, de bas en haut. Afin de calculer tmin_crit - t
+                 biomass_loss = zero
+                 DO i = nsnow+1, 1, -1
+                    !! ## Calcul de la temperature - Equation linéaires à 2 inconnues - on cherche les solutions de T(z)=tmin_crit
+                    !! ## Afin de garder une logique "naturelle" (et autre), on résoud de bas en haut
+                    !! ## Il y a 4 courbes avec :   - Comme points charnières sont dz= 0 ; puis au milieu de chaque couche ;
+                    !! ##                                  et en surface (snowdz_min(1+2+3)) -> za et zb
+                    !! ##                           - Les températures associées sont tsoil_daily(1) ; snowtemp_min(a) (avec a=3,2,1) ;
+                    !! ##                                  T2m_min_daily -> ta et tb
+                    !! For za & tb (compatible si nsow > 3)
+                    IF ( i .EQ. nsnow+1 ) THEN
+                       za = zero ; ta = tsoil_daily(ji,1)    !! Ce n'est la temperature minimum... Mais assez stable ==> à voir
+                    ELSEIF ( i .EQ. nsnow ) THEN
+                       za = snowdz_min(ji,i)/2 ; ta = snowtemp_min(ji,i)
+                    ELSE
+                       za =  ( SUM(snowdz_min(ji,i:nsnow)) + SUM(snowdz_min(ji,i+1:nsnow)) )/2 ; ta = snowtemp_min(ji,i)
+                    ENDIF ! za & ta
+                    !! For zb & tb (compatible si nsow > 3)
+                    IF ( i .EQ. (nsnow+1) ) THEN
+                       zb = snowdz_min(ji,i-1)/2 ; tb = snowtemp_min(ji,i-1)
+                    ELSEIF ( i .EQ. 1) THEN
+                       zb = SUM(snowdz_min(ji,i:nsnow)) ; tb = t2m_min_daily(ji)
+                    ELSE
+                       zb = ( SUM(snowdz_min(ji,i-1:nsnow)) + SUM(snowdz_min(ji,i:nsnow)) )/2 ;  tb = snowtemp_min(ji,i-1)
+                    ENDIF !! zb & tb
+
+                    !! ## On simule l'effet d'accumulation préférentiel de la neige sur les buissons via différence de dépôt de masse / pixel
+                    !! ##    --> un facteur à z est ajouter afin de simuler le transfert de masse de neige au niveau des buissons (entre 0 et 0.5)
+                    IF ( za.GT.min_stomate .AND. veget_layer(ji,2).GT.min_stomate .AND. veget_layer(ji,2).LE.0.5 ) THEN
+                        za = za * (1 + veget_layer(ji,2) )                   !! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
+                    ELSEIF ( za.GT.min_stomate .AND. veget_layer(ji,2).GT.0.5 .AND. veget_layer(ji,2).LT.1 ) THEN
+                        za = za * (2 - veget_layer(ji,2) )                   !! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
+                    ENDIF
+
+                    IF ( zb.GT.min_stomate .AND. veget_layer(ji,2).GT.min_stomate .AND. veget_layer(ji,2).LE.0.5 ) THEN
+                        zb = zb * (1 + veget_layer(ji,2) )                   !! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
+                    ELSEIF ( zb.GT.min_stomate .AND. veget_layer(ji,2).GT.0.5 .AND. veget_layer(ji,2).LT.1 ) THEN
+                        zb = zb * (2 - veget_layer(ji,2) )                   !! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
+                    ENDIF
+
+                     !! ## Si On a des températures inférieur à tmin_crit ET que l'on se situe à z < height (hauteur du buisson)
+                     IF ( ( (ta .LT. tmin_crit(j)) .OR. (tb .LT. tmin_crit(j) ) ) & 
+                           & .AND. ((za .LT. height(ji,j)) .OR. (zb .LT. height(ji,j)) ) ) THEN     !! Arsene 01-04-2015 probably, don't need for zb vecause za<zb
+
+                        !! ## Pour simplifier le calcul, on fait un changement de repère
+                        !! ##      - On passe de z à z/height: on a donc des valeurs [0-1] et vb-va = % hauteur
+                        !! ##      - On passe de t à "tmin_crit - t": On a l'écart de t à la température critique
+                        !! ##             (Fonctionne si tmincrit < 0 (sinon prendre la valeur absolu de la diff)
+                        
+                        za = za/height(ji,j) ; zb = zb/height(ji,j)
+                        ta = tmin_crit(j)-ta ; tb = tmin_crit(j)-tb
+                         
+                        !! ## On calcul l'équation de chacune des courbes
+                        slope = ( tb - ta ) / (zb - za )
+                        offset = ( zb * ta - tb * za ) / ( zb - za )
+                        
+                        !! ## On se s'intéresse qu'aux parties où t > 0
+                        !! ## ==> Si ta et tb <0, on regarde où t = 0
+                        IF ( (ta .LT. zero ) .AND. (tb .GT. zero ) ) THEN
+                            za = - offset / slope ; ta = zero
+                        ELSEIF ( (ta .GT. zero ) .AND. (tb .LT. zero) ) THEN
+                            zb = - offset / slope ; tb = zero
+                        ENDIF
+                        
+                        !! ## Si le buisson est plus petit que SUM(snowdz) il faut vérifier que z<=height
+                        IF ( zb .GT. height(ji,j) ) THEN 
+                            zb = height(ji,j) ; tb = slope * zb + offset
+                        ELSEIF ( za .GT. height(ji,j) ) THEN                !! Arsene 01-04-2015 probably, don't need for zb vecause za<zb
+                            za = height(ji,j) ; ta = slope * za + offset    !! Arsene 01-04-2015 probably, don't need for zb vecause za<zb
+                        ENDIF
+
+                        !! ## Perte de biomasse fonction de l'aire sous la courbe
+                        !! ## correspont à 4% par degrès de différence sur chaque hauteur
+                        biomass_loss = 0.04 * ( (slope/2 * (zb**2-za**2)) + (offset*(zb-za)) ) + biomass_loss
+                        !! Arsene 07-04-2014 Take care of snow temperature at first layer: with wind, it could be << T_air
+                    ENDIF
+                 ENDDO ! nsnow: for nsnow layers
+                 biomass_loss = MIN(un,biomass_loss)
+
+
+                 !! ## Maintenant, si biomasse loss > 0, alors on doit "enlever" de la bionass et de la hauteur (dia & nb ind inchangé)
+                 !! ##  ==> on diminue la hauteur, à travers une diminution de biomasse.
+                 IF ( biomass_loss.GT.min_stomate ) THEN
+write(*,*) "biusson perte hauteur", "biomass_loss :           ", biomass_loss 
+write(*,*) "ind number before loss", ind(ji,j)
+                     !! ## Calcul de la nouvelle heuteur du buissson (height)
+                     !! ## Si DGVM non activé, heigth peut pas être inférieur à min heigh fixé ! Hmin = 50 cm ????????
+                     !! ## Deux solution:  -soit on dis simplement que si ça réduit trop la taille, alors on fixe heigh = heigh_min
+                     !! ##                      pb : cela indique que d'un seul coup, la partie inférieur de la plante deviens insensible au froid
+                     !! ##                           Courbe non continue
+                     !! ##                      ==> Choisi car même sensibilité
+                     !! ##                 -soit on dis que la partie < height_min n'est pas sensible dès le début (za & zb > heigh_min)
+                     !! ##                      pb : sensibilité différente avec ou sans DGVM
+
+                     IF (.NOT.control%ok_dgvm .AND. ( ((1-biomass_loss)*height(ji,j)) .LT. (height_presc(j)/5)))   THEN !! Arsene 02-04-2015 Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
+                          biomass_loss = 1 - (height_presc(j)/5) / height(ji,j)     !! Arsene 02-04-2015 Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
+                          height(ji,j) = height_presc(j)/5                          !! Arsene 02-04-2015 Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
+write(*,*) "par ici, biomass_loss=", biomass_loss
+                     ELSE
+                          height(ji,j) = (1-biomass_loss)*height(ji,j)
+                     ENDIF
+
+
+                     !! ## Simultanément, après avoir diminuer la hauteur on doit diminuer la biomasse (dans un cylindre, si uniquement height diminue ==> propotionnel à la biomasse
+                     !! ## 2 méthodes : 1) on diminue seulement la biomasse en surface (ileaf, isapabove, iheartabove, ifruit et ?icarbres?): plus réaliste 
+                     !! ##                  ==> pb: c'est woodmass_ind qui détermine le diamétre et la hauteur. Si en surface biomasse = 0, on a malgrès tout woodmass_ind non nul donc dia et heigth >0...
+                     !! ##              2) on retire la avec une même proportion toute les biomasses ==> Sécurité mais moins réel.
+                     !! ##                  ==> méthode choisi. Modifier l'équation des shrubs ?
+
+                     !! ## On supprime les biomasses correspondantes, et on les rajoute dans la litière
+                     DO m = 1,nelements
+                           bm_to_litter(ji,j,ileaf,m) = bm_to_litter(ji,j,ileaf,m) + biomass_loss*biomass(ji,j,ileaf,m)
+                           bm_to_litter(ji,j,isapabove,m) = bm_to_litter(ji,j,isapabove,m) + biomass_loss*biomass(ji,j,isapabove,m)
+                           bm_to_litter(ji,j,isapbelow,m) = bm_to_litter(ji,j,isapbelow,m) + biomass_loss*biomass(ji,j,isapbelow,m)
+                           bm_to_litter(ji,j,iheartabove,m) = bm_to_litter(ji,j,iheartabove,m) + &
+                                                   biomass_loss*biomass(ji,j,iheartabove,m)
+                           bm_to_litter(ji,j,iheartbelow,m) = bm_to_litter(ji,j,iheartbelow,m) + &
+                                                   biomass_loss*biomass(ji,j,iheartbelow,m)
+                           bm_to_litter(ji,j,iroot,m) = bm_to_litter(ji,j,iroot,m) + biomass_loss*biomass(ji,j,iroot,m)
+                           bm_to_litter(ji,j,ifruit,m) = bm_to_litter(ji,j,ifruit,m) + biomass_loss*biomass(ji,j,ifruit,m)
+                           bm_to_litter(ji,j,icarbres,m) = bm_to_litter(ji,j,icarbres,m) + biomass_loss*biomass(ji,j,icarbres,m)
+
+                           biomass(ji,j,ileaf,m) = (1-biomass_loss) * biomass(ji,j,ileaf,m)
+                           biomass(ji,j,isapabove,m) = (1-biomass_loss) * biomass(ji,j,isapabove,m)
+                           biomass(ji,j,isapbelow,m) = (1-biomass_loss) * biomass(ji,j,isapbelow,m)
+                                     biomass(ji,j,iheartabove,m) = (1-biomass_loss) * biomass(ji,j,iheartabove,m)
+                           biomass(ji,j,iheartbelow,m) = (1-biomass_loss) * biomass(ji,j,iheartbelow,m)
+                           biomass(ji,j,iroot,m) = (1-biomass_loss) * biomass(ji,j,iroot,m)
+                           biomass(ji,j,ifruit,m) = (1-biomass_loss) * biomass(ji,j,ifruit,m)
+                           biomass(ji,j,icarbres,m) = (1-biomass_loss) * biomass(ji,j,icarbres,m)
+                     ENDDO
+!biomass_loss = MIN(un,(0.4/10*(tmin_crit(j)-t2m_min_daily(ji))))
+!write(*,*) "          --> si PFT8, biomasse loss =", biomass_loss
+!write(*,*) "          --> t2m_min_daily(ji)=", t2m_min_daily(ji), "snowtemp_min(ji,:)", snowtemp_min(ji,:)
+!* 
+                     !! ## On met à jour la woodmass (au cas où ça serve rapidement... Mais possible que NON)
+                     IF ( veget_max(ji,j) .GT. min_stomate) THEN
+                           woodmass_ind(ji,j) = &
+                             ((biomass(ji,j,isapabove,icarbon) + biomass(ji,j,isapbelow,icarbon) &
+                             + biomass(ji,j,iheartabove,icarbon) + biomass(ji,j,iheartbelow,icarbon))*veget_max(ji,j))/ind(ji,j)
+                     ELSE
+                           woodmass_ind(ji,j) =(biomass(ji,j,isapabove,icarbon) + biomass(ji,j,isapbelow,icarbon) &
+                             + biomass(ji,j,iheartabove,icarbon) + biomass(ji,j,iheartbelow,icarbon))/ind(ji,j)
+                     ENDIF
+!* 
+
+                     !! ## si plus assez de biomasse, on "KILL"
+                     IF ( SUM(biomass(ji,j,:,1)) .LT. min_stomate .AND. control%ok_dgvm) THEN
+                          ind(ji,j) = zero
+                     ENDIF
+
+                ENDIF ! IF biomass_loss > 0 decrease biomass
+
+              ENDIF ! IF shrub, if snow,... ==> when we use that !
+         ENDDO ! on pft
+      ENDDO ! on grill
+   ENDIF ! if any shrub
+!! Arsene 20-08-2014 Add protection of shrub by snow. END.
+write(*,*) "height après cut", height(:,15)
+
+  
+
 
     IF ( control%ok_dgvm ) THEN
 
@@ -876,7 +1089,7 @@ CONTAINS
 
     CALL vmax (npts, dt_days, &
          leaf_age, leaf_frac, &
-         vcmax, &!)
+         vcmax, moiavail_month, &      !! Arsene 24-06-2014 for dessication add soilhum_month 
 !JCADD
          N_limfert)
 !ENDJCADD
@@ -890,7 +1103,7 @@ CONTAINS
          maxmoiavail_lastyear, minmoiavail_lastyear, &
          moiavail_week,  moiavail_month,tlong_ref, t2m_month, t2m_week, veget_max, &
          gdd_from_growthinit, leaf_age, leaf_frac, age, lai, biomass, &
-         turnover_daily, senescence,turnover_time, &!)
+         turnover_daily, senescence,turnover_time, npp0_cumul, &  !! Arsene 25-06-2014 NPPcumul : add of  npp0_cumul
 !JCADD
          sla_calc)
 !ENDJCADD
@@ -898,6 +1111,8 @@ CONTAINS
     !WRITE(numout,*) 'zd leaffrac12 turn leaf_frac(1,10,:)', leaf_frac(1,10,:)
     !WRITE(numout,*) 'zd bio16 turn biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
     !! 11. Light competition
+
+!write(*,*) "ind after afeter:", ind(:,15)
     
     !! If not using constant mortality then kill with light competition
 !    IF ( control%ok_dgvm .OR. .NOT.(lpj_gap_const_mort) ) THEN
@@ -923,6 +1138,7 @@ CONTAINS
 
     ENDIF
 
+write(*,*) "ind after afeer2:", ind(:,15),  "hauteur:", height(:,15)
     
   !! 12. Establishment of saplings
     
@@ -950,6 +1166,8 @@ CONTAINS
 
     ENDIF
 !JCADD Grassland_management
+
+write(*,*) "ind after afeter3:", ind(:,15), "hauteur:", height(:,15)
     !
     ! 13 calculate grazing by animals or cutting for forage
     !
@@ -1190,14 +1408,14 @@ CONTAINS
              vartmp(:) = vartmp(:) + veget_max(:,j)*contfrac*100
           ENDIF
        ENDDO
-     CALL xios_orchidee_send_field("treeFracPrimDec",vartmp)
+     CALL xios_orchidee_send_field("woodFracPrimDec",vartmp)         !! Arsene 31-07-2014 modifications name (old: treeFracPrimDec) ==> shrub+tree
        vartmp(:)=zero
        DO j = 2,nvm
           IF (is_evergreen(j)) THEN
              vartmp(:) = vartmp(:) + veget_max(:,j)*contfrac*100
           ENDIF
        ENDDO
-     CALL xios_orchidee_send_field("treeFracPrimEver",vartmp)
+     CALL xios_orchidee_send_field("woodFracPrimEver",vartmp)        !! Arsene 31-07-2014 modifications name (old: treeFracPrimEver) ==> shrub+tree
        vartmp(:)=zero
        DO j = 2,nvm
           IF ( .NOT.(is_c4(j)) ) THEN
@@ -1441,6 +1659,8 @@ CONTAINS
          height, npts*nvm, horipft_index)
     CALL histwrite_p (hist_id_stomate, 'MOISTRESS', itime, &
          moiavail_week, npts*nvm, horipft_index)
+    CALL histwrite_p (hist_id_stomate, 'MOISTRESS_month', itime, &    !! Arsene 13-05-2014
+         moiavail_month, npts*nvm, horipft_index)                     !! Arsene 13-05-2014
     CALL histwrite_p (hist_id_stomate, 'VCMAX', itime, &
          vcmax, npts*nvm, horipft_index)
     CALL histwrite_p (hist_id_stomate, 'TURNOVER_TIME', itime, &
@@ -1553,7 +1773,7 @@ CONTAINS
              vartmp(:) = vartmp(:) + veget_max(:,j)*contfrac*100
           ENDIF
        ENDDO
-       CALL histwrite_p (hist_id_stomate_IPCC, "treeFracPrimDec", itime, &
+       CALL histwrite_p (hist_id_stomate_IPCC, "woodFracPrimDec", itime, &    !! Arsene 31-07-2014 modifications name (old: treeFracPrimDec) ==> shrub+tree
             vartmp, npts, hori_index)
        !-
        vartmp(:)=zero
@@ -1562,7 +1782,7 @@ CONTAINS
              vartmp(:) = vartmp(:) + veget_max(:,j)*contfrac*100
           ENDIF
        ENDDO
-       CALL histwrite_p (hist_id_stomate_IPCC, "treeFracPrimEver", itime, &
+       CALL histwrite_p (hist_id_stomate_IPCC, "woodFracPrimEver", itime, &   !! Arsene 31-07-2014 modifications name (old: treeFracPrimEver) ==> shrub+tree
             vartmp, npts, hori_index)
        !-
        vartmp(:)=zero

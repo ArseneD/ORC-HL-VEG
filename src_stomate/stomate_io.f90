@@ -65,6 +65,7 @@ CONTAINS
        &  Tmin_spring, Tmin_spring_time, begin_leaves, onset_date, &
        &  global_years, ok_equilibrium, nbp_accu, nbp_flux, &
        &  MatrixV, VectorU, previous_stock, current_stock,&
+       &  npp0_cumul,snowtemp_min,snowdz_min, &  !! Arsene 25-06-2014 NPPcumul ADD  !! Arsene 19-08-2014 Add snowtemp and snowdz
        &  deepC_a, deepC_s, deepC_p, O2_soil, CH4_soil, O2_snow, CH4_snow, &
        &  thawed_humidity, depth_organic_soil, altmax, fixed_cryoturbation_depth, & !pss+
        &  uo_0, uold2_0, uo_wet1, uold2_wet1, uo_wet2, uold2_wet2, uo_wet3, uold2_wet3, &
@@ -192,6 +193,14 @@ CONTAINS
     LOGICAL,DIMENSION(npts,nvm),INTENT(out)    :: PFTpresent
     ! "long term" net primary productivity (gC/m**2/year)
     REAL(r_std),DIMENSION(npts,nvm),INTENT(out) :: npp_longterm
+
+    ! "counter" null or negative npp (days)                           !! Arsene 25-06-2014 NPPcumul
+    REAL(r_std),DIMENSION(npts,nvm),INTENT(out)     :: npp0_cumul     !! Arsene 25-06-2014 NPPcumul
+    ! Min daily snow layer temperature (K)                            !! Arsene 19-08-2014 Add
+    REAL(r_std), DIMENSION(npts,nsnow), INTENT(out) :: snowtemp_min   !! Arsene 19-08-2014 Add
+    ! Min daily snow layer thicknesse (cm?)                           !! Arsene 19-08-2014 Add
+    REAL(r_std), DIMENSION(npts,nsnow), INTENT(out) :: snowdz_min     !! Arsene 19-08-2014 Add
+
     ! last year's maximum leaf mass, for each PFT (gC/m**2)
     REAL(r_std),DIMENSION(npts,nvm),INTENT(out) :: lm_lastyearmax
     ! this year's maximum leaf mass, for each PFT (gC/m**2)
@@ -526,6 +535,20 @@ CONTAINS
          &                .TRUE., precip_daily, 'gather', nbp_glo, index_g)
     IF (ALL(precip_daily(:) == val_exp)) precip_daily(:) = zero
     !-
+!! Arsene 19-08-2014 Add snowtemp_min and snowdz_min
+    snowtemp_min(:,:) = val_exp                                             !! Arsene 19-08-2014 Add
+    var_name = 'snowtemp_min'                                               !! Arsene 19-08-2014 Add
+    CALL restget_p (rest_id_stomate, var_name, nbp_glo, nsnow , 1, itime, & !! Arsene 19-08-2014 Add
+         &                .TRUE., snowtemp_min, 'gather', nbp_glo, index_g) !! Arsene 19-08-2014 Add
+    IF (ALL(snowtemp_min(:,:) == val_exp)) snowtemp_min(:,:) = large_value  !! Arsene 19-08-2014 Add
+    !-                                                                      !! Arsene 19-08-2014 Add
+    snowdz_min(:,:) = val_exp                                               !! Arsene 19-08-2014 Add
+    var_name = 'snowdz_min'                                                 !! Arsene 19-08-2014 Add
+    CALL restget_p (rest_id_stomate, var_name, nbp_glo, nsnow , 1, itime, & !! Arsene 19-08-2014 Add
+         &                .TRUE., snowtemp_min, 'gather', nbp_glo, index_g) !! Arsene 19-08-2014 Add
+    IF (ALL(snowdz_min(:,:) == val_exp)) snowdz_min(:,:) = large_value      !! Arsene 19-08-2014 Add
+!! Arsene 19-08-2014 Add snowtemp_min and snowdz_min
+    !-
     ! 4 productivities
     !-
     gpp_daily(:,:) = val_exp
@@ -828,6 +851,14 @@ CONTAINS
     CALL restget_p (rest_id_stomate, var_name, nbp_glo, nvm  , 1, itime, &
          &              .TRUE., npp_longterm, 'gather', nbp_glo, index_g)
     IF (ALL(npp_longterm(:,:) == val_exp)) npp_longterm(:,:) = zero
+    !-
+    !! Arsene 25-06-2014 NPPcumul
+    npp0_cumul(:,:) = val_exp                                                  !! Arsene 25-06-2014 NPPcumul
+    var_name = 'npp0_cumul'                                                    !! Arsene 25-06-2014 NPPcumul
+    CALL restget_p (rest_id_stomate, var_name, nbp_glo, nvm  , 1, itime, &     !! Arsene 25-06-2014 NPPcumul
+         &              .TRUE., npp0_cumul, 'gather', nbp_glo, index_g)        !! Arsene 25-06-2014 NPPcumul
+    IF (ALL(npp0_cumul(:,:) == val_exp)) npp0_cumul(:,:) = zero                !! Arsene 25-06-2014 NPPcumul
+    !! Arsene 25-06-2014 NPPcumul
     !-
     lm_lastyearmax(:,:) = val_exp
     var_name = 'lm_lastyearmax'
@@ -1614,6 +1645,7 @@ CONTAINS
        &  Tmin_spring, Tmin_spring_time, begin_leaves, onset_date, &
        &  global_years, ok_equilibrium, nbp_accu, nbp_flux, &
        &  MatrixV, VectorU, previous_stock, current_stock,&
+       &  npp0_cumul,snowtemp_min,snowdz_min, & !! Arsene 25-06-2014 NPPcumul ADD  !! Arsene 19-08-2014 Add snowtemp and snowdz
        &  deepC_a, deepC_s, deepC_p, O2_soil, CH4_soil, O2_snow, CH4_snow, &
        &  thawed_humidity, depth_organic_soil, altmax, fixed_cryoturbation_depth, & !pss+
        &  uo_0, uold2_0, uo_wet1, uold2_wet1, uo_wet2, uold2_wet2, uo_wet3, uold2_wet3, &
@@ -1736,6 +1768,14 @@ CONTAINS
     LOGICAL,DIMENSION(npts,nvm),INTENT(in) :: PFTpresent
     ! "long term" net primary productivity (gC/m**2/year)
     REAL(r_std),DIMENSION(npts,nvm),INTENT(in) :: npp_longterm
+
+    ! "counter" null or negative npp (days)                           !! Arsene 25-06-2014 NPPcumul
+    REAL(r_std),DIMENSION(npts,nvm),INTENT(in)     :: npp0_cumul      !! Arsene 25-06-2014 NPPcumul
+    ! Min daily snow layer temperature (K)                            !! Arsene 19-08-2014 Add
+    REAL(r_std), DIMENSION(npts,nsnow), INTENT(in) :: snowtemp_min    !! Arsene 19-08-2014 Add
+    ! Min daily snow layer thicknesse (cm?)                           !! Arsene 19-08-2014 Add
+    REAL(r_std), DIMENSION(npts,nsnow), INTENT(in) :: snowdz_min      !! Arsene 19-08-2014 Add
+
     ! last year's maximum leaf mass, for each PFT (gC/m**2)
     REAL(r_std),DIMENSION(npts,nvm),INTENT(in) :: lm_lastyearmax
     ! this year's maximum leaf mass, for each PFT (gC/m**2)
@@ -2006,7 +2046,17 @@ CONTAINS
     var_name = 'precip_daily'
     CALL restput_p (rest_id_stomate, var_name, nbp_glo,    1, 1, itime, &
          &                precip_daily, 'scatter', nbp_glo, index_g)
-
+    !-
+!! Arsene 19-08-2014 Add snowtemp_min and snowdz_min
+       var_name = 'snowtemp_min'                                           !! Arsene 19-08-2014 Add
+    CALL restput_p (rest_id_stomate, var_name, nbp_glo, nsnow, 1, itime, & !! Arsene 19-08-2014 Add
+         &                snowtemp_min, 'scatter', nbp_glo, index_g)       !! Arsene 19-08-2014 Add
+    !-
+       var_name = 'snowdz_min'                                             !! Arsene 19-08-2014 Add
+    CALL restput_p (rest_id_stomate, var_name, nbp_glo, nsnow, 1, itime, & !! Arsene 19-08-2014 Add
+         &                snowdz_min, 'scatter', nbp_glo, index_g)         !! Arsene 19-08-2014 Add
+!! Arsene 19-08-2014 Add snowtemp_min and snowdz_min
+    !-
     ! Wetland CH4 methane
     !pss:+
     var_name = 'uo_0'
@@ -2260,6 +2310,12 @@ CONTAINS
     var_name = 'npp_longterm'
     CALL restput_p (rest_id_stomate, var_name, nbp_glo, nvm, 1, itime, &
          &                npp_longterm, 'scatter', nbp_glo, index_g)
+    !-
+   !! Arsene 25-06-2014 NPPcumul
+    var_name = 'npp0_cumul'                                                !! Arsene 25-06-2014 NPPcumul
+    CALL restput_p (rest_id_stomate, var_name, nbp_glo, nvm, 1, itime, &   !! Arsene 25-06-2014 NPPcumul
+         &                npp0_cumul, 'scatter', nbp_glo, index_g)         !! Arsene 25-06-2014 NPPcumul
+   !! Arsene 25-06-2014 NPPcumul 
     !-
     var_name = 'lm_lastyearmax'
     CALL restput_p (rest_id_stomate, var_name, nbp_glo, nvm, 1, itime, &

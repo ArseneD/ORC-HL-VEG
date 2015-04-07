@@ -221,7 +221,7 @@ CONTAINS
 
              !! 2.3.1.1 Initial setting of new establishment
              IF (veget_max(i,j) .LT. min_stomate) THEN 
-                IF (is_tree(j)) THEN
+                IF (is_tree(j) .OR. is_shrub(j)) THEN   !! Arsene 31-07-2014 modifications Mais... 1 herbe / pk O.5 arbre ?
 
                    ! cn_sapl(j)=0.5; stomate_data.f90
                    cn_ind(i,j) = cn_sapl(j) 

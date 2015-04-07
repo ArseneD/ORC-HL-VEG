@@ -227,7 +227,7 @@ CONTAINS
        ! SZ problem here: agriculture, not convinced that this representation of LPJ is correct
        ! if agriculture is present, ind must be recalculated to correspond to the natural density...
        ! since ind is per grid cell, can be achived by discounting for agricultura fraction
-       IF ( natural(j).AND.is_tree(j) ) THEN
+       IF ( natural(j) .AND. (is_tree(j) .OR.  is_shrub(j)) ) THEN       !! Arsene 31-07-2014 modifications
           WHERE(fracnat(:).GT.min_stomate) 
                 sumfrac_wood(:) = sumfrac_wood(:) + cn_ind(:,j) * ind(:,j) / fracnat(:) &
 !JCMODIF 
@@ -241,8 +241,9 @@ CONTAINS
 
     !! 2.3 Space availability
     avail_grass(:) = MAX( ( un - sumfrac_wood(:) ), min_avail )
-    avail_tree(:) = MAX( ( fpc_crit - sumfrac_wood(:) ), min_avail )
-
+    avail_tree(:) = MAX( ( fpc_crit - sumfrac_wood(:) ), min_avail )  !! Arsene 31-07-2014 modifications RENOMMER avail_wood ? ou rajouter avail_shrub ?
+                                                                      !! Arsene 31-07-2014 modifications Impact ici et dans lpj_establish via stomate_lpj
+                                                                      !! Arsene 31-07-2014 Pour le moment : ok
   !! 3. Time since last elimination (y)
 
     RIP_time = RIP_time + dt / one_year
@@ -262,6 +263,10 @@ CONTAINS
 
              WRITE(numout,*) 'pftinout: Agricultural trees not treated. We stop.'
              STOP
+
+          ELSEIF ( is_shrub(j) ) THEN                                             !! Arsene 31-07-2014 modifications
+             WRITE(numout,*) 'pftinout: Agricultural shrub not treated. We stop.' !! Arsene 31-07-2014 modifications
+             STOP                                                                 !! Arsene 31-07-2014 modifications
 
           !! 4.2 Initialization of agricultural grass lands
           !      Initialize parameter values of prescribed agricultural PFTs
@@ -320,6 +325,8 @@ CONTAINS
           ! space availability for this PFT
           IF ( is_tree(j) ) THEN
              avail(:) = avail_tree(:)
+          ELSEIF ( is_shrub(j) ) THEN          !! Arsene 31-07-2014 modifications  ATTENTION. avail_tree utilisee !!!!!!!!!!!!!
+             avail(:) = avail_tree(:)          !! Arsene 31-07-2014 modifications  ATTENTION. avail_tree utilisee !!!!!!!!!!!!!  
           ELSE
              avail(:) = avail_grass(:)
           ENDIF
@@ -409,7 +416,7 @@ CONTAINS
              ! initial density of individuals (ind_0) = 0.02, see 'stomate_constant.f90'
              ind(:,j) = ind_0 * (dt/one_year) * avail(:)
              
-             WHERE(veget_max(:,j) .GT. min_stomate)
+             WHERE(veget_max(:,j) .GT. min_stomate)      ! 15-03-2014 Modif of bm_sapl for moss (stomate_data.f90)
                 biomass(:,j,ileaf,icarbon) = bm_sapl(j,ileaf,icarbon) * ind(:,j) /veget_max(:,j)
                 biomass(:,j,isapabove,icarbon) = bm_sapl(j,isapabove,icarbon) * ind(:,j) /veget_max(:,j)
                 biomass(:,j,isapbelow,icarbon) = bm_sapl(j,isapbelow,icarbon) * ind(:,j)/veget_max(:,j)

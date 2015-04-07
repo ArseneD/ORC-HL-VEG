@@ -226,7 +226,7 @@ CONTAINS
 	     !!?? CODE SHOULD BE CLEANED UP BELOW
 
              !! 2.2.1.1 Trees
-             IF ( is_tree(j) ) THEN
+             IF ( is_tree(j)  .OR. is_shrub(j) ) THEN        !! Arsene 31-07-2014 modifications pareil ds les 2 cas
 
                 ! !! 2.1.1.1 trees: minimum cover due to stems, branches etc.
                 !          DO i = 1, npts
@@ -266,7 +266,7 @@ CONTAINS
                    !                    ( 1._r_std - exp( - lm_lastyearmax(:,j) * sla(j) * ext_coeff(j) ) )
                    !            ENDWHERE
 
-                   fpc_nat(:,j) = cn_ind(:,j) * ind(:,j) / fracnat(:)
+                   fpc_nat(:,j) = cn_ind(:,j) * ind(:,j) / fracnat(:)     !! Arsene 31-07-2014 modifications pareil dans les 2 cas, non ?
                 ENDWHERE
 
 !!!$                ! 2.1.1.2 bare ground 
@@ -347,7 +347,7 @@ CONTAINS
                 IF ( natural(j) ) THEN
 
                    !! 2.4.1.3.1.1 Trees
-                   IF ( is_tree(j) ) THEN
+                   IF ( is_tree(j) .OR. is_shrub(j) ) THEN      !! Arsene 31-07-2014 modifications ok
 
                       ! total woody fpc
                       sumfpc_wood = sumfpc_wood + fpc_nat(i,j)
@@ -393,7 +393,7 @@ CONTAINS
                 IF ( PFTpresent(i,j) .AND. natural(j) ) THEN
 
                    !! 2.4.1.4.1 Trees
-                   IF ( is_tree(j) ) THEN
+                   IF ( is_tree(j) .OR. is_shrub(j) ) THEN     !! Arsene 31-07-2014 modifications vérif
 
                       ! no single woody pft is overwhelming
                       ! (original DGVM: tree_mercy = 0.0 )
@@ -520,7 +520,7 @@ CONTAINS
           IF ( natural(j) ) THEN
  
              !! 2.5.1.1 Trees
-             IF ( is_tree(j) ) THEN
+             IF ( is_tree(j)  .OR. is_shrub(j) ) THEN        !! Arsene 31-07-2014 modifications Dep de cn_ind et ind
 
                 DO i = 1, npts
 

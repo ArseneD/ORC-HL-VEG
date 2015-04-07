@@ -171,7 +171,7 @@ CONTAINS
        maxmoiavail_lastyear, minmoiavail_lastyear, &
        moiavail_week, moiavail_month, tlong_ref, t2m_month, t2m_week, veget_max, &
        gdd_from_growthinit, leaf_age, leaf_frac, age, lai, biomass, &
-       turnover, senescence,turnover_time, &
+       turnover, senescence,turnover_time, npp0_cumul, &  !! Arsene 25-06-2014 NPPcumul : add of  npp0_cumul
 !JCADD
        sla_calc)
 !ENDJCADD
@@ -200,6 +200,9 @@ CONTAINS
     REAL(r_std), DIMENSION(npts,nvm), INTENT(in)               :: veget_max            !! "maximal" coverage fraction of a PFT (LAI 
                                                                                        !! -> infinity) on ground (unitless) 
     REAL(r_std), DIMENSION(npts,nvm), INTENT(in)               :: gdd_from_growthinit  !! gdd senescence for crop
+
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(in)               :: npp0_cumul           !! Arsene 25-06-2014 NPPcumul
+!! Variable to count number of days since npp =0 or <0. Could become DIMENSION(npts:nvm) if we add the same for others pft
 
     !! 0.2 Output variables
 
@@ -399,7 +402,7 @@ CONTAINS
                tl(:) * senescence_temp(j,2) + &
                tl(:)*tl(:) * senescence_temp(j,3)
 
-          IF ( is_tree(j) ) THEN
+          IF ( is_tree(j) .OR. is_shrub(j) ) THEN             !! Arsene 31-07-2014 modifications  Jeter un coup d'oeil suppl
              ! critical temperature for senescence may depend on long term annual mean temperature
              WHERE ( ( biomass(:,j,ileaf,icarbon) .GT. zero ) .AND. &
                   ( leaf_meanage(:,j) .GT. min_leaf_age_for_senescence(j) ) .AND. &
@@ -456,7 +459,7 @@ CONTAINS
 
        !! 3.2 Drop leaves and roots, plus stems and fruits for grasses
 
-       IF ( is_tree(j) ) THEN
+       IF ( is_tree(j)  .OR. is_shrub(j)) THEN       !! Arsene 31-07-2014 modifications
 
           !! 3.2.1 Trees in climatic senescence lose their fine roots at the same rate as they lose their leaves. 
           !        The rate of biomass loss of both fine roots and leaves is presribed through the equation:
@@ -524,7 +527,7 @@ CONTAINS
        !! initialize leaf mass change in age class
        delta_lm(:,:) = zero
 
-       IF ( is_tree(j) .OR. (.NOT. natural(j)) ) THEN
+       IF ( is_tree(j) .OR. is_shrub(j) .OR. (.NOT. natural(j)) ) THEN    !! Arsene 31-07-2014 modifications... A revoir, mais ok
 
           !! 4.1 Trees: leaves, roots, fruits roots and fruits follow leaves.
 
@@ -574,7 +577,7 @@ CONTAINS
           turnover(:,j,ifruit,icarbon) = turnover(:,j,ifruit,icarbon) + dturnover(:)
           biomass(:,j,ifruit,icarbon) = biomass(:,j,ifruit,icarbon) - dturnover(:)
           
-          IF (.NOT. is_tree(j)) THEN
+          IF (.NOT. is_tree(j) .AND. .NOT. is_shrub(j)) THEN    !! Arsene 31-07-2014 modifications (a vérif rapidement)
              dturnover(:) = biomass(:,j,isapabove,icarbon) * leaf_frac(:,j,m) * turnover_rate(:)
              turnover(:,j,isapabove,icarbon) = turnover(:,j,isapabove,icarbon) + dturnover(:)
              biomass(:,j,isapabove,icarbon) = biomass(:,j,isapabove,icarbon) - dturnover(:)
@@ -603,6 +606,23 @@ CONTAINS
           ENDWHERE
 
        ENDDO
+
+!! Arsene 10-06-2014
+       !! 4.4 Dead of one part of PFT if LAI too hight. first case only for moss     !! Arsene 10-06-2014
+       IF ( .NOT. vascular(j) ) THEN                                                 !! Arsene 10-06-2014
+         turnover_rate(:) = zero                                                     !! Arsene 10-06-2014
+          WHERE ( lai(:,j) .gt. llaimax(j) )                                         !! Arsene 10-06-2014 de base llaimax=2.
+             turnover_rate(:) =  &                                                   !! Arsene 10-06-2014
+                  EXP(0.06 * lai(:,j) -0.12 ) - 1                                    !! Arsene 10-06-2014 Changer l'équation : entre 2 et 5 soit 0==> 10 soit 0,1 50
+          ENDWHERE                                                                   !! Arsene 10-06-2014
+          dturnover(:) = biomass(:,j,ileaf,icarbon) * turnover_rate(:)               !! Arsene 10-06-2014
+          turnover(:,j,ileaf,icarbon) = turnover(:,j,ileaf,icarbon) + dturnover(:)   !! Arsene 10-06-2014
+          biomass(:,j,ileaf,icarbon) = biomass(:,j,ileaf,icarbon) - dturnover(:)     !! Arsene 10-06-2014
+          turnover(:,j,ifruit,icarbon) = turnover(:,j,ifruit,icarbon) + &            !! Arsene 10-06-2014
+                (biomass(:,j,ifruit,icarbon) * turnover_rate(:))                     !! Arsene 10-06-2014
+          biomass(:,j,ifruit,icarbon) = biomass(:,j,ifruit,icarbon) * (1 - dturnover(:))  !! Arsene 11-06-2014
+       ENDIF                                                                         !! Arsene 10-06-2014
+!! Arsene 10-06-2014
 
     ENDDO         ! loop over PFTs
 
@@ -640,7 +660,7 @@ CONTAINS
        !! 6.1 For deciduous trees: next to leaves, also fruits and fine roots are dropped 
        !      For deciduous trees: next to leaves, also fruits and fine roots are dropped: fruit ::biomass(:,j,ifruit) 
        !      and fine root ::biomass(:,j,iroot) carbon pools are set to zero.
-       IF ( is_tree(j) .AND. ( senescence_type(j) .NE. 'none' ) ) THEN
+       IF ( ( is_tree(j) .OR. is_shrub(j) )  .AND. ( senescence_type(j) .NE. 'none' ) ) THEN    !! Arsene 31-07-2014 modifications  A vérif, apriori ok
 
           ! check whether we shed the remaining leaves
           WHERE ( ( biomass(:,j,ileaf,icarbon) .GT. zero ) .AND. senescence(:,j) .AND. &
@@ -669,7 +689,7 @@ CONTAINS
        !      For grasses: all aboveground carbon pools, except the carbohydrate reserves are affected: 
        !      fruit ::biomass(:,j,ifruit,icarbon), fine root ::biomass(:,j,iroot,icarbon) and sapwood above 
        !      ::biomass(:,j,isapabove,icarbon) carbon pools are set to zero. 
-       IF ( .NOT. is_tree(j) ) THEN
+       IF ( .NOT. is_tree(j) .AND. .NOT. is_shrub(j) ) THEN          !! Arsene 31-07-2014 modifications
 
           ! Shed the remaining leaves if LAI very low.
           WHERE ( ( biomass(:,j,ileaf,icarbon) .GT. zero ) .AND. senescence(:,j) .AND. &
@@ -709,6 +729,34 @@ CONTAINS
 
        ENDDO
 
+!! Arsene 25-06-2014 NPPcumul  
+       !! 7.0. Response if npp .LE. 0 from long time (important stress like snow above, dessiccation...  !! Arsene 25-06-2014 NPPcumul
+       !! Arsene 25-06-2014 NPPcumul ==> only for moss in first step 
+       IF ( .NOT. vascular(j) ) THEN                             !! Arsene 25-06-2014 NPPcumul ==> only for moss in first step
+            WHERE ( (npp0_cumul(:,j) .GT. npp0_c(1)) .AND. (npp0_cumul(:,j) .LE. npp0_c(2)) )  !! Arsene 25-06-2014 NPPcumul
+                   dturnover(:) = biomass(:,j,ileaf,icarbon) * npp0_c(4) * &                   !! Arsene 25-06-2014 NPPcumul
+                        & (npp0_cumul(:,j)-npp0_c(1))/ (npp0_c(2)-npp0_c(1))                   !! Arsene 25-06-2014 NPPcumul
+                   turnover(:,j,ileaf,icarbon) = turnover(:,j,ileaf,icarbon) + dturnover(:)
+                   biomass(:,j,ileaf,icarbon) = biomass(:,j,ileaf,icarbon) - dturnover(:)
+
+                   dturnover(:) = biomass(:,j,ifruit,icarbon) * npp0_c(4) * &                  !! Arsene 25-06-2014 NPPcumul
+                        & (npp0_cumul(:,j)-npp0_c(1))/ (npp0_c(2)-npp0_c(1))                   !! Arsene 25-06-2014 NPPcumul
+                   turnover(:,j,ifruit,icarbon) = turnover(:,j,ifruit,icarbon) + dturnover(:)
+                   biomass(:,j,ifruit,icarbon) = biomass(:,j,ifruit,icarbon) - dturnover(:)
+            ELSEWHERE ( (npp0_cumul(:,j) .GT. npp0_c(2)) .AND. (npp0_cumul(:,j) .LT. npp0_c(3)) )!! Arsene 25-06-2014 NPPcumul
+                   dturnover(:) = biomass(:,j,ileaf,icarbon) * npp0_c(4) * &                   !! Arsene 25-06-2014 NPPcumul
+                        & (npp0_c(3)-npp0_cumul(:,j))/ (npp0_c(3)-npp0_c(2))                   !! Arsene 25-06-2014 NPPcumul
+                   turnover(:,j,ileaf,icarbon) = turnover(:,j,ileaf,icarbon) + dturnover(:)
+                   biomass(:,j,ileaf,icarbon) = biomass(:,j,ileaf,icarbon) - dturnover(:)
+
+                   dturnover(:) = biomass(:,j,ifruit,icarbon) * npp0_c(4) * &                  !! Arsene 25-06-2014 NPPcumul
+                        & (npp0_c(3)-npp0_cumul(:,j))/ (npp0_c(3)-npp0_c(2))                   !! Arsene 25-06-2014 NPPcumul
+                   turnover(:,j,ifruit,icarbon) = turnover(:,j,ifruit,icarbon) + dturnover(:)
+                   biomass(:,j,ifruit,icarbon) = biomass(:,j,ifruit,icarbon) - dturnover(:)
+            ENDWHERE                                                                           !! Arsene 25-06-2014 NPPcumul
+       ENDIF                                                    !! Arsene 25-06-2014 NPPcumul ==> only for moss in first step
+!! Arsene 25-06-2014 NPPcumul  
+
     ENDDO          ! loop over PFTs
     
     !! 7. Herbivore activity: elephants, cows, gazelles but no lions.
@@ -727,7 +775,7 @@ CONTAINS
        ! The daily amount consumed equals the biomass multiplied by 1 day divided by the time constant ::herbivores(:,j).
        DO j = 2,nvm ! Loop over # PFTs
 
-          IF ( is_tree(j) ) THEN
+          IF ( is_tree(j) .OR. is_shrub(j) ) THEN       !! Arsene 31-07-2014 modifications OK sauf si on compte destruction de bois
 
              !! For trees: only the leaves and fruit carbon pools are affected
 
@@ -778,7 +826,7 @@ CONTAINS
 
     DO k = 1,nelements 
        DO j = 2,nvm ! Loop over # PFTs
-          IF ( is_tree(j) ) THEN
+          IF ( is_tree(j)  .OR. is_shrub(j) ) THEN     !! Arsene 31-07-2014 modifications
 
              dturnover(:) = biomass(:,j,ifruit,k) * dt / tau_fruit(j)
              turnover(:,j,ifruit,k) = turnover(:,j,ifruit,k) + dturnover(:)
@@ -795,7 +843,7 @@ CONTAINS
     !   Note that this biomass conversion is not added to "turnover" as the biomass is not lost!
     DO j = 2,nvm ! Loop over # PFTs
 
-       IF ( is_tree(j) ) THEN
+       IF ( is_tree(j) .OR. is_shrub(j) ) THEN     !! Arsene 31-07-2014 modifications  ATTTTTTENTION - peut être à modifier !!!
 
           !! For the recalculation of age in 9.2 (in case the vegetation is not dynamic ie. ::control%ok_dgvm is FALSE), 
           !! the heartwood above and below is stored in ::hw_old(:).
@@ -811,7 +859,7 @@ CONTAINS
           DO k = 1,nelements
 
              ! Above the ground
-             sapconv(:) = biomass(:,j,isapabove,k) * dt / tau_sap(j)
+             sapconv(:) = biomass(:,j,isapabove,k) * dt / tau_sap(j)     !! Arsene 31-07-2014 modifications ==> Peut être qu'il suffit de modifier cette avriable tau_sap
              biomass(:,j,isapabove,k) = biomass(:,j,isapabove,k) - sapconv(:)
              biomass(:,j,iheartabove,k) =  biomass(:,j,iheartabove,k) + sapconv(:)
              

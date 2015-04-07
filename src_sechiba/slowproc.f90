@@ -155,7 +155,7 @@ CONTAINS
        tdeep, hsdeep_long, snow, heat_Zimov, pb, &
        sfluxCH4_deep, sfluxCO2_deep, &
        thawed_humidity, depth_organic_soil, zz_deep, zz_coef_deep, &
-       soilc_total,snowdz,snowrho)
+       soilc_total,snowdz,snowrho, snowtemp)    !! Arsene 19-08-2014 Add snowtemp (and snowdz) to stomate
   
 !! INTERFACE DESCRIPTION
 
@@ -200,7 +200,9 @@ CONTAINS
     REAL(r_std), DIMENSION(ndeep),   INTENT (in)                 :: zz_deep    !! deep vertical profile
     REAL(r_std), DIMENSION(ndeep),   INTENT (in)                 :: zz_coef_deep!! deep vertical profile   
     REAL(r_std), DIMENSION(kjpindex,nsnow),INTENT(in)            :: snowdz     !! snow depth for each layer
-    REAL(r_std), DIMENSION(kjpindex,nsnow),INTENT(in)            :: snowrho    !! snow density for each layer
+    REAL(r_std), DIMENSION(kjpindex,nsnow),INTENT(in)            :: snowrho    !! snow density for each layer    !! Arsene 19-08-2014 Need
+    REAL(r_std), DIMENSION (kjpindex,nsnow), INTENT(in)          :: snowtemp   !! snow temperature      !! Arsene 19-08-2014 Add
+
  
 !! 0.2 Output variables 
     REAL(r_std), DIMENSION (kjpindex,nvm), INTENT(out)  :: co2_flux            !! CO2 flux per average ground area (gC m^{-2} dt_slow^{-1})
@@ -291,7 +293,7 @@ CONTAINS
                tdeep, hsdeep_long, snow, heat_Zimov, pb, &
                sfluxCH4_deep, sfluxCO2_deep, &
                thawed_humidity, depth_organic_soil, zz_deep, &
-               zz_coef_deep, soilc_total,snowdz,snowrho)
+               zz_coef_deep, soilc_total,snowdz,snowrho, snowtemp)    !! Arsene 19-08-2014 Add snowtemp (and snowdz) to stomate
 
        ENDIF
 
@@ -301,7 +303,7 @@ CONTAINS
        IF ( .NOT. control%ok_stomate ) THEN
 
           CALL slowproc_derivvar (kjpindex, veget, lai, &
-               qsintmax, deadleaf_cover, assim_param, height, temp_growth)
+               qsintmax, deadleaf_cover, assim_param, height, temp_growth, humrel)    !! Arsene 28-05-2014 Add humrel
        ELSE
           qsintmax(:,:) = qsintcst * veget(:,:) * lai(:,:)
           qsintmax(:,1) = zero
@@ -394,7 +396,7 @@ CONTAINS
                tdeep, hsdeep_long, snow, heat_Zimov, pb, &
                sfluxCH4_deep, sfluxCO2_deep, &
                thawed_humidity, depth_organic_soil, zz_deep, &
-               zz_coef_deep, soilc_total,snowdz,snowrho)
+               zz_coef_deep, soilc_total,snowdz,snowrho, snowtemp)    !! Arsene 19-08-2014 Add snowtemp (and snowdz) to stomate
 
        ENDIF
 
@@ -510,7 +512,7 @@ CONTAINS
             tdeep, hsdeep_long, snow, heat_Zimov, pb, &
             sfluxCH4_deep, sfluxCO2_deep, &
             thawed_humidity, depth_organic_soil, zz_deep, &
-            zz_coef_deep, soilc_total,snowdz,snowrho)
+            zz_coef_deep, soilc_total,snowdz,snowrho, snowtemp)    !! Arsene 19-08-2014 Add snowtemp (and snowdz) to stomate
 
        ! 5.2 output the respiration terms and the net primary
        !     production (NPP) that are calculated in STOMATE
@@ -598,7 +600,7 @@ CONTAINS
        ! 2.4.2 updates qsintmax and other derived variables
        IF ( .NOT. control%ok_stomate ) THEN
           CALL slowproc_derivvar (kjpindex, veget, lai, &
-               qsintmax, deadleaf_cover, assim_param, height, temp_growth)
+               qsintmax, deadleaf_cover, assim_param, height, temp_growth, humrel)    !! Arsene 28-05-2014 Add humrel
        ELSE
           qsintmax(:,:) = qsintcst * veget(:,:) * lai(:,:)
           qsintmax(:,1) = zero
@@ -1469,7 +1471,7 @@ SUBROUTINE slowproc_init (kjit, ldrestart_read, dtradia, date0, kjpindex, IndexL
 !_ ================================================================================================================================
 
   SUBROUTINE slowproc_derivvar (kjpindex, veget, lai, &
-       qsintmax, deadleaf_cover, assim_param, height, temp_growth)
+       qsintmax, deadleaf_cover, assim_param, height, temp_growth, humrel)     !! Arsene 28-05-2014 Add humrel
 
     !! INTERFACE DESCRIPTION
 
@@ -1477,6 +1479,8 @@ SUBROUTINE slowproc_init (kjit, ldrestart_read, dtradia, date0, kjpindex, IndexL
     INTEGER(i_std), INTENT (in)                                :: kjpindex       !! Domain size - terrestrial pixels only
     REAL(r_std),DIMENSION (kjpindex,nvm), INTENT (in)          :: veget          !! Fraction of pixel covered by PFT. Fraction accounts for none-biological land covers (unitless)
     REAL(r_std),DIMENSION (kjpindex,nvm), INTENT (in)          :: lai            !! PFT leaf area index (m^{2} m^{-2})
+
+    REAL(r_std),DIMENSION (kjpindex,nvm), INTENT (in)          :: humrel         !! Arsene 28-05-2014 ADD Relative humidity ("moisture stress") (0-1, unitless)
 
     !! 0.2. Output scalar and fields 
     REAL(r_std),DIMENSION (kjpindex,nvm), INTENT (out)          :: qsintmax       !! Maximum water on vegetation for interception(mm)
@@ -1493,7 +1497,8 @@ SUBROUTINE slowproc_init (kjit, ldrestart_read, dtradia, date0, kjpindex, IndexL
     ! 1. Initialize (why here ??) the variables revelant for the assimilation parameters
     !
     DO jv = 1, nvm
-       assim_param(:,jv,ivcmax) = vcmax_fix(jv)
+       !assim_param(:,jv,ivcmax) = vcmax_fix(jv)
+       assim_param(:,jv,ivcmax) = vcmax_fix(jv) * (0.5 + 0.5 *  humrel(:,jv))     !! Arsene 23-06-2014 For dessication. CARE. It's a little modification for the next time step
     ENDDO
 
     !
@@ -5624,7 +5629,7 @@ SUBROUTINE slowproc_init (kjit, ldrestart_read, dtradia, date0, kjpindex, IndexL
     !! 0. Variables and parameters declaration
     
     INTEGER(i_std),PARAMETER :: nolson94 = 94                       !! Number of Olson vegetation types (unitless)
-    INTEGER(i_std),PARAMETER :: nvm13 = 13                          !! Number of PFTS of ORCHIDEE (unitless) 
+    INTEGER(i_std),PARAMETER :: nvm13 = 15     !!!Arsene 13-02-2014 !! Number of PFTS of ORCHIDEE (unitless) 
 
     !! 0.1 Input variables
 
@@ -5658,6 +5663,7 @@ SUBROUTINE slowproc_init (kjit, ldrestart_read, dtradia, date0, kjpindex, IndexL
             &                 'wrong number of SECHIBA vegetation types.') ! Fatal error
     ENDIF !(nvm /= nvm13)
 
+!! Arsene 04-01-13 REMOVE   ??????
     ! The carteveg5km cannot be used if the PFTs are not in the standard order
     DO ib = 1,nvm
        IF (pft_to_mtc(ib) /= ib ) THEN
@@ -5677,289 +5683,291 @@ SUBROUTINE slowproc_init (kjit, ldrestart_read, dtradia, date0, kjpindex, IndexL
     !-
     ! The modified OLSON types found in file carteveg5km.nc
     ! created by Nicolas Viovy :
+    !! Arsene 27-11-13 Add 2 PFT: Moss, Schrubs
+
     !  1 Urban
     vegcorr( 1,:) = &
-         & (/1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
+         & (/1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
     !  2 Cool low sparse grassland
     vegcorr( 2,:) = &
-         & (/0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0/)
+         & (/0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0/)
     !  3 Cold conifer forest
     vegcorr( 3,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
     !  4 Cold deciduous conifer forest
     vegcorr( 4,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
     !  5 Cool Deciduous broadleaf forest
     vegcorr( 5,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
     !  6 Cool evergreen broadleaf forests
     vegcorr( 6,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
     !  7 Cool tall grasses and shrubs
     vegcorr( 7,:) = &
-         & (/0.1, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.7, 0.0, 0.0, 0.0, 0.0, 0.3/)!
     !  8 Warm C3 tall grasses and shrubs
     vegcorr( 8,:) = &
-         & (/0.1, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0/)
+         & (/0.1, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.7, 0.0, 0.0, 0.0, 0.0, 0.3/)!
     !  9 Warm C4 tall grases and shrubs
     vegcorr( 9,:) = &
-         & (/0.1, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0/)
+         & (/0.1, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.7, 0.0, 0.0, 0.0, 0.3/)!
     ! 10 Bare desert
     vegcorr(10,:) = &
-         & (/1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
+         & (/1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
     ! 11 Cold upland tundra
     vegcorr(11,:) = &
-         & (/0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0/)
+         & (/0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.1, 0.2/)!!
     ! 12 Cool irrigated grassland
     vegcorr(12,:) = &
-         & (/0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0, 0.0, 0.0/)
+         & (/0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0, 0.0, 0.0, 0.0, 0.0/)
     ! 13 Semi desert
     vegcorr(13,:) = &
-         & (/0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0/)
+         & (/0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0/)
     ! 14 Glacier ice
     vegcorr(14,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
     nobiocorr(14,iice) = 1.
     ! 15 Warm wooded wet swamp
     vegcorr(15,:) = &
-         & (/0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0/)
+         & (/0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0, 0.0, 0.2, 0.0/)!!
     ! 16 Inland water
     vegcorr(16,:) = &
-         & (/1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
+         & (/1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
     ! 17 sea water
     vegcorr(17,:) = &
-         & (/1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
+         & (/1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
     ! 18 cool shrub evergreen
     vegcorr(18,:) = &
-         & (/0.1, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0/)!
     ! 19 cold shrub deciduous
     vegcorr(19,:) = &
-         & (/0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.6, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0/)!
     ! 20 Cold evergreen forest and fields
     vegcorr(20,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.3/)!!
     ! 21 cool rain forest
     vegcorr(21,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.1, 0.0/)!!
     ! 22 cold conifer boreal forest
     vegcorr(22,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.1, 0.0/)!!
     ! 23 cool conifer forest
     vegcorr(23,:) = &
-         & (/0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.1, 0.0/)!!
     ! 24 warm mixed forest
     vegcorr(24,:) = &
-         & (/0.0, 0.4, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0/)
+         & (/0.0, 0.4, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 0.0/)
     ! 25 cool mixed forest
     vegcorr(25,:) = &
-         & (/0.0, 0.0, 0.0, 0.4, 0.0, 0.4, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.4, 0.0, 0.4, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.1, 0.0/)!
     ! 26 cool broadleaf forest
     vegcorr(26,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0/)
     ! 27 cool deciduous broadleaf forest
     vegcorr(27,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.3, 0.5, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.3, 0.5, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.1, 0.0/)!
     ! 28 warm montane tropical forest
     vegcorr(28,:) = &
-         & (/0.0, 0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0/)
+         & (/0.0, 0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0/)
     ! 29 warm seasonal tropical forest
     vegcorr(29,:) = &
-         & (/0.0, 0.5, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0/)
+         & (/0.0, 0.5, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0/)
     ! 30 cool crops and towns
     vegcorr(30,:) = &
-         & (/0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0/)
+         & (/0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0/)
     ! 31 warm crops and towns
     vegcorr(31,:) = &
-         & (/0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8/)
+         & (/0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0/)
     ! 32 cool crops and towns
     vegcorr(32,:) = &
-         & (/0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0/)
+         & (/0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0/)
     ! 33 warm dry tropical woods
     vegcorr(33,:) = &
-         & (/0.2, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0/)
+         & (/0.2, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0/)
     ! 34 warm tropical rain forest
     vegcorr(34,:) = &
-         & (/0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
+         & (/0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
     ! 35 warm tropical degraded forest
     vegcorr(35,:) = &
-         & (/0.1, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0/)
+         & (/0.1, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.2, 0.0/)!!
     ! 36 warm corn and beans cropland
     vegcorr(36,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0/)
     ! 37 cool corn and bean cropland
     vegcorr(37,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0/)
     ! 38 warm rice paddy and field
     vegcorr(38,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0/)
     ! 39 hot irrigated cropland
     vegcorr(39,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0/)
     ! 40 cool irrigated cropland
     vegcorr(40,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0/)
     ! 41 cold irrigated cropland
     vegcorr(41,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0/)
     ! 42 cool grasses and shrubs
     vegcorr(42,:) = &
-         & (/0.1, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 0.7, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5/)!!
     ! 43 hot and mild grasses and shrubs
     vegcorr(43,:) = &
-         & (/0.2, 0.0, 0.1, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0, 0.0, 0.0, 0.5/)
     ! 44 cold grassland
     vegcorr(44,:) = &
-         & (/0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0, 0.0, 0.0/)
+         & (/0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0, 0.0, 0.0, 0.0, 0.0/)
     ! 45 Savanna (woods) C3
     vegcorr(45,:) = &
-         & (/0.1, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.7, 0.0, 0.0, 0.0/)
+         & (/0.1, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.4/)!
     ! 46 Savanna woods C4
     vegcorr(46,:) = &
-         & (/0.1, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.7, 0.0, 0.0/)
+         & (/0.1, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 0.3/)!
     ! 47 Mire, bog, fen
     vegcorr(47,:) = &
-         & (/0.1, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.7, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.4, 0.3/)!!
     ! 48 Warm marsh wetland
     vegcorr(48,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.5, 0.2/)!!
     ! 49 cold marsh wetland
     vegcorr(49,:) = &
-         & (/0.0, 0.0, 0.0, 0.1, 0.1, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.5, 0.2/)!!
     ! 50 mediteraean scrub
     vegcorr(50,:) = &
-         & (/0.1, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 0.0, 0.8/)!
     ! 51 Cool dry woody scrub
     vegcorr(51,:) = &
-         & (/0.3, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.7/)!
     ! 52 Warm dry evergreen woods
     vegcorr(52,:) = &
-         & (/0.1, 0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1/)!
     ! 53 Volcanic rocks
     vegcorr(53,:) = &
-         & (/1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
+         & (/1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
     ! 54 sand desert
     vegcorr(54,:) = &
-         & (/1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
+         & (/1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
     ! 55 warm semi desert shrubs
     vegcorr(55,:) = &
-         & (/0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0/)
+         & (/0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.4/)!
     ! 56 cool semi desert shrubs
     vegcorr(56,:) = &
-         & (/0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0/)
+         & (/0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.4/)!
     ! 57 semi desert sage
     vegcorr(57,:) = &
-         & (/0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0, 0.0, 0.0/)
+         & (/0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.5/)!
     ! 58 Barren tundra
     vegcorr(58,:) = &
-         & (/0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0/)
+         & (/0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.3, 0.1/)!
     ! 59 cool southern hemisphere mixed forest
     vegcorr(59,:) = &
-         & (/0.1, 0.0, 0.0, 0.0, 0.3, 0.3, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0/)
+         & (/0.1, 0.0, 0.0, 0.0, 0.3, 0.3, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.1/)!
     ! 60 cool fields and woods
     vegcorr(60,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.2/)!
     ! 61 warm forest and filed
     vegcorr(61,:) = &
-         & (/0.0, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6/)
+         & (/0.0, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.1/)!
     ! 62 cool forest and field
     vegcorr(62,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.2/)!
     ! 63 warm C3 fields and woody savanna
     vegcorr(63,:) = &
-         & (/0.1, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0/)
+         & (/0.1, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.3/)!!
     ! 64 warm C4 fields and woody savanna
     vegcorr(64,:) = &
-         & (/0.1, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6/)
+         & (/0.1, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0, 0.2/)!
     ! 65 cool fields and woody savanna
     vegcorr(65,:) = &
-         & (/0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0/)
+         & (/0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.3/)!
     ! 66 warm succulent and thorn scrub
     vegcorr(66,:) = &
-         & (/0.1, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 0.4, 0.2/)!
     ! 67 cold small leaf mixed woods
     vegcorr(67,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.3, 0.0, 0.5, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.3, 0.0, 0.2, 0.0, 0.0, 0.0, 0.0, 0.3/)!
     ! 68 cold deciduous and mixed boreal fores
     vegcorr(68,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.7, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.7, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.2/)!
     ! 69 cold narrow conifers
     vegcorr(69,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0/)!
     ! 70 cold wooded tundra
     vegcorr(70,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.7, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.4, 0.0, 0.0, 0.0, 0.1, 0.3/)!
     ! 71 cold heath scrub
     vegcorr(71,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.7, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 0.0, 0.8/)!!
     ! 72 Polar and alpine desert
     vegcorr(72,:) = &
-         & (/0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0/)
+         & (/0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0/)
     ! 73 warm Mangrove
     vegcorr(73,:) = &
-         & (/0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
+         & (/0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
     ! 74 cool crop and water mixtures
     vegcorr(74,:) = &
-         & (/0.1, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0/)
+         & (/0.1, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0, 0.0, 0.0/)
     ! 75 cool southern hemisphere mixed forest
     vegcorr(75,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.4, 0.4, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.4, 0.4, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.1/)!
     ! 76 cool moist eucalyptus
     vegcorr(76,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0/)
     ! 77 warm rain green tropical forest
     vegcorr(77,:) = &
-         & (/0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
+         & (/0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
     ! 78 warm C3 woody savanna
     vegcorr(78,:) = &
-         & (/0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 0.0, 0.3/)!
     ! 79 warm C4 woody savanna
     vegcorr(79,:) = &
-         & (/0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.2/)!
     ! 80 cool woody savanna
     vegcorr(80,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.0, 0.6, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.4/)!!
     ! 81 cold woody savanna
     vegcorr(81,:) = &
-         & (/0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.3/)!
     ! 82 warm broadleaf crops
     vegcorr(82,:) = &
-         & (/0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0/)
+         & (/0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0, 0.0, 0.0/)
     ! 83 warm C3 grass crops
     vegcorr(83,:) = &
-         & (/0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0/)
+         & (/0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0, 0.0, 0.0/)
     ! 84 warm C4 grass crops
     vegcorr(84,:) = &
-         & (/0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9/)
+         & (/0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.0, 0.0/)
     ! 85 cool grass crops
     vegcorr(85,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0/)
     ! 86 warm C3 crops grass,shrubs
     vegcorr(86,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.2/)!
     ! 87 cool crops,grass,shrubs
     vegcorr(87,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.5, 0.0, 0.0, 0.2/)!
     ! 88 warm evergreen tree crop
     vegcorr(88,:) = &
-         & (/0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2/)
+         & (/0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0/)
     ! 89 cool evergreen tree crop
     vegcorr(89,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0/)
     ! 90 cold evergreen tree crop
     vegcorr(90,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0/)
     ! 91 warm deciduous tree crop
     vegcorr(91,:) = &
-         & (/0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2/)
+         & (/0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0/)
     ! 92 cool deciduous tree crop
     vegcorr(92,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0/)
     ! 93 cold deciduous tree crop
     vegcorr(93,:) = &
-         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.2, 0.0/)
+         & (/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0/)
     ! 94 wet sclerophylic forest
     vegcorr(94,:) = &
-         & (/0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
+         & (/0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
     !-
     ! 3 Check the mapping for the Olson types which are going into the
     !   the veget and nobio array.

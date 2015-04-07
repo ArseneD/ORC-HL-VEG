@@ -136,7 +136,7 @@ CONTAINS
              
              ENDWHERE
           
-          ELSE
+          ELSE    !! Arsene - only when .NOT.lpj_gap_const_mort
 
              !! 1.2 Kill natural PFTs when running STOMATE without DGVM
 
@@ -151,7 +151,7 @@ CONTAINS
              ENDWHERE
 
              !! 1.2.2 Overwrite long-term NPP for grasses
-             IF(.NOT.is_tree(j).AND..NOT.lpj_gap_const_mort)THEN
+             IF(.NOT.is_tree(j).AND..NOT.is_shrub(j).AND..NOT.lpj_gap_const_mort)THEN     !! Arsene 31-07-2014 modifications ok
                 WHERE ( was_killed(:) )
 
                    npp_longterm(:,j) = 500.

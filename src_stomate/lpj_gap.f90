@@ -117,7 +117,7 @@ CONTAINS
        npp_longterm, turnover_longterm, lm_lastyearmax, &
        PFTpresent, biomass, ind, bm_to_litter, mortality, t2m_min_daily, Tmin_spring, Tmin_spring_time, &!)
 !JCADD
-       sla_calc)
+       sla_calc, snowdz_min, snowtemp_min) !! Arsene 31-03-2015 Add snowdz_min & snowtemp_min
 !ENDJCADD
 
     !! 0. Variable and parameter declaration
@@ -137,6 +137,9 @@ CONTAINS
     REAL(r_std), DIMENSION(npts), INTENT(in)          :: t2m_min_daily
     REAL(r_std), DIMENSION(npts,nvm), INTENT(in)      :: Tmin_spring
     REAL(r_std), DIMENSION(npts,nvm), INTENT(in)      :: Tmin_spring_time
+
+    REAL(r_std), DIMENSION(npts,nsnow), INTENT(in)          :: snowdz_min              !! Min daily snow layer thicknesse     !! Arsene 31-03-2015 Add
+    REAL(r_std), DIMENSION(npts,nsnow), INTENT(in)          :: snowtemp_min            !! Min daily snow layer temperature    !! Arsene 07-04-2015 Add
 
     !! 0.2 Output variables
 
@@ -163,7 +166,10 @@ CONTAINS
                                                                                        !! vitality, used to calculate mortality
     REAL(r_std), DIMENSION(npts)                            :: availability            !! Mortality rate derived by growth 
                                                                                        !! efficiency @tex $(year^{-1})$ @endtex 
-    INTEGER(i_std)                                          :: j,k,m                   !! Indices
+    INTEGER(i_std)                                          :: j,k,m,i                 !! Indices !! Arsene 07-04-2015 Add i
+
+    REAL(r_std), DIMENSION(npts)                            :: snowdz_min2             !! Sum of Min daily snow layer thicknesse     !! Arsene 31-03-2015 Add
+    REAL(r_std), DIMENSION(npts)                            :: tmin_all                !! Min temp between tmin snow and air         !! Arsene 07-04-2015 Add
 
 !_ ================================================================================================================================
 
@@ -182,7 +188,7 @@ CONTAINS
 
  !! 1. Tree mortality
 
-       IF ( is_tree(j) ) THEN 
+       IF ( is_tree(j) .OR. is_shrub(j) ) THEN      !! Arsene 31-07-2014 modifications ATTENTION - a vérif... a priori ok
 
           !! 1.1 Use growth efficiency or constant mortality?
           IF ( .NOT.  lpj_gap_const_mort  ) THEN
@@ -250,12 +256,33 @@ CONTAINS
 
           IF ( control%ok_dgvm .AND. (tmin_crit(j) .NE. undef) ) THEN
              ! frost-sensitive PFTs
-             WHERE ( t2m_min_daily(:) .LT. tmin_crit(j) )
-                mortality(:,j) = MIN(un,(0.4/10*(tmin_crit(j)-t2m_min_daily(:))+mortality(:,j) ) )
-             ENDWHERE
+             IF ( is_tree(j) ) THEN   !! Arsene 31-03-2015 Separate tree / shrubs
+
+                !! Arsene 07-04-2015 - Calcul the min temperature between tair and tsnow ==> If anywhere critical temps...
+                tmin_all(:) = t2m_min_daily(:)
+                DO i = 1, nsnow
+                    WHERE ( (snowdz_min(:,i) .LT. min_stomate) .AND. ( snowtemp_min(:,i) .LT. tmin_all(:) ))
+                        tmin_all(:) = snowtemp_min(:,i)
+                    ENDWHERE
+                ENDDO !! Arsene 07-04-2015
+
+                WHERE ( tmin_all(:) .LT. tmin_crit(j) )
+                   mortality(:,j) = MIN(un,(0.4/10*(tmin_crit(j)-tmin_all(:))+mortality(:,j) ) )  !! Arsene 01-04-2015 Care... not running if tmin_crit > 0°Celcus - 07-04-2015 change t2m_min_daily by tmin_all
+                ENDWHERE
+
+!! Arsene 31-03-2015 if shrubs
+             ELSE  !! Arsene 31-03-2015 if shrubs
+                snowdz_min2(:)=SUM(snowdz_min(:,:),dim=2)
+                WHERE ( (snowdz_min2(:) .LT. min_stomate) .AND. (t2m_min_daily(:) .LT. tmin_crit(j)) )
+                   mortality(:,j) = MIN(un,(0.4/10*(tmin_crit(j)-t2m_min_daily(:))+mortality(:,j) ) )
+                ENDWHERE
+!! Arsene 31-03-2015 if shrubs
+
+             ENDIF !! Arsene 31-03-2015 Separate tree / shrubs
           ENDIF
 
-          IF ( control%ok_dgvm .AND. (j==6 .OR. j==8) ) THEN
+!          IF ( control%ok_dgvm .AND. (j==6 .OR. j==8) ) THEN    !! Arsene 05-03-2015 ==> Need to change the 6 or 8
+          IF ( control%ok_dgvm .AND. (pheno_model(j) .EQ. "ncdgdd") ) THEN   !! Arsene 31-03-2015 Modif ==> summergreen + deciduous
              ! spring frost
              WHERE ( Tmin_spring(:,j) .LT. -3+ZeroCelsius )
                 mortality(:,j) = MIN(un,(0.01*(-3+ZeroCelsius-Tmin_spring(:,j))*Tmin_spring_time(:,j)/40+mortality(:,j) ) )

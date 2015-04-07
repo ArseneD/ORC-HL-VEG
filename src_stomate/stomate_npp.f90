@@ -563,7 +563,7 @@ CONTAINS
     !  case, only the age of the heartwood is accounted for).
     DO j = 2,nvm
 
-       IF ( .NOT. is_tree(j) ) THEN
+       IF ( ( .NOT. is_tree(j)) .OR. (.NOT. is_shrub(j)) ) THEN               !! Arsene 31-07-2014 modifications
 
           bm_new(:) = biomass(:,j,ileaf,icarbon) + biomass(:,j,isapabove,icarbon) + &
                biomass(:,j,iroot,icarbon) + biomass(:,j,ifruit,icarbon)

@@ -926,7 +926,7 @@ CONTAINS
              & gtemp,gthick,gpkappa,zdz1_soil,zdz2_soil,cgrnd_soil,dgrnd_soil,vevapsno, &
              & snow_age,snow_nobio_age,snow_nobio,snowrho,snowgrain,snowdz,snowtemp,snowheat,snowliq,&
              & snow,subsnownobio,grndflux,snowmelt,tot_melt,soilflxresid,subsinksoil,snowflx,snowcap,&
-             & pkappa_snow,lambda_snow,cgrnd_snow,dgrnd_snow,temp_sol_add)
+             & pkappa_snow,lambda_snow,cgrnd_snow,dgrnd_snow,temp_sol_add, veget_max)  !! Arsene 04-03-2015 Add for snowcompact
  
     ELSE
        ! Bucket snow model
@@ -3349,6 +3349,11 @@ CONTAINS
        !! The three following equations concerning nroot computation are derived from the integrals 
        !! of equations C9 to C11 of De Rosnay's (1999) PhD thesis (page 158).
        !! The occasional absenceof minus sign before humcste parameter is correct.
+       !! Arsene : sum(nroot)~=1  // For moss humscste = 50 >> 10 x grass. nroot max for nslm=4 !! Arsene 19-03-2014
+       !! Arsene : Grass: 0-1-2-4-8-14-21-25-17-5-2                     !! Arsene 19-03-2014
+       !! Arsene : Moss:  0-13-22-29-25-10-1... (humcste=50)            !! Arsene 19-03-2014
+       !! Arsene : humcste=25: 0-7-13-20-26-23-9.5-1...                 !! Arsene 19-03-2014
+       !! Arsene : zz = profondeur / dz = zz+1 - zz
        DO jv = 1,nvm
           DO jsl = 2, nslm-1
              nroot(jv,jst,jsl) = (EXP(-humcste(jv)*zz(jsl,jst)/mille)) * &
@@ -3370,6 +3375,7 @@ CONTAINS
        ! An additional exponential factor for ks depending on the amount of roots in the soil 
        ! through a geometric average over the vegets
        !!??Aurelien: Pkoi utiliser ks_usda?
+!! Pas modif pour le moment... Arsene 18-02-2014
     kfact_root(:,:,:) = un
        DO jsl = 1, nslm
           DO jv = 2, nvm

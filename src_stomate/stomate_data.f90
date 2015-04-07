@@ -187,6 +187,10 @@ CONTAINS
        ! 1 tree? (true/false)
        !
        IF ( bavard .GE. 1 ) WRITE(numout,*) '       tree: (::is_tree) ', is_tree(j)
+       !
+       ! 1.2 shrub? (true/false)                                                             !! Arsene 31-07-2014 modifications
+       !                                                                                     !! Arsene 31-07-2014 modifications
+       IF ( bavard .GE. 1 ) WRITE(numout,*) '       shrub: (::is_shrub) ', is_shrub(j)       !! Arsene 31-07-2014 modifications
 
        !
        ! 2 flamability (0-1, unitless)
@@ -256,15 +260,19 @@ CONTAINS
        ! 5 sapling characteristics
        !
 
-       IF ( is_tree(j) ) THEN
+       IF ( is_tree(j) .OR. is_shrub(j) ) THEN   !! Arsene 31-07-2014 modifications  A REVOIR l'adaptation pour les shrubs
 
           !> 5.1 trees
 
           !!\latexonly
           !!\input{stomate_data_sapl_tree.tex}
           !!\endlatexonly
-
-          alpha = alpha_tree
+   
+          IF ( is_tree(j) ) THEN          !! Arsene 31-07-2014 modifications
+              alpha = alpha_tree
+          ELSE                            !! Arsene 31-07-2014 modifications
+              alpha = alpha_shrub         !! Arsene 31-07-2014 modifications
+          ENDIF                           !! Arsene 31-07-2014 modifications
 
           bm_sapl(j,ileaf,icarbon) = &
                &     ((bm_sapl_leaf(1)*pipe_tune1*(mass_ratio_heart_sap *bm_sapl_leaf(2)*sla(j)/(pi*pipe_k1)) & 
@@ -298,13 +306,19 @@ CONTAINS
 
           alpha = alpha_grass
 
-          IF ( natural(j) ) THEN
+          IF ( natural(j) .AND. vascular(j)) THEN       !! Arsene 03-03-2015
              bm_sapl(j,ileaf,icarbon) = init_sapl_mass_leaf_nat / sla(j)
+          ELSEIF ( .NOT. vascular(j) ) THEN             !! Arsene 05-03-14
+             bm_sapl(j,ileaf,icarbon) = 1. / sla(j)     !! Arsene 05-03-14 On prend init_sapl_mass_leaf_nat = 1, cf src_parameters/constantes_var.f90
           ELSE
              bm_sapl(j,ileaf,icarbon) = init_sapl_mass_leaf_agri / sla(j)
           ENDIF
 
-          bm_sapl(j,icarbres,icarbon) = init_sapl_mass_carbres *bm_sapl(j,ileaf,icarbon)
+          IF ( vascular(j) ) THEN                   !! Arsene 05-03-14
+             bm_sapl(j,icarbres,icarbon) = init_sapl_mass_carbres *bm_sapl(j,ileaf,icarbon)
+          ELSE                                      !! Arsene 05-03-14
+             bm_sapl(j,icarbres,icarbon) = zero     !! Arsene 05-03-14 Pas de reserves
+          ENDIF                                     !! Arsene 05-03-14
 
           bm_sapl(j,isapabove,icarbon) = zero
           bm_sapl(j,isapbelow,icarbon) = zero
@@ -314,9 +328,14 @@ CONTAINS
 
        ENDIF !( is_tree(j) )
 
-       bm_sapl(j,iroot,icarbon) = init_sapl_mass_root * (1./alpha) * bm_sapl(j,ileaf,icarbon)
+       IF ( vascular(j) ) THEN                   !! Arsene 05-03-14
+          bm_sapl(j,iroot,icarbon) = init_sapl_mass_root * (1./alpha) * bm_sapl(j,ileaf,icarbon)
 
-       bm_sapl(j,ifruit,icarbon) = init_sapl_mass_fruit  * bm_sapl(j,ileaf,icarbon)
+          bm_sapl(j,ifruit,icarbon) = init_sapl_mass_fruit  * bm_sapl(j,ileaf,icarbon)   !! init_sapl_mass_fruit = 0.3
+       ELSE                                      !! Arsene 05-03-14
+          bm_sapl(j,iroot,icarbon) = zero        !! Arsene 05-03-14
+          bm_sapl(j,ifruit,icarbon) = 0.05  * bm_sapl(j,ileaf,icarbon)  !! Arsene 05-03-14 On prend init_sapl_mass_fruit=0.05 à vérif, cf src_parameters/constantes_var.f90
+       ENDIF                                     !! Arsene 05-03-14
 
        IF ( bavard .GE. 1 ) THEN
           WRITE(numout,*) '       sapling biomass (gC):'
@@ -338,6 +357,9 @@ CONTAINS
 
           migrate(j) = migrate_tree
 
+       ELSEIF ( is_shrub(j) ) THEN               !! Arsene 31-07-2014 modifications
+          migrate(j) = migrate_shrub             !! Arsene 31-07-2014 modifications
+
        ELSE
 
           ! can be any value as grasses are, per *definition*, everywhere (big leaf).
@@ -352,14 +374,19 @@ CONTAINS
        !     increases (m)
        !
 
-       IF ( is_tree(j) ) THEN
+       IF ( is_tree(j) .OR. is_shrub(j) ) THEN       !! Arsene 31-07-2014 modifications ATTENTION. A vérif
 
           !!\latexonly
           !!\input{stomate_data_stem_diameter.tex}
           !!\endlatexonly
 
+!! Arsene 03-09-2014 - It's possible to define maxdia with - TreeHeight=pipe_tune2 * Diameter^{pipe_tune3} ==> Definition in stomate_establish.f90 or lpj_crown.f90
+!           maxdia(j) = ( height_presc(j) / pipe_tune2 ) **(1/ pipe_tune3) 
+
           maxdia(j) = ( ( pipe_tune4 / ((pipe_tune2*pipe_tune3)/(maxdia_coeff(1)**pipe_tune3)) ) &
                ** ( un / ( pipe_tune3 - un ) ) ) * maxdia_coeff(2)
+!! Arsene 30-03-2015 ==> I think better to change, but not yet !!!!!!!!!!!!!!!!!!!
+
           cn_sapl(j) = cn_sapl_init !crown of individual tree, first year
 
        ELSE
@@ -553,6 +580,8 @@ CONTAINS
 
        IF ( is_tree(j) ) THEN
           lai_initmin(j) = lai_initmin_tree
+       ELSEIF ( is_shrub(j) ) THEN                     !! Arsene 31-07-2014 modifications
+          lai_initmin(j) = lai_initmin_shrub           !! Arsene 31-07-2014 modifications
        ELSE
           lai_initmin(j) = lai_initmin_grass
        ENDIF !( is_tree(j) )

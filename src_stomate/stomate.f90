@@ -245,6 +245,11 @@ MODULE stomate
                                                                          !! per ground area  
                                                                          !! @tex $(gC m^{-2} year^{-1})$ @endtex   
 !$OMP THREADPRIVATE(npp_longterm)
+
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)      :: npp0_cumul                !! Arsene 25-06-2014 NPPcumul
+!! Arsene 25-06-2014 NPPcumul - Variable to count number of days since npp =0 or <0. Could become DIMENSION(npts:nvm) if we add the same for others pft
+!! Arsene 25-06-2014 Attention au côté parallélisable !!!!!!!!!!!!!!!
+
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)    :: npp_equil            !! Equilibrium NPP written to forcesoil 
                                                                          !! @tex $(gC m^{-2} year^{-1})$ @endtex
 !$OMP THREADPRIVATE(npp_equil)
@@ -367,6 +372,11 @@ MODULE stomate
 !$OMP THREADPRIVATE(RIP_time)
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)    :: time_hum_min         !! Time elapsed since strongest moisture limitation (days) 
 !$OMP THREADPRIVATE(time_hum_min)
+!---
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)    :: snowdz_min           !! Min daily snow layer thicknesse (cm?)   !! Arsene 19-08-2014 Add snowtemp and snowdz 
+!$OMP THREADPRIVATE(snowdz_min)                                                                                     !! Arsene 19-08-2014 Add snowtemp and snowdz
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)    :: snowtemp_min         !! Min daily snow layer temperature (K)    !! Arsene 19-08-2014 Add snowtemp and snowdz
+!$OMP THREADPRIVATE(snowtemp_min)                                                                                   !! Arsene 19-08-2014 Add snowtemp and snowdz
 !---
   REAL(r_std),ALLOCATABLE,DIMENSION(:,:)         :: clay_fm              !! Soil clay content (0-1, unitless), parallel computing
   REAL(r_std),ALLOCATABLE,DIMENSION(:,:)         :: clay_fm_g            !! Soil clay content (0-1, unitless), parallel computing
@@ -608,6 +618,10 @@ MODULE stomate
 !$OMP THREADPRIVATE(snowrho_2pfcforcing)
   REAL(r_std),DIMENSION(:,:,:),ALLOCATABLE    :: snowrho_2pfcforcing_g
 !$OMP THREADPRIVATE(snowrho_2pfcforcing_g)
+  REAL(r_std),DIMENSION(:,:,:),ALLOCATABLE    :: snowtemp_2pfcforcing    !! Arsene 03-03-2015
+!$OMP THREADPRIVATE(snowtemp_2pfcforcing)                                !! Arsene 03-03-2015
+  REAL(r_std),DIMENSION(:,:,:),ALLOCATABLE    :: snowtemp_2pfcforcing_g  !! Arsene 03-03-2015
+!$OMP THREADPRIVATE(snowtemp_2pfcforcing_g)                              !! Arsene 03-03-2015
 
 !---
   REAL(r_std),SAVE                               :: dt_days=zero         !! Time step of STOMATE (days) 
@@ -778,7 +792,7 @@ SUBROUTINE stomate_main &
        &  tdeep, hsdeep, snow, heat_Zimov, pb, &
        &  sfluxCH4_deep, sfluxCO2_deep, &
        &  thawed_humidity, depth_organic_soil,&
-       &  zz_deep, zz_coef_deep, soilc_total, snowdz, snowrho)
+       &  zz_deep, zz_coef_deep, soilc_total, snowdz, snowrho, snowtemp)    !! Arsene 19-08-2014 Add snowtemp (and need snowdz) to stomate
     
     IMPLICIT NONE
 
@@ -846,6 +860,9 @@ SUBROUTINE stomate_main &
                                                                          !! identifier 
     INTEGER(i_std),INTENT(in)                       :: hist2_id          !! ?? [DISPENSABLE] SECHIBA's _history_ file 2 
                                                                          !! identifier 
+
+    REAL(r_std), DIMENSION (kjpindex,nsnow), INTENT(in) :: snowtemp      !! snow temperature      !! Arsene 19-08-2014 Add snowtemp (and nedd snowdz) to stomate
+
 
     !! 0.2 Output variables
 
@@ -1170,6 +1187,8 @@ SUBROUTINE stomate_main &
             &         Tmin_spring, Tmin_spring_time, begin_leaves, onset_date, &
             &         global_years, ok_equilibrium, nbp_accu, nbp_flux, &
             &         MatrixV, VectorU, previous_stock, current_stock,&
+!! Arsene Add
+            &         npp0_cumul,snowtemp_min,snowdz_min, & !! Arsene 25-06-2014 NPPcumul ADD  !! Arsene 19-08-2014 Add snowtemp and snowdz
             &         deepC_a, deepC_s, deepC_p, O2_soil, CH4_soil, O2_snow, CH4_snow, &
             &         thawed_humidity, depth_organic_soil, altmax,fixed_cryoturbation_depth, & !pss+:wetlabd CH4 emissions
             &         uo_0, uold2_0, uo_wet1, uold2_wet1, uo_wet2, &
@@ -1281,6 +1300,7 @@ SUBROUTINE stomate_main &
                   &     +SIZE(veget)*KIND(veget) &
                   &     +SIZE(veget_max)*KIND(veget_max) &
                   &     +SIZE(lai)*KIND(lai)
+!! Arsene 19-08-2014 Add snowtemp_min and snowdz_min : mettre quelque chhose ici ?
              
              ! Totsize_1step is the size on a single processor, sum
              ! all processors and send to all processors
@@ -1383,6 +1403,7 @@ SUBROUTINE stomate_main &
                 ier = NF90_DEF_VAR (forcing_id,'lai', &
                      & r_typ,(/ d_id(1),d_id(3),d_id(6) /),vid)
                 ier = NF90_ENDDEF (forcing_id)
+!! Arsene 19-08-2014 Mettre quelque chose ici pour les 2 variables rajoutée: snwdz & snowtemp ?
                 
 		! Given the name of a varaible, nf90_inq_varid finds the variable 
                 ! ID (::vid). Put data value(s) into variable ::vid
@@ -1526,6 +1547,7 @@ SUBROUTINE stomate_main &
              !adding another two snow forcings
              ALLOCATE(snowdz_2pfcforcing(kjpindex,nsnow,nparan*nbyear))
              ALLOCATE(snowrho_2pfcforcing(kjpindex,nsnow,nparan*nbyear))
+             ALLOCATE(snowtemp_2pfcforcing(kjpindex,nsnow,nparan*nbyear))     !! Arsene 03-03-2015
              soilcarbon_input_2pfcforcing(:,:,:,:) = zero
              pb_2pfcforcing(:,:) = zero
              snow_2pfcforcing(:,:) = zero
@@ -1538,6 +1560,7 @@ SUBROUTINE stomate_main &
              !adding another two snow forcings
              snowdz_2pfcforcing(:,:,:) = zero
              snowrho_2pfcforcing(:,:,:) = zero
+             snowtemp_2pfcforcing(:,:,:) = zero                               !! Arsene 03-03-2015
           ENDIF
        ENDIF
 
@@ -1647,6 +1670,8 @@ SUBROUTINE stomate_main &
             &          Tmin_spring, Tmin_spring_time, begin_leaves, onset_date, &
             &          global_years, ok_equilibrium, nbp_accu, nbp_flux, &
             &          MatrixV, VectorU, previous_stock, current_stock,&
+!! Arsene Add
+            &         npp0_cumul,snowtemp_min,snowdz_min, & !! Arsene 25-06-2014 NPPcumul ADD  !! Arsene 19-08-2014 Add snowtemp and snowdz
             &          deepC_a, deepC_s, deepC_p, O2_soil, CH4_soil, O2_snow,CH4_snow, &
             &          thawed_humidity, depth_organic_soil, altmax,fixed_cryoturbation_depth, & !pss+:wetlabd CH4 emissions
             &         uo_0, uold2_0, uo_wet1, uold2_wet1, uo_wet2, &
@@ -1837,6 +1862,8 @@ SUBROUTINE stomate_main &
                      snowdz_2pfcforcing(:,:,iatt)/REAL(nforce(iatt),r_std)
                 snowrho_2pfcforcing(:,:,iatt) = &
                      snowrho_2pfcforcing(:,:,iatt)/REAL(nforce(iatt),r_std)
+                snowtemp_2pfcforcing(:,:,iatt) = &                            !! Arsene 03-03-2015
+                     snowtemp_2pfcforcing(:,:,iatt)/REAL(nforce(iatt),r_std)  !! Arsene 03-03-2015
              ELSE
                 WRITE(numout,*) &
                      &         'We have no soil carbon forcing data for this time step:', &
@@ -1857,6 +1884,7 @@ SUBROUTINE stomate_main &
                 tsurf_2pfcforcing(:,iatt) = zero
                 snowdz_2pfcforcing(:,:,iatt) = zero
                 snowrho_2pfcforcing(:,:,iatt) = zero
+                snowtemp_2pfcforcing(:,:,iatt) = zero                         !! Arsene 03-03-2015
              ENDIF
           ENDDO
 
@@ -1873,6 +1901,7 @@ SUBROUTINE stomate_main &
              !adding another two snow forcings
              ALLOCATE(snowdz_2pfcforcing_g(nbp_glo,nsnow,nparan*nbyear))
              ALLOCATE(snowrho_2pfcforcing_g(nbp_glo,nsnow,nparan*nbyear))
+             ALLOCATE(snowtemp_2pfcforcing_g(nbp_glo,nsnow,nparan*nbyear))    !! Arsene 03-03-2015
           ENDIF
           CALL gather(clay,clay_g)  !added by Tao
           CALL gather(soilcarbon_input_2pfcforcing,soilcarbon_input_2pfcforcing_g)
@@ -1887,6 +1916,7 @@ SUBROUTINE stomate_main &
           !adding another two snow forcings
           CALL gather(snowdz_2pfcforcing,snowdz_2pfcforcing_g)
           CALL gather(snowrho_2pfcforcing,snowrho_2pfcforcing_g)
+          CALL gather(snowtemp_2pfcforcing,snowtemp_2pfcforcing_g)            !! Arsene 03-03-2015
           !-
           IF (is_root_prc) THEN
              WRITE (numout,*) 'Create Cforcing file : ',TRIM(Cforcing_permafrost_name)
@@ -1934,6 +1964,7 @@ SUBROUTINE stomate_main &
              !--3layers snow 
              ier = NF90_DEF_VAR(Cforcing_permafrost_id,'snowdz',r_typ,(/ d_id(1),d_id(2),d_id(5) /),vid)
              ier = NF90_DEF_VAR(Cforcing_permafrost_id,'snowrho',r_typ,(/ d_id(1),d_id(2),d_id(5) /),vid)
+             ier = NF90_DEF_VAR(Cforcing_permafrost_id,'snowtemp',r_typ,(/ d_id(1),d_id(2),d_id(5) /),vid)  !! Arsene 03-03-2015
              !--time-varying 
              ier = NF90_DEF_VAR (Cforcing_permafrost_id,'soilcarbon_input',r_typ, &
                   &                        (/ d_id(1),d_id(2),d_id(3),d_id(5) /),vid)
@@ -1990,6 +2021,8 @@ SUBROUTINE stomate_main &
              ier = NF90_PUT_VAR (Cforcing_permafrost_id,vid, snowdz_2pfcforcing_g )
              ier = NF90_INQ_VARID (Cforcing_permafrost_id,'snowrho',vid)
              ier = NF90_PUT_VAR (Cforcing_permafrost_id,vid, snowrho_2pfcforcing_g )
+             ier = NF90_INQ_VARID (Cforcing_permafrost_id,'snowtemp',vid)              !! Arsene 03-03-2015
+             ier = NF90_PUT_VAR (Cforcing_permafrost_id,vid, snowtemp_2pfcforcing_g )  !! Arsene 03-03-2015
 
              ier = NF90_INQ_VARID (Cforcing_permafrost_id,'soilcarbon_input',vid)
              ier = NF90_PUT_VAR (Cforcing_permafrost_id,vid,soilcarbon_input_2pfcforcing_g )
@@ -2026,6 +2059,7 @@ SUBROUTINE stomate_main &
              !adding two snow forcings
              DEALLOCATE(snowdz_2pfcforcing_g)
              DEALLOCATE(snowrho_2pfcforcing_g)
+             DEALLOCATE(snowtemp_2pfcforcing_g)
           ENDIF
        ENDIF
 
@@ -2141,6 +2175,11 @@ SUBROUTINE stomate_main &
  
     !! 4.2 Daily minimum temperature
     t2m_min_daily(:) = MIN( t2m_min(:), t2m_min_daily(:) )
+
+!! Arsene 19-08-2014 Add snow variables
+    snowdz_min(:,:) = MIN( snowdz(:,:),  snowdz_min(:,:) )
+    snowtemp_min(:,:) = MIN( snowtemp(:,:), snowtemp_min(:,:) ) 
+!! Arsene 19-08-2014 Add snow variables
 
     !! 4.3 Calculate maintenance respiration
     ! Note: lai is passed as output argument to overcome previous problems with 
@@ -2279,6 +2318,7 @@ SUBROUTINE stomate_main &
 !! 5. Daily processes - performed at the end of the day
     
     IF (do_slow) THEN
+
        WRITE(numout,*) "Number of days: ", date
 
        !5.0 permafrost
@@ -2464,13 +2504,16 @@ SUBROUTINE stomate_main &
             &           npp_longterm, turnover_longterm, gpp_week, &
             &           gdd_m5_dormance, gdd_midwinter, ncd_dormance, ngd_minus5, &
             &           time_hum_min, hum_min_dormance, gdd_init_date, &
-            &           gdd_from_growthinit, herbivores, &
+            &           gdd_from_growthinit, herbivores, npp0_cumul, &    !! Arsene 25-06-2014 NPPcumul Add npp0_cumul
             &           Tseason, Tseason_length, Tseason_tmp, &
             &           Tmin_spring, Tmin_spring_time, t2m_min_daily, begin_leaves, onset_date, &!)
 !JCADD
             &           t2m_14, sla_calc)
 !ENDJCADD
        
+      CALL histwrite_p (hist_id_stomate, 'MOISTRESS_daily', itime, &    !! Arsene 13-05-2014 Write humrel_month
+          humrel_daily, kjpindex*nvm, horipft_index)                    !! Arsene 13-05-2014 Write humrel_month
+
        !! 5.3 Use all processes included in stomate
        IF (control%ok_stomate) THEN
 
@@ -2511,7 +2554,7 @@ SUBROUTINE stomate_main &
                &             convflux, cflux_prod10, cflux_prod100, harvest_above, carb_mass_total, lcchange,&
                &             fpc_max, Tseason, Tseason_length, Tseason_tmp, &
                &             Tmin_spring, Tmin_spring_time, begin_leaves, onset_date, &
-               &             matrixA,&
+               &             matrixA, npp0_cumul, snowtemp_min, snowdz_min, &  !! Arsene 25-06-2014 NPPcumul Add npp0_cumul !! Arsene 19-08-2014 Add snowtemp_min & snowdz_min
                &             zz_coef_deep, deepC_a, deepC_s, deepC_p, & !pss:+
                &             ch4_flux_density_tot_0, ch4_flux_density_dif_0, ch4_flux_density_bub_0, &
                &             ch4_flux_density_pla_0, ch4_flux_density_tot_wet1,ch4_flux_density_dif_wet1, &
@@ -2601,6 +2644,7 @@ SUBROUTINE stomate_main &
                 !adding two snow forcings
                 snowdz_2pfcforcing(:,:,:) = 0
                 snowrho_2pfcforcing(:,:,:) = 0
+                snowtemp_2pfcforcing(:,:,:) = 0              !! Arsene 03-03-2015
              ENDIF
              iatt_old=iatt
 
@@ -2618,6 +2662,7 @@ SUBROUTINE stomate_main &
                 !adding two snow forcings
                 snowdz_2pfcforcing(:,:,iatt) = snowdz_2pfcforcing(:,:,iatt) + snowdz_daily(:,:)
                 snowrho_2pfcforcing(:,:,iatt) = snowrho_2pfcforcing(:,:,iatt) + snowrho_daily(:,:)
+            !    snowtemp_2pfcforcing(:,:,iatt) = snowtemp_2pfcforcing(:,:,iatt) + snowtemp_daily(:,:)     !! Arsene 03-03-2015
           ENDIF
        ENDIF ! control%ok_stomate
        
@@ -2846,6 +2891,8 @@ SUBROUTINE stomate_main &
        gpp_daily(:,:) = zero
        resp_maint_part(:,:,:)=zero
        resp_hetero_d=zero
+       snowtemp_min(:,:)= large_value     !! Arsene 19-08-2014 Add snowtemp_min
+       snowdz_min(:,:)= large_value       !! Arsene 19-08-2014 Add snowdz_min
 !JCADD
 !       resp_hetero_soil_d(:,:,:)=zero
 !       resp_hetero_litter_d(:,:)=zero
@@ -3535,6 +3582,13 @@ SUBROUTINE stomate_main &
        STOP 'stomate_init'
     ENDIF
 
+    ALLOCATE(npp0_cumul(kjpindex,nvm),stat=ier)      !! Arsene 25-06-2014 NPPcumul : add of  npp0_cumul
+    l_error = l_error .OR. (ier /= 0)                !! Arsene 25-06-2014 NPPcumul : add of  npp0_cumul
+    IF (l_error) THEN                                !! Arsene 25-06-2014 NPPcumul : add of  npp0_cumul
+       WRITE(numout,*) 'Memory allocation error for npp0_cumul. We stop. We need kjpindex*nvm words',kjpindex
+       STOP 'stomate_init'                           !! Arsene 25-06-2014 NPPcumul : add of  npp0_cumul
+    ENDIF                                            !! Arsene 25-06-2014 NPPcumul : add of  npp0_cumul
+
     ALLOCATE(lm_lastyearmax(kjpindex,nvm),stat=ier)
     l_error = l_error .OR. (ier /= 0)
     IF (l_error) THEN
@@ -4174,6 +4228,24 @@ SUBROUTINE stomate_main &
        &     kjpindex, nvm, nbpools
        STOP 'stomate_init'
     ENDIF
+
+!! Arsene 19-08-2014 Add snowtemp_min & snowdz_min
+     ALLOCATE(snowtemp_min(kjpindex,nsnow),stat=ier)   !! Arsene 19-08-2014 Add snowtemp_min & snowdz_min
+     l_error = l_error .OR. (ier /= 0)                 !! Arsene 19-08-2014 Add snowtemp_min & snowdz_min
+     IF (l_error) THEN                                 !! Arsene 19-08-2014 Add snowtemp_min & snowdz_min
+        WRITE(numout,*) 'Memory allocation error for snowtemp_min. We stop. We need kjpindex*nsnow words', &
+        &     kjpindex, nsnow                          !! Arsene 19-08-2014 Add snowtemp_min & snowdz_min
+        STOP 'stomate_init'                            !! Arsene 19-08-2014 Add snowtemp_min & snowdz_min
+     ENDIF                                             !! Arsene 19-08-2014 Add snowtemp_min & snowdz_min
+
+      ALLOCATE(snowdz_min(kjpindex,nsnow),stat=ier)     !! Arsene 19-08-2014 Add snowtemp_min & snowdz_min
+      l_error = l_error .OR. (ier /= 0)                 !! Arsene 19-08-2014 Add snowtemp_min & snowdz_min
+      IF (l_error) THEN                                 !! Arsene 19-08-2014 Add snowtemp_min & snowdz_min
+         WRITE(numout,*) 'Memory allocation error for snowdz_min. We stop. We need kjpindex*nsnow words', &
+         &     kjpindex, nsnow                          !! Arsene 19-08-2014 Add snowtemp_min & snowdz_min
+         STOP 'stomate_init'                            !! Arsene 19-08-2014 Add snowtemp_min & snowdz_min
+      ENDIF                                             !! Arsene 19-08-2014 Add snowtemp_min & snowdz_min
+!! Arsene 19-08-2014 Add snowtemp_min & snowdz_min
    
    !allocate stomate permafrost variables
    ALLOCATE (deepC_a(kjpindex, ndeep,nvm), stat=ier)
@@ -4498,6 +4570,7 @@ SUBROUTINE stomate_main &
     IF (ALLOCATED(ngd_minus5))  DEALLOCATE(ngd_minus5)
     IF (ALLOCATED(PFTpresent)) DEALLOCATE(PFTpresent)
     IF (ALLOCATED(npp_longterm)) DEALLOCATE(npp_longterm)
+    IF (ALLOCATED(npp0_cumul)) DEALLOCATE(npp0_cumul)      !! Arsene 25-06-2014 NPPcumul : add of  npp0_cumul
     IF (ALLOCATED(lm_lastyearmax)) DEALLOCATE(lm_lastyearmax)
     IF (ALLOCATED(lm_thisyearmax)) DEALLOCATE(lm_thisyearmax)
     IF (ALLOCATED(maxfpc_lastyear)) DEALLOCATE(maxfpc_lastyear)
@@ -4597,6 +4670,8 @@ SUBROUTINE stomate_main &
     IF (ALLOCATED(veget_fm)) DEALLOCATE(veget_fm)
     IF (ALLOCATED(veget_max_fm)) DEALLOCATE(veget_max_fm)
     IF (ALLOCATED(lai_fm))  DEALLOCATE(lai_fm)
+    IF (ALLOCATED(snowtemp_min)) DEALLOCATE(snowtemp_min)       !! Arsene 19-08-2014 Add snowtemp_min
+    IF (ALLOCATED(snowdz_min)) DEALLOCATE(snowdz_min)           !! Arsene 19-08-2014 Add snowdz_min
     !
     IF (ALLOCATED(ok_equilibrium)) DEALLOCATE(ok_equilibrium)
     IF (ALLOCATED(carbon_eq)) DEALLOCATE(carbon_eq)
@@ -4787,7 +4862,7 @@ SUBROUTINE stomate_main &
   !! 1. photosynthesis parameters
 
        !! 1.1 vcmax (stomate_vmax.f90)
-       CALL vmax (kjpindex, dt_0, leaf_age, leaf_frac, vcmax , &!)
+       CALL vmax (kjpindex, dt_0, leaf_age, leaf_frac, vcmax, humrel_month, &      !! Arsene 24-06-2014 Add humrel_month for dessication
 !JCADD
                   N_limfert)
 !ENDJCADD
@@ -5285,6 +5360,7 @@ SUBROUTINE stomate_main &
                   &            t2m_min_daily_fm_g(:,ifirst(iblocks):ilast(iblocks)), &
                   & start=start(1:ndim), count=count_force(1:ndim))
              ndim = 2;
+!! Arsene 19-08-2014 Mettre quelque chose ici pour les 2 variables rajoutée: snwdz & snowtemp ?
              start(1:ndim) = 1; start(ndim) = isf(ifirst(iblocks));
              count_force(1:ndim) = SHAPE(tsurf_daily_fm_g)
              count_force(ndim) = isf(ilast(iblocks))-isf(ifirst(iblocks))+1
@@ -5519,6 +5595,7 @@ SUBROUTINE stomate_main &
              a_er = a_er.OR.(ier /= 0)
 
              ndim = 2;
+!! Arsene 19-08-2014 Mettre quelque chose ici pour les 2 variables rajoutée: snwdz & snowtemp ?
              start(1:ndim) = 1; start(ndim) = isf(ifirst(iblocks));
              count_force(1:ndim) = SHAPE(tsurf_daily_fm_g)
              count_force(ndim) = isf(ilast(iblocks))-isf(ifirst(iblocks))+1

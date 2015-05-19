@@ -582,6 +582,8 @@ SUBROUTINE forcing_read &
       ENDIF
 
       IF ( (itauin == 0).AND.(itau_split == 0) ) THEN
+         zlev(:,:)=zlev_fixed             !level for t and q !! Arsene 16-04-2015 Like trunck ticket #126
+         zlevuv(:,:)=zlevuv_fixed         !level for u and v !! Arsene 16-04-2015 Like trunck ticket #126
          CALL weathgen_main (istp, istp, filename, force_id, iim, jjm, 1, &
               rest_id, lrstread, lrstwrite, &
               limit_west, limit_east, limit_north, limit_south, &

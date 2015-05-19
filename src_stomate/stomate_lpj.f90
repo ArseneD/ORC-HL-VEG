@@ -882,8 +882,8 @@ write(*,*) "ind after", ind(:,15), "height(:,j)", height(:,15)
 !! Arsene 20-08-2014 Add protection of shrub by snow. START.
 !!
 !! #############################     protection of shrub by snow     ###########################
-!! ## Ne prends pas en compte : -  Take care about "termal chock" : si T chute trop rapidement
-!! ##
+!! ## Ne prend pas en compte : -  Take care about "termal chock" : si T chute trop rapidement
+!! ## Ne prend pas en compte : -  IF All(T) < T_crit THEN no loss of biomasse but mortality... 
 write(*,*) "height avant cut", height(:,15)
     IF ( ANY(is_shrub(:)) ) THEN
 
@@ -907,7 +907,7 @@ write(*,*) "height avant cut", height(:,15)
               !! ## Si besoin : s'il y a de la neige, des buissons, de la vegetation,... On commence
               IF ( is_shrub(j) .AND. ( SUM(snowdz_min(ji,:)) .GT. min_stomate ).AND. &
                       ind(ji,j).GE.min_stomate .AND.  PFTpresent(ji,j) .AND. &
-                      ((.NOT.control%ok_dgvm.AND.(height(ji,j).GT.(height_presc(j)/10))) .OR. control%ok_dgvm)) THEN !! Arsene 03-04-2015 If no DGVM, need heigth >= min_height. Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
+                      ((.NOT.control%ok_dgvm.AND.(height(ji,j).GT.(height_presc(j)/5))) .OR. control%ok_dgvm)) THEN !! Arsene 03-04-2015 If no DGVM, need heigth >= min_height. Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
 
                  !! ## Calcul des courbes de température, de bas en haut. Afin de calculer tmin_crit - t
                  biomass_loss = zero
@@ -938,15 +938,15 @@ write(*,*) "height avant cut", height(:,15)
                     !! ## On simule l'effet d'accumulation préférentiel de la neige sur les buissons via différence de dépôt de masse / pixel
                     !! ##    --> un facteur à z est ajouter afin de simuler le transfert de masse de neige au niveau des buissons (entre 0 et 0.5)
                     IF ( za.GT.min_stomate .AND. veget_layer(ji,2).GT.min_stomate .AND. veget_layer(ji,2).LE.0.5 ) THEN
-                        za = za * (1 + veget_layer(ji,2) )                   !! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
+                        za = za * (1 + veget_layer(ji,2) + veget_layer(ji,3))!! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
                     ELSEIF ( za.GT.min_stomate .AND. veget_layer(ji,2).GT.0.5 .AND. veget_layer(ji,2).LT.1 ) THEN
-                        za = za * (2 - veget_layer(ji,2) )                   !! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
+                        za = za * (2 - veget_layer(ji,2) - veget_layer(ji,3))!! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
                     ENDIF
 
                     IF ( zb.GT.min_stomate .AND. veget_layer(ji,2).GT.min_stomate .AND. veget_layer(ji,2).LE.0.5 ) THEN
-                        zb = zb * (1 + veget_layer(ji,2) )                   !! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
+                        zb = zb * (1 + veget_layer(ji,2) + veget_layer(ji,3))!! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
                     ELSEIF ( zb.GT.min_stomate .AND. veget_layer(ji,2).GT.0.5 .AND. veget_layer(ji,2).LT.1 ) THEN
-                        zb = zb * (2 - veget_layer(ji,2) )                   !! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
+                        zb = zb * (2 - veget_layer(ji,2) - veget_layer(ji,3))!! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
                     ENDIF
 
                      !! ## Si On a des températures inférieur à tmin_crit ET que l'on se situe à z < height (hauteur du buisson)
@@ -1006,7 +1006,6 @@ write(*,*) "ind number before loss", ind(ji,j)
                      IF (.NOT.control%ok_dgvm .AND. ( ((1-biomass_loss)*height(ji,j)) .LT. (height_presc(j)/5)))   THEN !! Arsene 02-04-2015 Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
                           biomass_loss = 1 - (height_presc(j)/5) / height(ji,j)     !! Arsene 02-04-2015 Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
                           height(ji,j) = height_presc(j)/5                          !! Arsene 02-04-2015 Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
-write(*,*) "par ici, biomass_loss=", biomass_loss
                      ELSE
                           height(ji,j) = (1-biomass_loss)*height(ji,j)
                      ENDIF
@@ -1292,7 +1291,7 @@ write(*,*) "ind after afeter3:", ind(:,15), "hauteur:", height(:,15)
     CALL xios_orchidee_send_field("T2M_WEEK",t2m_week)
     CALL xios_orchidee_send_field("HET_RESP",resp_hetero(:,:))
 !JCADD
-  WRITE(numout,*) 'write t2m_14'
+!  WRITE(numout,*) 'write t2m_14'    ! Arsene 05-04-2015 Remove
     CALL xios_orchidee_send_field("T2M_14",t2m_14)
 !    CALL xios_orchidee_send_field("LITTER_RESP",resp_hetero_litter_d(:,:))
 !    CALL xios_orchidee_send_field("ACTIVE_RESP",resp_hetero_soil_d(:,iactive,:))

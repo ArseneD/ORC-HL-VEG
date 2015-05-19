@@ -613,7 +613,7 @@ CONTAINS
          turnover_rate(:) = zero                                                     !! Arsene 10-06-2014
           WHERE ( lai(:,j) .gt. llaimax(j) )                                         !! Arsene 10-06-2014 de base llaimax=2.
              turnover_rate(:) =  &                                                   !! Arsene 10-06-2014
-                  EXP(0.06 * lai(:,j) -0.12 ) - 1                                    !! Arsene 10-06-2014 Changer l'équation : entre 2 et 5 soit 0==> 10 soit 0,1 50
+                  EXP(llai_coef * (lai(:,j) - llaimax(j))) - 1                       !! Arsene 10-06-2014 Changer l'équation : entre 2 et 5 soit 0==> 10 soit 0,1 50
           ENDWHERE                                                                   !! Arsene 10-06-2014
           dturnover(:) = biomass(:,j,ileaf,icarbon) * turnover_rate(:)               !! Arsene 10-06-2014
           turnover(:,j,ileaf,icarbon) = turnover(:,j,ileaf,icarbon) + dturnover(:)   !! Arsene 10-06-2014

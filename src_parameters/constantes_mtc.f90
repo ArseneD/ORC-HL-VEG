@@ -150,7 +150,7 @@ MODULE constantes_mtc
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: llaimax_mtc  =  &          !! laimax for maximum
   & (/ 0.0,   8.0,   8.0,   4.0,   4.5,   4.5,   4.0,  &                !! See also type of lai interpolation
   &    4.5,   4.0,   2.0,   2.0,   2.0,   2.0, &                        !! @tex $(m^2.m^{-2})$ @endtex
-  &    2.0,   3.5 /)                                                    !! Arsene 22-11-2013 : + 2 PFT
+  &    3.0,   3.5 /)                                                    !! Arsene 22-11-2013 : + 2 PFT
 
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: llaimin_mtc  = &           !! laimin for minimum lai
   & (/ 0.0,   8.0,   0.0,   4.0,   4.5,   0.0,   4.0,  &                !! See also type of lai interpolation (m^2.m^{-2})
@@ -726,7 +726,7 @@ MODULE constantes_mtc
 
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: tmin_crit_mtc  =  &
   & (/  undef,     0.0,     0.0,   -30.0,   -14.0,   -30.0,   -45.0,  &  !! critical tmin, tabulated (C)
-  &     -45.0,   -55.0,   undef,   undef,   undef,   undef, &
+  &     -45.0,   -60.0,   undef,   undef,   undef,   undef, &
   &     undef,   -45.0  /)                                               !! Arsene 22-11-2013 : + 2 PFT
 !! Arsene 30-03-2015 Pas vraiment daccord avec le undef pour PFT 9 ==> -55, a verif
 

@@ -366,12 +366,12 @@ CONTAINS
 !! Arsene 24-06-2014 Dessication : Modification of vcmax / vjmax with humrel_month or humrel_week (hydric stresse) [Only for moss]
 !! Arsene 24-06-2014 Dessication. Maybe we can use directly the leaf efficiency
        IF ( .NOT. vascular(j) ) THEN                                                                      !! Arsene 24-06-2014 Dessication by VCmax - VJmax
-            WHERE ( humrel_month(:,j) .LE. 0.8 )                                                          !! Arsene 24-06-2014 Dessication - Linear
-               vcmax(:,j) = vcmax(:,j) * ( vmax_offset + ((1 - vmax_offset) / 0.8) * humrel_month(:,j))   !! Arsene 24-06-2014 Dessication - Linear
-!               vjmax(:,j) = vjmax(:,j) * ( vmax_offset + ((1 - vmax_offset) / 0.8) * humrel_month(:,j))   !! Arsene 24-06-2014 Dessication - Linear
+            WHERE ( humrel_month(:,j) .LE. humrel_mmin )                                                          !! Arsene 24-06-2014 Dessication - Linear
+               vcmax(:,j) = vcmax(:,j) * ( vcmax_offset + ((1 - vcmax_offset) / humrel_mmin ) * humrel_month(:,j))   !! Arsene 24-06-2014 Dessication - Linear
+!               vjmax(:,j) = vjmax(:,j) * ( vcmax_offset + ((1 - vcmax_offset) / humrel_mmin ) * humrel_month(:,j))   !! Arsene 24-06-2014 Dessication - Linear
             ENDWHERE                                                                                      !! Arsene 24-06-2014 Dessication - Linear
- !           vcmax(:,j) = vcmax(:,j) * (( 5.6 / ( 8 + exp(-7.5 * humrel_month(:,j) + 5))) + vmax_offset )       !! Arsene 24-06-2014 Dessication - Sigmoïde
- !           vjmax(:,j) = vjmax(:,j) * (( 5.6 / ( 8 + exp(-7.5 * humrel_month(:,j) + 5))) + vmax_offset )       !! Arsene 24-06-2014 Dessication - Sigmoïde
+ !           vcmax(:,j) = vcmax(:,j) * (( 5.6 / ( 8 + exp(-7.5 * humrel_month(:,j) + 5))) + vcmax_offset )       !! Arsene 24-06-2014 Dessication - Sigmoïde
+ !           vjmax(:,j) = vjmax(:,j) * (( 5.6 / ( 8 + exp(-7.5 * humrel_month(:,j) + 5))) + vcmax_offset )       !! Arsene 24-06-2014 Dessication - Sigmoïde
 !! Arsene 24-06-2014 Dessication by VCmax - Sigmoïde parameters are build to have a similar reponse with continue fonction, main caracteristiques are :
 !! Arsene 24-06-2014 if humrel = 0 ==> factor = 0.33 -- if humrel = 0.8 ==> factor = 0.97 -- if humrel = 1 ==> factor = 1 -- near the line factor = humrel *0.7/0.8+0.3
        ENDIF                                          !! Arsene 24-06-2014 Dessication by VCmax

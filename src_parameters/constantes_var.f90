@@ -439,7 +439,7 @@ MODULE constantes_var
 
   REAL(r_std), SAVE, DIMENSION(3)   :: ZSNOWCMPCT_ACM   = (/ 1.4e-6, 4.2e-6, 4.2e-6 /)        ! (1/s)
   REAL(r_std), SAVE, DIMENSION(3)   :: ZSNOWCMPCT_BCM   = (/   0.02,   0.06,   0.06 /)        ! (1/K) 
-  REAL(r_std), SAVE, DIMENSION(3)   :: ZSNOWCMPCT_CCM   = (/   230.,   690.,   290. /)        ! (m3/kg)
+  REAL(r_std), SAVE, DIMENSION(3)   :: ZSNOWCMPCT_CCM   = (/   230.,   690.,   690. /)        ! (m3/kg)
 
   REAL(r_std), SAVE, DIMENSION(3)   :: ZSNOWCMPCT_V0    = (/ 1.85e7, 5.55e7, 5.55e7 /)        ! (Pa/s)
   REAL(r_std), SAVE, DIMENSION(3)   :: ZSNOWCMPCT_VT    = (/ 0.0405,   0.12,   0.12 /)        ! (1/K)
@@ -1058,6 +1058,8 @@ MODULE constantes_var
 
   REAL(r_std), SAVE, DIMENSION(4) :: npp0_c = (/20., 60., 130., 0.01/) !!(/days,days,days,unitless) !! Arsene 25-06-2014 NPPcumul
 !$OMP THREADPRIVATE(npp0_c)                                                                         !! Arsene 25-06-2014 NPPcumul
+  REAL(r_std), SAVE :: llai_coef = 0.06                           !! (unitless)       !! Arsene 29-04-2015 LLAI_COEF for NVP turnover 
+!$OMP THREADPRIVATE(llai_coef)                                                                         !! Arsene 29-04-2015 LLAI_COEF for NVP turnover
 !! Arsene 25-06-2014 NPPcumul. 1: nb of day before impact of npp0_cumu. 2:max of impact. 3: end of impact. 4: max dturnover(%) by day
 
 
@@ -1079,6 +1081,12 @@ MODULE constantes_var
                                                 !! reaches its minimum (vmax_offset) 
                                                 !! (unitless)
 !$OMP THREADPRIVATE(leafage_old)
+
+  REAL(r_std), SAVE :: vcmax_offset = 0.3       !! offset of vcmax reduce by humrel_month (unitless) [0-1]   !! Arsene 30-04-2015 Add
+!$OMP THREADPRIVATE(vcmax_offset)               !! offset of vcmax reduce by humrel_month (unitless) [0-1]   !! Arsene 30-04-2015 Add 
+  REAL(r_std), SAVE :: humrel_mmin = 0.8        !! Below this value, impact of humrel_month (unitless) [0-1] !! Arsene 30-04-2015 Add
+!$OMP THREADPRIVATE(humrel_mmin)                !! Below this value, impact of humrel_month (unitless) [0-1] !! Arsene 30-04-2015 Add 
+
   !
   ! stomate_season.f90 
   !

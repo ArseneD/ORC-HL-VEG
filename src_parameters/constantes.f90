@@ -2026,6 +2026,16 @@ CONTAINS
        CALL getin_p('NPP0_CUMUL_PARAM',npp0_c)
 !! Arsene 25-06-2014 NPPcumul
 
+!! Arsene 29-04-2015 LLAI_COEF for NVP turnover
+       !Config Key   = LLAI_COEF 
+       !Config Desc  = 
+       !Config If    = OK_STOMATE
+       !Config Def   = 0.06 
+       !Config Help  = 
+       !Config Units = [-] 
+       CALL getin_p('LLAI_COEF',llai_coef)
+!! Arsene 29-04-2015 LLAI_COEF for NVP turnover
+
        !-
        ! vmax parameters
        !-
@@ -2061,6 +2071,26 @@ CONTAINS
        !Config Help  = relative leaf age at which vmax attains its minimum
        !Config Units = [-]  
        CALL getin_p('LEAFAGE_OLD',leafage_old)
+       !
+!! Arsene 30-04-2015 Add vcmax_offset & humrel_mmin
+       !Config Key   = VCMAX_OFFSET 
+       !Config Desc  = offset of vcmax reduce by humrel_month (unitless) [0-1]
+       !Config If    = OK_STOMATE
+       !Config Def   = 0.3
+       !Config Help  = impact of humrel_mont can't be below
+       !Config Units = [-]  
+       CALL getin_p('VCMAX_OFFSET',vcmax_offset)
+       !
+       !Config Key   = HUMREL_MMIN 
+       !Config Desc  = Below this value, impact of humrel_month (unitless) [0-1]
+       !Config If    = OK_STOMATE
+       !Config Def   = 0.8
+       !Config Help  = impact of humrel_mont on vcmax below this value
+       !Config Units = [-]  
+       CALL getin_p('HUMREL_MMIN',humrel_mmin)
+!! Arsene 30-04-2015 Add vcmax_offset & humrel_mmin
+
+
 
        !-
        ! season parameters

@@ -2991,7 +2991,8 @@ SUBROUTINE weather_read &
 #ifndef CPP_PARA
   champout(:,:)=champout_g(:,:)
 #else
-  CALL orch_scatter2D_mpi_rgen(champout_g,champout,n3)
+!!   CALL orch_scatter2D_mpi_rgen(champout_g,champout,n3)    !! Arsene 16-04-2015
+   CALL orch_scatter2D_mpi_rgen(champout_g,champout,iim_g*jjm_g,n3)
 #endif
 
 !$  DO l=1,n3

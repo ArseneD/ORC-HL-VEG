@@ -1254,7 +1254,17 @@ CONTAINS
        !Config Def   = 25. 
        !Config Help  = 
        !Config Units = [C]  
-       CALL getin_p('NLIM_TREF',Nlim_tref) 
+       CALL getin_p('NLIM_TREF',Nlim_tref)
+
+!! Arsene 03-08-2015 - Add shrubs_like_trees
+       !Config Key   = SHRUBS_LIKE_TREES
+       !Config Desc  = Use tree sheme for shrubland (like geometry...)
+       !Config If    = OK_STOMATE
+       !Config Def   = FALSE
+       !Config Help  = When to way are possible to modelise shrub, use the closest to tree
+       !Config Units = [FLAG]
+       CALL getin_p('SHRUBS_LIKE_TREES', shrubs_like_trees)
+!! Arsene 03-08-2015 - Add shrubs_like_trees 
   
        !-
        ! data parameters
@@ -1284,13 +1294,16 @@ CONTAINS
        !Config Units = [-]    
        CALL getin_p('PIPE_TUNE3',pipe_tune3)
        !
-       !Config Key   = PIPE_TUNE4
-       !Config Desc  = needed for stem diameter
-       !Config If    = OK_STOMATE 
-       !Config Def   = 0.3 
-       !Config Help  = 
-       !Config Units = [-]  
-       CALL getin_p('PIPE_TUNE4',pipe_tune4)
+!! Arsene 11-08-2015 - New maxdia ==> pipe_tune4 not use
+!!       !Config Key   = PIPE_TUNE4
+!!       !Config Desc  = needed for stem diameter
+!!       !Config If    = OK_STOMATE 
+!!       !Config Def   = 0.3 
+!!       !Config Help  = 
+!!       !Config Units = [-]  
+!!       CALL getin_p('PIPE_TUNE4',pipe_tune4)
+!! Arsene 03-08-2015 - Note pipe_tune4 use only for max_dia... non use (for shrub ?) 
+!! Arsene 11-08-2015 - New maxdia ==> pipe_tune4 not use
        !
        !Config Key   = PIPE_DENSITY 
        !Config Desc  = Density
@@ -1307,6 +1320,7 @@ CONTAINS
        !Config Help  = 
        !Config Units = [-]   
        CALL getin_p('PIPE_K1',pipe_k1)
+!! Arsene 03-08-2015 - Note: pipe_k1 use only to calcul first biomass... not need special for shrub ?
        !
        !Config Key   = PIPE_TUNE_EXP_COEFF 
        !Config Desc  = pipe tune exponential coeff 
@@ -1315,6 +1329,95 @@ CONTAINS
        !Config Help  = 
        !Config Units = [-]   
        CALL getin_p('PIPE_TUNE_EXP_COEFF',pipe_tune_exp_coeff)
+       !
+       !
+!! Arsene 03-08-2015 - New parametrisation for shrub... if like tree -START
+       !Config Key   = PIPE_TUNE1_FOR_SHRUB
+       !Config Desc  = crown area = pipe_tune1_for_shrub. stem diameter**(1.6) (Reinicke's theory)
+       !Config If    = OK_STOMATE .AND. SHRUBS_LIKE_TREES
+       !Config Def   = 217.
+       !Config Help  = 
+       !Config Units = [-]    
+       CALL getin_p('PIPE_TUNE1_FOR_SHRUB',pipe_tune1_for_shrub)
+       !
+       !Config Key   = PIPE_TUNE2_FOR_SHRUB
+       !Config Desc  = height=pipe_tune2_for_shrub * diameter**pipe_tune3_for_shrub
+       !Config If    = OK_STOMATE .AND. SHRUBS_LIKE_TREES
+       !Config Def   = 8. 
+       !Config Help  = 
+       !Config Units = [-]      
+       CALL getin_p('PIPE_TUNE2_FOR_SHRUB',pipe_tune2_for_shrub) 
+       !
+       !Config Key   = PIPE_TUNE3_FOR_SHRUB
+       !Config Desc  = height=pipe_tune2_for_shrub * diameter**pipe_tune3_for_shrub
+       !Config If    = OK_STOMATE .AND. SHRUBS_LIKE_TREES
+       !Config Def   = 0.55 
+       !Config Help  = 
+       !Config Units = [-]    
+       CALL getin_p('PIPE_TUNE3_FOR_SHRUB',pipe_tune3_for_shrub)
+       !
+       !Config Key   = PIPE_TUNE_EXP_COEFF_FOR_SHRUB 
+       !Config Desc  = pipe tune exponential coeff for shrubs
+       !Config If    = OK_STOMATE .AND. SHRUBS_LIKE_TREES
+       !Config Def   = 2.8 
+       !Config Help  = 
+       !Config Units = [-]   
+       CALL getin_p('PIPE_TUNE_EXP_COEFF_FOR_SHRUB',pipe_tune_exp_coeff_for_shrub)
+!! Arsene 03-08-2015 - New parametrisation for shrub... if like tree -END
+       !
+       !
+!! Arsene 03-08-2015 - New parametrisation for shrub...
+       !Config Key   = PIPE_DENSITY_SHRUB 
+       !Config Desc  = Density for shrubs... like tree for the moment 
+       !Config If    = OK_STOMATE
+       !Config Def   = 2.e5 
+       !Config Help  = 
+       !Config Units = [-]  
+       CALL getin_p('PIPE_DENSITY_SHRUB',pipe_density_shrub)
+       !
+       !Config Key   = PIPE_K1_SHRUB
+       !Config Desc  = for shrubs...
+       !Config If    = OK_STOMATE 
+       !Config Def   = 8.e3 ???
+       !Config Help  = 
+       !Config Units = [-]   
+       CALL getin_p('PIPE_K1_SHRUB',pipe_k1_shrub)
+!! Arsene 03-08-2015 - New parametrisation for shrub...
+       !
+       !
+!! Arsene 03-08-2015 - New parametrisation for shrub... if NOT like tree -START
+       !Config Key   = PIPE_TUNE_SHRUB1
+       !Config Desc  = total crown area = pipe_tune_shrub1. tatal basal area**(pipe_tune_shrub_exp_coeff) (Aiba & Kohyama (1996))
+       !Config If    = OK_STOMATE .AND. .NOT.SHRUBS_LIKE_TREES
+       !Config Def   = 10**2.42
+       !Config Help  = 
+       !Config Units = [-]    
+       CALL getin_p('PIPE_TUNE_SHRUB1',pipe_tune_shrub1)
+       !
+       !Config Key   = PIPE_TUNE_SHRUB2
+       !Config Desc  = 1/height=1/(pipe_tune_shrub2 * (100*diameter)**pipe_tune_shrub3) + 1/height_presc
+       !Config If    = OK_STOMATE .AND. .NOT.SHRUBS_LIKE_TREES
+       !Config Def   = 0.75
+       !Config Help  = 
+       !Config Units = [-]      
+       CALL getin_p('PIPE_TUNE_SHRUB2',pipe_tune_shrub2)
+       !
+       !Config Key   = PIPE_TUNE_SHRUB3
+       !Config Desc  = 1/height=1/(pipe_tune_shrub2 * (100*diameter)**pipe_tune_shrub3) + 1/height_presc 
+       !Config If    = OK_STOMATE .AND. .NOT.SHRUBS_LIKE_TREES
+       !Config Def   = 1.15 
+       !Config Help  = 
+       !Config Units = [-]    
+       CALL getin_p('PIPE_TUNE_SHRUB3',pipe_tune_shrub3)
+       !
+       !Config Key   = PIPE_TUNE_SHRUB_EXP_COEFF 
+       !Config Desc  = pipe tune exponential coeff for shrubs (new equation)
+       !Config If    = OK_STOMATE .AND. .NOT.SHRUBS_LIKE_TREES
+       !Config Def   = 0.8 
+       !Config Help  = 
+       !Config Units = [-]   
+       CALL getin_p('PIPE_TUNE_SHRUB_EXP_COEFF',pipe_tune_shrub_exp_coeff)
+!! Arsene 03-08-2015 - New parametrisation for shrub... if like tree -END
        !
        !
        !Config Key   = PRECIP_CRIT 
@@ -1376,6 +1479,16 @@ CONTAINS
        !Config Units = [-]   
        CALL getin_p('MASS_RATIO_HEART_SAP',mass_ratio_heart_sap)
        !
+!!! Arsene 22-05-2015 modifications
+!       !Config Key   = SHRUB_IND_FRAC
+!       !Config Desc  = Ratio between number's of branches (ind) and real individual number 
+!       !Config If    = OK_STOMATE 
+!       !Config Def   = 2000.
+!       !Config Help  = 
+!       !Config Units = [-]   
+!       CALL getin_p('SHRUB_IND_FRAC',shrub_ind_frac)
+!!! Arsene 22-05-2015 modifications
+       !-
        !Config Key   = TAU_HUM_MONTH
        !Config Desc  = time scales for phenology and other processes
        !Config If    = OK_STOMATE 
@@ -1505,6 +1618,16 @@ CONTAINS
        !Config Units = [-]    
        CALL getin_p('INIT_SAPL_MASS_LEAF_AGRI',init_sapl_mass_leaf_agri)
        !
+!! Arsene 18-08-2015 - Add vor non vascular plant (important or bug with DGVM)
+       !Config Key   = INIT_SAPL_MASS_LEAF_NOVASC
+       !Config Desc  = 
+       !Config If    = OK_STOMATE 
+       !Config Def   = 0.01 ?
+       !Config Help  = 
+       !Config Units = [-]    
+       CALL getin_p('INIT_SAPL_MASS_LEAF_NOVASC', init_sapl_mass_leaf_novasc)
+!! Arsene 18-08-2015 - Add for non vascular plant
+       !
        !Config Key   = INIT_SAPL_MASS_CARBRES
        !Config Desc  = 
        !Config If    = OK_STOMATE 
@@ -1597,21 +1720,25 @@ CONTAINS
        !Config Units = [-]   
        CALL getin_p('DIA_COEFF',dia_coeff)
        !
-       !Config Key   = MAXDIA_COEFF
-       !Config Desc  = 
-       !Config If    = OK_STOMATE 
-       !Config Def   = 100., 0.01 
-       !Config Help  = 
-       !Config Units = [-]   
-       CALL getin_p('MAXDIA_COEFF',maxdia_coeff)
+!! Arsene 11-08-2015 - New maxdia ==> maxdia_coeff not use
+!!       !Config Key   = MAXDIA_COEFF
+!!       !Config Desc  = 
+!!       !Config If    = OK_STOMATE 
+!!       !Config Def   = 100., 0.01 
+!!       !Config Help  = 
+!!       !Config Units = [-]   
+!!       CALL getin_p('MAXDIA_COEFF',maxdia_coeff)
+!! Arsene 11-08-2015 - New maxdia ==> maxdia_coeff not use
        !
-       !Config Key   = BM_SAPL_LEAF
-       !Config Desc  = 
-       !Config If    = OK_STOMATE 
-       !Config Def   = 4., 4., 0.8, 5. 
-       !Config Help  = 
-       !Config Units = [-]  
-       CALL getin_p('BM_SAPL_LEAF',bm_sapl_leaf)
+!! Arsene 11-08-2015 - New calcul of bm_sapl ==> not use
+!!       !Config Key   = BM_SAPL_LEAF
+!!       !Config Desc  = 
+!!       !Config If    = OK_STOMATE 
+!!       !Config Def   = 4., 4., 0.8, 5. 
+!!       !Config Help  = 
+!!       !Config Units = [-]  
+!!       CALL getin_p('BM_SAPL_LEAF',bm_sapl_leaf)
+!! Arsene 11-08-2015 - New calcul of bm_sapl ==> not use
 
        !-
        ! litter parameters
@@ -1773,6 +1900,17 @@ CONTAINS
        !Config Help  = 
        !Config Units = [-]
        CALL getin_p('FRAC_TURNOVER_DAILY',frac_turnover_daily)   
+       !
+!! Arsene 20-05-2015 fact_min_height
+       !Config Key   = FACT_MIN_HEIGHT
+       !Config Desc  = Coefficient: min_height = height_presc * fact_min_height
+       !Config If    = OK_STOMATE
+       !Config Def   = 5.
+       !Config Help  = 
+       !Config Units = [-] 
+       CALL getin_p('FACT_MIN_HEIGHT',fact_min_height)
+!! Arsene 20-05-2015 fact_min_height
+
 
        !-
        ! npp parameters

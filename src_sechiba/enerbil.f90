@@ -309,8 +309,6 @@ MODULE enerbil
     ! (the saturated surface humidity) and pdqsold (the derivative of the saturated surface humidity,
     ! calculated with respect to the surface temperature at the 'old' timestep)
     CALL enerbil_begin (kjpindex, temp_sol, lwdown, swnet, pb, psold, qsol_sat, pdqsold, netrad, emis)
-         
-
 
 
     !! 4. Computes psnew (the surface static energy at the 'new' timestep) 
@@ -1121,7 +1119,7 @@ MODULE enerbil
       ELSE
          sum_old = netrad(ji) + sensfl_old + larsub_old + lareva_old + soilflx(ji)
       ENDIF
-       
+
       !! 4.2 We calculate the total sensitivity dtheta (the change in the
       !! surface static energy over the timestep.
       !! \latexonly 

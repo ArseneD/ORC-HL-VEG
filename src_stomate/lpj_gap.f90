@@ -315,7 +315,6 @@ CONTAINS
                 ind(:,j) = ind(:,j) * ( un - mortality(:,j) )
 
              ENDWHERE
-
           ENDIF
        ELSE 
 

@@ -1066,6 +1066,7 @@ SUBROUTINE stomate_main &
 
     !! 1.1 Store current time step in a common variable
     itime = kjit
+
     
     !![DISPENSABLE] 1.2 Copy the depth of the different soil layers from diaglev specified in slow_proc
 															
@@ -1075,7 +1076,7 @@ SUBROUTINE stomate_main &
     DO j=1,nvm
        rprof(:,j) = 1./humcste(j)
     ENDDO
-    
+
     !! 1.4 Initialize first call
     ! Set growth respiration to zero
     resp_growth=zero
@@ -1151,6 +1152,7 @@ SUBROUTINE stomate_main &
        ! ??Shouldn't this be included in stomate_init?? Looks like an initialization!
        co2_flux(:,:) = zero
        fco2_lu(:) = zero
+
        
        ! Get values from _restart_ file. Note that only ::kjpindex, ::index, ::lalo 
        ! and ::resolution are input variables, all others are output variables.
@@ -1201,6 +1203,7 @@ SUBROUTINE stomate_main &
        !daily permafrost call
        soilc_total(:,:,:) = deepC_a(:,:,:) + deepC_s(:,:,:) + deepC_p(:,:,:)
        heat_Zimov = zero
+
 
        !! 1.4.4 If the vegetation is dynamic
        ! If the vegetation is dynamic, long-term reference temperature was 
@@ -2184,12 +2187,14 @@ SUBROUTINE stomate_main &
     !! 4.3 Calculate maintenance respiration
     ! Note: lai is passed as output argument to overcome previous problems with 
     ! natural and agricultural vegetation types. 
+
     CALL maint_respiration &
          & (kjpindex,dtradia,lai,t2m,tlong_ref,stempdiag,height,veget_cov_max, &
          & rprof,biomass,resp_maint_part_radia, &
 !JCADD
          & sla_calc)
-!ENDJCADD    
+!ENDJCADD
+ 
     ! Aggregate maintenance respiration across the different plant parts 
     resp_maint_radia(:,:) = zero
     DO j=2,nvm
@@ -2314,12 +2319,12 @@ SUBROUTINE stomate_main &
     ENDDO
    ENDIF 
 
-
 !! 5. Daily processes - performed at the end of the day
     
     IF (do_slow) THEN
 
        WRITE(numout,*) "Number of days: ", date
+       write (*,*) "Number of days: ", date   !! Arsene bis
 
        !5.0 permafrost
        IF ( ok_pc ) THEN
@@ -2453,7 +2458,6 @@ SUBROUTINE stomate_main &
        ENDIF
 !pss:-        
 
-
        !! 5.1 Update lai
        ! Use lai from stomate
        ! ?? check if this is the only time control%ok_pheno is used??
@@ -2573,6 +2577,7 @@ SUBROUTINE stomate_main &
                &             + cflux_prod10(:)  &
                &             + cflux_prod100(:) &
                &             + harvest_above(:)
+
 
           !! 5.4 Calculate veget and veget_max
           veget_max(:,:) = zero 

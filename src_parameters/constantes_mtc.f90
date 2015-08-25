@@ -160,7 +160,7 @@ MODULE constantes_mtc
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: height_presc_mtc  =  &     !! prescribed height of vegetation (m)
   & (/  0.0,   30.0,   30.0,   20.0,   20.0,   20.0,   15.0,  &         !! Value for height_presc : one for each vegetation type
   &    15.0,   15.0,    0.5,    0.6,    1.0,    1.0, &
-  &    0.2,    2.0 /)                                                   !! Arsene 22-11-2013 : + 2 PFT
+  &    0.2,    3.2 /)                                                   !! Arsene 22-11-2013 : + 2 PFT
 
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: rveg_mtc  =  &             !! Potentiometer to set vegetation resistance (unitless)
   & (/ 1.0,   1.0,   1.0,   1.0,   1.0,   1.0,   1.0,  &                !! Nathalie on March 28th, 2006 - from Fred Hourdin,

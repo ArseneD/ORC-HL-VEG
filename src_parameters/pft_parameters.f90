@@ -1627,6 +1627,15 @@ CONTAINS
          STOP 'pft_parameters_alloc'
       END IF
 
+!! Arsene 11-08-2015 - Add
+      ALLOCATE(mindia(nvm),stat=ier)
+      l_error = l_error .OR. (ier /= 0)
+      IF (l_error) THEN
+         WRITE(numout,*) ' Memory allocation error for mindia. We stop. We need nvm words = ',nvm
+         STOP 'pft_parameters_alloc'
+      END IF
+!! Arsene 11-08-2015 - Add
+
       ALLOCATE(cn_sapl(nvm),stat=ier)
       l_error = l_error .OR. (ier /= 0)
       IF (l_error) THEN
@@ -3154,6 +3163,7 @@ CONTAINS
    IF (ALLOCATED(bm_sapl)) DEALLOCATE(bm_sapl)
    IF (ALLOCATED(migrate)) DEALLOCATE(migrate)
    IF (ALLOCATED(maxdia)) DEALLOCATE(maxdia)
+   IF (ALLOCATED(mindia)) DEALLOCATE(mindia)     !! Arsene 11-08-2015 - Add
    IF (ALLOCATED(cn_sapl)) DEALLOCATE(cn_sapl)
    IF (ALLOCATED(leaf_timecst)) DEALLOCATE(leaf_timecst)
    

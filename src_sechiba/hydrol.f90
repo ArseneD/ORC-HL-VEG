@@ -4530,7 +4530,7 @@ CONTAINS
        kk(:,:,:)=zero
        kk_moy(:,:)=zero
     ENDIF
-    
+
     IF (ok_freeze_cwrr) THEN
        !
        ! 1.1 Calculate the temperature at hydrological levels
@@ -4642,7 +4642,6 @@ CONTAINS
           !- The incoming flux is also first dedicated to fill the soil up to mcr (in case needed)
        ENDDO
 
-
      !! 2.1.2 Treat problem with to low soil moisture content in soil column : is_under_mcr
        DO ji = 1, kjpindex
           IF (is_under_mcr(ji)) THEN
@@ -4671,6 +4670,7 @@ CONTAINS
              END IF
           END IF
        END DO
+
 
     !! 2.2 Coefficients are computed for the profile of mc before infiltration
        CALL hydrol_soil_coef(kjpindex,jst,njsc)
@@ -5020,7 +5020,6 @@ CONTAINS
        ! moderwilt is a factor which is zero if soil moisture is below the wilting point
        ! and is un if soil moisture is above the wilting point.
 
-
        DO jsl=1,nslm
           DO ji=1,kjpindex
              moderwilt(ji,jsl,jst) = INT( MAX(soil_wet(ji,jsl,jst), zero) + un - min_sechiba )
@@ -5043,6 +5042,7 @@ CONTAINS
              humrelv(ji,jv,jst) = MAX(us(ji,jv,jst,1),zero)
           END DO
        ENDDO
+
 
        DO jsl = 2,nslm-1
           DO jv = 2, nvm
@@ -5077,6 +5077,7 @@ CONTAINS
           END DO
        ENDDO
 
+
        DO jv = 2, nvm
           DO ji=1,kjpindex
 
@@ -5101,6 +5102,7 @@ CONTAINS
           END DO
        END DO
 
+
        DO jv = 2, nvm
           DO ji = 1, kjpindex
              IF (corr_veg_soil(ji,jv,jst) .LT. min_sechiba) THEN
@@ -5108,6 +5110,7 @@ CONTAINS
              ENDIF
           END DO
        END DO
+
 
     !! 13 before closing the soil water, we check the water balance of soil
 
@@ -5210,7 +5213,6 @@ CONTAINS
          & evapot, vevapnu, returnflow, reinfiltration, irrigation, &
          & shumdiag,shumdiag_perma, k_litt, litterhumdiag, humrel, vegstress, drysoil_frac,tot_melt, & !pss:+
          & drunoff_tot) !pss:-
-
 
     !
     !! 15 Calculation of evap_bare_limit : limitation factor for bare soil evaporation
@@ -5531,6 +5533,7 @@ CONTAINS
        mc(ji,1,ins) = mc(ji,1,ins) + wat_inf(ji) * deux / dz(2,ins)
        !
     ENDDO
+
     !-
     !! 2 Infiltration layer by layer 
     !! 2.1 Initialisation
@@ -5538,6 +5541,7 @@ CONTAINS
     dt_tmp(:) = dtradia / one_day
     infilt_tot(:) = wat_inf(:)
     ! Compute the rate at which water will try to infiltrate each layer
+
     flux_tmp(:) = (flux_infilt(:)-wat_inf(:)) / dt_tmp(:)
     !
     DO jsl = 2, nslm-1
@@ -5580,8 +5584,9 @@ CONTAINS
           ! and finally the infilt_tot (which is just used to check if there is a problem, below) 
           infilt_tot(ji) = infilt_tot(ji) + infilt_tmp(ji) * dt_inf(ji)
        ENDDO
+
     ENDDO
-    
+
     !! 3 Verification
     DO ji = 1, kjpindex
        IF (infilt_tot(ji) .LT. -min_sechiba .OR. infilt_tot(ji) .GT. flux_infilt(ji) + min_sechiba) THEN
@@ -6240,6 +6245,7 @@ CONTAINS
           END DO
        END DO
     END DO
+
     !
     !
     !! 1.2 evaporation

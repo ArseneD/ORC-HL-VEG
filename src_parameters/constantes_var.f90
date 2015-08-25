@@ -333,6 +333,8 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(land_use)
   LOGICAL, SAVE :: veget_reinit = .TRUE.   !! To change LAND USE file in a run. (true/false)
 !$OMP THREADPRIVATE(veget_reinit)
+  LOGICAL, SAVE :: shrubs_like_trees = .FALSE.  !! Arsene 03-08-2015 - Add shrubs_like_trees !! Flag to use equation closer trees for shrubs  
+!$OMP THREADPRIVATE(shrubs_like_trees)          !! Arsene 03-08-2015 - Add shrubs_like_trees
 
   !
   ! PARAMETERS USED BY BOTH HYDROLOGY MODELS
@@ -773,14 +775,39 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(pipe_tune2)
   REAL(r_std), SAVE :: pipe_tune3 = 0.5          !! height=pipe_tune2 * diameter**pipe_tune3 (unitless)
 !$OMP THREADPRIVATE(pipe_tune3)
-  REAL(r_std), SAVE :: pipe_tune4 = 0.3          !! needed for stem diameter (unitless)
-!$OMP THREADPRIVATE(pipe_tune4)
+!!  REAL(r_std), SAVE :: pipe_tune4 = 0.3          !! needed for stem diameter (unitless)  !! Arsene 11-08-2015 - New maxdia: pipe_tune4 not use
+!!!$OMP THREADPRIVATE(pipe_tune4)                  !! Arsene 11-08-2015 - New maxdia: pipe_tune4 not use
   REAL(r_std), SAVE :: pipe_density = 2.e5       !! Density
 !$OMP THREADPRIVATE(pipe_density)
   REAL(r_std), SAVE :: pipe_k1 = 8.e3            !! one more SAVE
 !$OMP THREADPRIVATE(pipe_k1)
   REAL(r_std), SAVE :: pipe_tune_exp_coeff = 1.6 !! pipe tune exponential coeff (unitless)
 !$OMP THREADPRIVATE(pipe_tune_exp_coeff)
+
+!! Arsene 03-08-2015 - New parametrisation for shrub... START
+  REAL(r_std), SAVE :: pipe_density_shrub = 2.e5       !! Density for shrub
+!$OMP THREADPRIVATE(pipe_density)
+  REAL(r_std), SAVE :: pipe_k1_shrub = 13.e3           !! one more SAVE for shrub [TESTS: between 12 to 16]
+!$OMP THREADPRIVATE(pipe_k1)
+!! Arsene 03-08-2015 - If shrubs_like_trees
+  REAL(r_std), SAVE :: pipe_tune1_for_shrub = 217.        !! crown area = pipe_tune1. stem diameter**(1.6) (Reinicke's theory) (unitless)
+!$OMP THREADPRIVATE(pipe_tune1)
+  REAL(r_std), SAVE :: pipe_tune2_for_shrub = 8.          !! height=pipe_tune2 * diameter**pipe_tune3 (unitless)
+!$OMP THREADPRIVATE(pipe_tune2)
+  REAL(r_std), SAVE :: pipe_tune3_for_shrub = 0.55        !! height=pipe_tune2 * diameter**pipe_tune3 (unitless)
+!$OMP THREADPRIVATE(pipe_tune3)
+  REAL(r_std), SAVE :: pipe_tune_exp_coeff_for_shrub = 1.6!! pipe tune exponential coeff (unitless)
+!$OMP THREADPRIVATE(pipe_tune_exp_coeff)
+!! Arsene 03-08-2015 - If .NOT. shrubs_like_trees
+  REAL(r_std), SAVE :: pipe_tune_shrub1 = 10**2.42    !! total crown area = pipe_tune_shrub1. tatal basal area**(pipe_tune_shrub_exp_coeff) (Aiba & Kohyama (1996) (unitless)
+!$OMP THREADPRIVATE(pipe_tune1)
+  REAL(r_std), SAVE :: pipe_tune_shrub2 = 0.75        !! 1/height=1/(pipe_tune_shrub2 * (100*diameter)**pipe_tune_shrub3) + 1/height_presc (unitless)
+!$OMP THREADPRIVATE(pipe_tune2)
+  REAL(r_std), SAVE :: pipe_tune_shrub3 = 1.15        !! 1/height=1/(pipe_tune_shrub2 * (100*diameter)**pipe_tune_shrub3) + 1/height_presc (unitless)
+!$OMP THREADPRIVATE(pipe_tune3)
+  REAL(r_std), SAVE :: pipe_tune_shrub_exp_coeff = 0.8!! pipe tune exponential coeff (unitless)
+!$OMP THREADPRIVATE(pipe_tune_exp_coeff)
+!! Arsene 03-08-2015 - New parametrisation for shrub... END
 
   ! 1.2 climatic parameters 
 
@@ -797,10 +824,12 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(alpha_grass)
   REAL(r_std), SAVE :: alpha_tree = 1.           !! alpha coefficient for trees (unitless)
 !$OMP THREADPRIVATE(alpha_tree)
-  REAL(r_std), SAVE :: alpha_shrub = 0.8         !! alpha coefficient for trees (unitless)     !! Arsene 31-07-2014 modifications
+  REAL(r_std), SAVE :: alpha_shrub = 0.8         !! alpha coefficient for shrubs (unitless)    !! Arsene 31-07-2014 modifications
 !$OMP THREADPRIVATE(alpha_shrub)                                                               !! Arsene 31-07-2014 modifications
   REAL(r_std), SAVE :: mass_ratio_heart_sap = 3. !! mass ratio (heartwood+sapwood)/sapwood (unitless)
 !$OMP THREADPRIVATE(mass_ratio_heart_sap)
+!    REAL(r_std), SAVE :: shrub_ind_frac = 2000.   !! ratio between number of branches (ind) and real individual  (unitless)     !! Arsene 22-05-2015 modifications
+!!$OMP THREADPRIVATE(shrub_ind_frac)               !! Arsene 22-05-2015 modifications
 
   ! 1.4  time scales for phenology and other processes (in days)
 
@@ -841,6 +870,8 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(init_sapl_mass_leaf_nat)
   REAL(r_std), SAVE :: init_sapl_mass_leaf_agri = 1.    !!
 !$OMP THREADPRIVATE(init_sapl_mass_leaf_agri)
+  REAL(r_std), SAVE :: init_sapl_mass_leaf_novasc = 0.01!! Arsene 18-08-2015 - Add vor non vascular plant. If 1 ==> NaN error (via humtress from leaf biomass= -Infinity)
+!$OMP THREADPRIVATE(init_sapl_mass_leaf_novasc)         !! Arsene 18-08-2015 - Add vor non vascular plant. If 0.1 to 0.03 ==>  Negative (>10^5) biomass at day 2
   REAL(r_std), SAVE :: init_sapl_mass_carbres = 5.      !!
 !$OMP THREADPRIVATE(init_sapl_mass_carbres)
   REAL(r_std), SAVE :: init_sapl_mass_root = 0.1        !!
@@ -863,10 +894,10 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(lai_initmin_grass)
   REAL(r_std), SAVE, DIMENSION(2) :: dia_coeff = (/ 4., 0.5 /)            !!
 !$OMP THREADPRIVATE(dia_coeff)
-  REAL(r_std), SAVE, DIMENSION(2) :: maxdia_coeff =(/ 100., 0.01/)        !!
-!$OMP THREADPRIVATE(maxdia_coeff)
-  REAL(r_std), SAVE, DIMENSION(4) :: bm_sapl_leaf = (/ 4., 4., 0.8, 5./)  !!
-!$OMP THREADPRIVATE(bm_sapl_leaf)
+!!  REAL(r_std), SAVE, DIMENSION(2) :: maxdia_coeff =(/ 100., 0.01/)       !! Arsene 11-08-2015 - New maxdia ==> maxdia_coeff not use 
+!!!$OMP THREADPRIVATE(maxdia_coeff)                                        !! Arsene 11-08-2015 - New maxdia ==> maxdia_coeff not use
+!!  REAL(r_std), SAVE, DIMENSION(4) :: bm_sapl_leaf = (/ 4., 4., 0.8, 5./) !! Arsene 11-08-2015 - New calcul of bm_sapl ==> not use
+!!!$OMP THREADPRIVATE(bm_sapl_leaf)                                        !! Arsene 11-08-2015 - New calcul of bm_sapl ==> not use
 
 
 
@@ -935,6 +966,8 @@ MODULE constantes_var
   REAL(r_std), SAVE :: frac_turnover_daily = 0.55  !! (0-1, unitless)
 !$OMP THREADPRIVATE(frac_turnover_daily)
 
+  REAL(r_std), SAVE :: fact_min_height = 5.  !! (1-10, unitless)  !! Arsene 20-05-2015 Add - Note: impoortante pour calc of bm_sap
+!$OMP THREADPRIVATE(fact_min_height)                              !! Arsene 20-05-2015 Add
 
   !
   ! stomate_npp.f90 

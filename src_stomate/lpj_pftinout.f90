@@ -406,6 +406,8 @@ CONTAINS
           !      "can_introduce" means that it either exists in neighbouring grid boxes 
           !      or that we do not look at neighbours, that it has not been eliminated 
           !      lately, and, of course, that the climate is good for that PFT.
+
+
           WHERE ( can_introduce(:) )
              
              PFTpresent(:,j) = .TRUE.
@@ -435,7 +437,7 @@ CONTAINS
                 biomass(:,j,ifruit,icarbon) = bm_sapl(j,ifruit,icarbon) * ind(:,j)
                 biomass(:,j,icarbres,icarbon) = bm_sapl(j,icarbres,icarbon) * ind(:,j)
              END WHERE
-            
+
              co2_to_bm(:,j) = &
                   co2_to_bm(:,j) +  &
                   ( biomass(:,j,ileaf,icarbon) + biomass(:,j,isapabove,icarbon) + &
@@ -457,6 +459,7 @@ CONTAINS
              lm_lastyearmax(:,j) = bm_sapl(j,ileaf,icarbon) * ind(:,j)
 
           ENDWHERE    ! we can introduce the PFT
+
 
           !! 6.4 Expansion of the PFT within the grid box 
           !      PFT expansion/dispersion to a new grid box should not be confused with 

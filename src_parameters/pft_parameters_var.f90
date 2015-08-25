@@ -603,6 +603,10 @@ MODULE pft_parameters_var
                                                                 !! increases (m)
 !$OMP THREADPRIVATE(maxdia)
 
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: mindia        !! Arsene 11-08-2015 - Add  !! minimum stem diameter from which on crown area no longer 
+                                                                !! Arsene 11-08-2015 - Add  !! increases (m)
+!$OMP THREADPRIVATE(mindia)
+
   REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: cn_sapl       !! crown of tree when sapling  @tex $(m^2$)$ @endtex
 !$OMP THREADPRIVATE(cn_sapl)
 

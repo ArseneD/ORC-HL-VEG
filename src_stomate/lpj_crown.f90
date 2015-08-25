@@ -101,11 +101,17 @@ CONTAINS
     REAL(r_std),DIMENSION(npts,nvm),INTENT(inout)     :: height           !! Height of vegetation (m)           
 
     !! 0.4 Local variables
-	
+
 !   REAL(r_std),DIMENSION(npts)                       :: woodmass        !! Wood mass of an individual (gC)
     INTEGER(i_std)                                    :: j               !! Index
     REAL(r_std),DIMENSION(npts)                       :: dia             !! Stem diameter (m)
     REAL(r_std),DIMENSION(nvm)                        :: height_presc_12 !! [DISPENSABLE] Prescribed height of each pfts (m)
+
+    REAL(r_std)                                       :: pt1, pt2, pt3, ptcoeff, pdensity  !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+    REAL(r_std),DIMENSION(npts)                       :: volume          !! Arsene 11-08-2015 - New shrub allometry (from Aiba & Kohyama, 1996)
+    REAL(r_std)                                       :: signe, signe_presc, factor, num_it, accept_sigma, volume1 !! Arsene 11-08-2015 - Add for iteration
+    LOGICAL                                           :: dia_ok !! Arsene 11-08-2015 - Add for iteration
+    INTEGER(i_std)                                    :: i               !! Arsene 11-08-2015 - Add for iteration - index (unitless)
 
 !_ ================================================================================================================================
     
@@ -123,16 +129,31 @@ CONTAINS
     height_presc_12(1:nvm) = height_presc(1:nvm)     !![DISPENSABLE]
     
   !! 2. Calculate (or prescribe) crown area
-    
+
     DO j = 2,nvm ! loop over PFTs
        IF (is_tree(j) .OR. is_shrub(j)) THEN     !! Arsene 31-07-2014 modifications    A VERIFFFFF ==> def cn_ind
           
           !! 2.1 Trees
           IF (natural(j)) THEN
 
+             IF ( is_tree(j) ) THEN                        !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+                pt1 = pipe_tune1
+                pt2 = pipe_tune2
+                pt3 = pipe_tune3
+                ptcoeff = pipe_tune_exp_coeff
+                pdensity = pipe_density
+             ELSE                                          !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+                pt1 = pipe_tune1_for_shrub
+                pt2 = pipe_tune2_for_shrub
+                pt3 = pipe_tune3_for_shrub
+                ptcoeff = pipe_tune_exp_coeff_for_shrub
+                pdensity = pipe_density_shrub
+             ENDIF                                         !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+
              !! 2.1.1 Natural trees
              !WHERE (PFTpresent(:,j) .AND.ind(:,j).GT.min_stomate)
-             WHERE (PFTpresent(:,j) .AND.woodmass_ind(:,j).GT.min_stomate)
+             IF ( is_tree(j) .OR. shrubs_like_trees ) THEN     !! Arsene 11-08-2015 - Change for shrub allometry
+              WHERE (PFTpresent(:,j) .AND.woodmass_ind(:,j).GT.min_stomate)
 
                 !! 2.1.1.1 Calculate individual wood mass**2
 
@@ -145,12 +166,15 @@ CONTAINS
                 !! 2.1.1.2 Stem diameter from pipe model
                 !          Stem diameter (pipe model) is calculated by allometory (eqn 1, Appdx B, Smith et al. (2001))
                 !!!$          dia(:) = (woodmass(:)/(pipe_density*pi/4.*pipe_tune2)) &
-                dia(:) = (woodmass_ind(:,j)/(pipe_density*pi/4.*pipe_tune2)) &
-                 &       **(1./(2.+pipe_tune3))
+!                dia(:) = (woodmass_ind(:,j)/(pipe_density*pi/4.*pipe_tune2)) &           !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+!                 &       **(1./(2.+pipe_tune3))                                          !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+                dia(:) = (woodmass_ind(:,j)/(pdensity*pi/4.*pt2)) &                       !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+                 &       **(1./(2.+pt3))                                                  !! Arsene 03-08-2015 - Change pipe_tune for shrubs
 
                 !! 2.1.1.3 Individual tree height from pipe model
                 !          Individual tree height (eqn 2, Appdx B, Smith et al. (2001))
-                height(:,j) = pipe_tune2*(dia(:)**pipe_tune3)
+!                height(:,j) = pipe_tune2*(dia(:)**pipe_tune3)                            !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+                height(:,j) = pt2*(dia(:)**pt3)                                           !! Arsene 03-08-2015 - Change pipe_tune for shrubs
 
                 !!!$SZ: The constraint on height has nothing to do with LPJ (for that purpose there's dia_max
                 !!!$ cannot see why this is necessary - it also blurrs the output, hence I leave it commented
@@ -163,9 +187,107 @@ CONTAINS
                 !          Calculate crown area, truncate crown area for trunks with large diameters 
                 ! crown area cannot exceed a certain value, prescribed through maxdia 
                 ! (eqn 3, Appdx B, Smith et al. (2001))
-                cn_ind(:,j) = pipe_tune1*MIN(dia(:),maxdia(j))**pipe_tune_exp_coeff
+!                cn_ind(:,j) = pipe_tune1*MIN(dia(:),maxdia(j))**pipe_tune_exp_coeff       !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+                cn_ind(:,j) = pt1*MIN(dia(:),maxdia(j))**ptcoeff                           !! Arsene 03-08-2015 - Change pipe_tune for shrubs
 
-             ENDWHERE
+!! Arsene 04-08-2015 - ATTENTION : recalculer maxdia !
+
+              ENDWHERE
+             ELSE                                             !! Arsene 11-08-2015 - Change for shrub allometry
+             !! First, we start by first estimation ==> Ind number is good (normalement c'est bon !)
+               WHERE (PFTpresent(:,j) .AND.woodmass_ind(:,j).GT.min_stomate)
+               
+                 !! We start diffr-erently because is not easy to calculate Dia.
+                 !! Input: woodmass_ind, ind (so woodmass), and biomass
+
+                 !! 2.1.1.1.bis. Calculate ind volume
+                 volume(:) = woodmass_ind(:,j) / pdensity
+                 
+                 !! After we need to calculate the good diameter... by iteration...
+               ENDWHERE
+
+               DO i = 1, npts ! loop over grid points
+                IF (PFTpresent(i,j) .AND. woodmass_ind(i,j).GT.min_stomate) THEN
+                 !! 2.1.1.2.bis. Stem diameter from Aiba & Kohyama
+                 !          Stem diameter is calculated by allometory... but no analytique solution...
+                 !! volume(i) = pi/4 * height_presc(j) * pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**(pipe_tune_shrub3+2) &
+                 !!               & / ( height_presc(j) + pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**pipe_tune_shrub3 )
+                 
+                 !! On part de la hauteur initiale, et on essaye de trouver le bon diamètre...
+                 IF ( height(i,j) .LT. height_presc(j) ) THEN  !! Arsene 11-08-2015 Garde fou
+                     dia(i) = (height(i,j)*height_presc(j) / (pipe_tune_shrub2*(height_presc(j)-height(i,j))) ) &
+                                 & **(1/pipe_tune_shrub3) /100
+                 ELSE
+                     dia(i) = maxdia(j)
+                 ENDIF
+
+                 num_it = 0
+                 signe = 0
+                 signe_presc = 0
+                 accept_sigma = 0.001
+                 dia_ok = .false.
+                 DO WHILE ( .NOT.dia_ok )
+                    volume1 = pi/4 * height_presc(j) * pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**(pipe_tune_shrub3+2.) &
+                                & / ( height_presc(j) + pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**pipe_tune_shrub3 )
+
+                    IF ( ABS(volume1-volume(i)).GT.0.001 .AND. (num_it.EQ.0)) THEN
+                       factor = dia(i)
+                    ELSEIF ( ABS(volume1-volume(i)).GT.0.0001 .AND. (num_it.EQ.0)) THEN
+                       factor = dia(i)*0.1
+                    ELSEIF ( num_it.EQ.0 ) THEN !IF ( ABS(volume2-volume1).GT.0.00001 ) THEN
+                       factor = dia(i)*0.01
+                    ENDIF
+
+                    IF  ( (volume1-volume(i)) .GT. (accept_sigma*volume(i)) ) THEN  !! So Dia to important or min_stomate
+                       IF ( (dia(i)-factor).LT.min_stomate ) THEN
+                           signe = -signe_presc
+                       ELSE
+                           signe = -1
+                           dia(i) = dia(i) - factor
+                       ENDIF
+                    ELSEIF ( (volume1-volume(i)) .LT. (accept_sigma*volume(i)) ) THEN !! dia too low  min_stomate
+                       IF ( dia(i).GT.maxdia(j) ) THEN
+                           dia(i) = maxdia(j)
+                           dia_ok = .true.
+                       ELSE
+                           dia(i) = dia(i) + factor
+                           signe = 1
+                       ENDIF
+                    ELSE !! Good dia
+                       dia_ok = .true.
+                    ENDIF
+
+                    IF ( ((signe + signe_presc) .EQ. 0) .AND. .NOT.dia_ok ) THEN
+                       factor = factor / 10
+                    ELSEIF (.NOT.dia_ok .AND. signe_presc.EQ.0) THEN
+                       signe_presc = signe
+                    ENDIF
+
+                    num_it = num_it+1
+                    IF ((num_it .GE. 100 ) .AND. (.NOT.dia_ok) ) THEN ! Si trop de boucle... limit à 100 ?
+                       dia_ok = .true.
+                       write(*,*) "The iteration in lpj_crown.f90 need probably to be check (Arsene)"
+                       !! Arsene 11-08-2015 - By default: Dia = last dia...
+                    ENDIF
+
+                 ENDDO  !! While loops!! Arsene 11-08-2015 Attention à tester l'itération, notemment pour ajuster the "accept_sigma"
+                ENDIF   !! if PFT...
+               ENDDO    !! Map loops
+
+               WHERE (PFTpresent(:,j) .AND.woodmass_ind(:,j).GT.min_stomate)
+
+                !! 2.1.1.3.bis. Individual tree height from Aiba & Kohyama
+                height(:,j) = height_presc(j) * pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(:)**pipe_tune_shrub3 &
+                         & / ( height_presc(j) + pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(:)**pipe_tune_shrub3 )
+
+                !! 2.1.1.4 Crown area of individual tree
+                !          Calculate crown area, truncate crown area for trunks with large diameters
+                ! crown area cannot exceed a certain value, prescribed through maxdia
+                cn_ind(:,j) = pipe_tune_shrub1 * (ind(:,j)*pi/4*dia(:)**2)**pipe_tune_shrub_exp_coeff / ind(:,j)
+
+               ENDWHERE
+             ENDIF                                            !! Arsene 11-08-2015 - Change for shrub allometry
+
           ELSE
 
              !! 2.1.2 Agricultural tree

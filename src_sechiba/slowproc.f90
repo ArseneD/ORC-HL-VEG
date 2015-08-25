@@ -278,7 +278,6 @@ CONTAINS
        ! 1.5 Call stomate to initialize all variables manadged in stomate,
        !     when Stomate is used or when the "watchout"?? diagnostics are requested 
        IF ( control%stomate_watchout .OR. control%ok_stomate ) THEN
-
           CALL stomate_main (kjit, kjpij, kjpindex, dtradia, dt_slow, &
                ldrestart_read, ldrestart_write, ldforcing_write, ldcarbon_write, &
                IndexLand, lalo, neighbours, resolution, contfrac, totfrac_nobio, clayfraction, &
@@ -294,7 +293,6 @@ CONTAINS
                sfluxCH4_deep, sfluxCO2_deep, &
                thawed_humidity, depth_organic_soil, zz_deep, &
                zz_coef_deep, soilc_total,snowdz,snowrho, snowtemp)    !! Arsene 19-08-2014 Add snowtemp (and snowdz) to stomate
-
        ENDIF
 
        ! 1.6 Specific run without the carbon cycle (STOMATE not called): 
@@ -397,7 +395,6 @@ CONTAINS
                sfluxCH4_deep, sfluxCO2_deep, &
                thawed_humidity, depth_organic_soil, zz_deep, &
                zz_coef_deep, soilc_total,snowdz,snowrho, snowtemp)    !! Arsene 19-08-2014 Add snowtemp (and snowdz) to stomate
-
        ENDIF
 
        RETURN
@@ -1802,6 +1799,7 @@ SUBROUTINE slowproc_init (kjit, ldrestart_read, dtradia, date0, kjpindex, IndexL
           WRITE(numout,*)  '              ',tot_bare_soil(ji)
        ENDIF
     ENDDO
+
 
     !
     ! 4. Sum up surface fractions and test if the sum is equal to 1

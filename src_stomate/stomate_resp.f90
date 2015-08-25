@@ -314,6 +314,8 @@ CONTAINS
        ! 3.1 Maintenance respiration of the different plant parts
 !JCMODIF
        lai(:,j) = biomass(:,j,ileaf,icarbon) * sla_calc(:,j)
+
+
 !       lai(:,j) = biomass(:,j,ileaf) * sla(j)
 !ENDJCMODIF
        DO k = 1, nparts ! Loop over # plant parts

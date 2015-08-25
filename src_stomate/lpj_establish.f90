@@ -200,6 +200,13 @@ CONTAINS
                                                                                  !! carbon and nitrogen 
     REAL(r_std), DIMENSION(npts)                              :: lai_ind         !! lai on each PFT surface (m^2 m^{-2})   
     INTEGER(i_std)                                            :: i,j,k,m         !! indices (unitless)       
+!
+!    REAL(r_std)                                               :: ind_max         !! 2. * fraction of real individu by ind (special for shrub) !! 22-05-2015 Arsene
+
+    REAL(r_std)                                       :: volume, signe, signe_presc, fact, num_it, accept_sigma, volume1 !! Arsene 11-08-2015 - Add for iteration
+    LOGICAL                                           :: dia_ok !! Arsene 11-08-2015 - Add for iteration
+
+!
 !_ ================================================================================================================================
 
     IF (bavard.GE.3) WRITE(numout,*) 'Entering establish'
@@ -486,8 +493,16 @@ CONTAINS
              fpc_nat(:,j) =  MIN(un, cn_ind(:,j) * ind(:,j) * & 
                   MAX( ( un - exp( - ext_coeff(j) * lai_ind(:) ) ), min_cover ) )
 
+!             IF ( is_tree(j) ) THEN              !! Arsene 22-05-2015 Add
+!                 ind_max = 2.                    !! Arsene 22-05-2015 Add - like orignal = 2.
+!             ELSE                                !! Arsene 22-05-2015 Add
+!                 ind_max = 2. * shrub_ind_frac   !! Arsene 22-05-2015 Add - original * [ratio branches (ind) & real ind]
+!             ENDIF                               !! Arsene 22-05-2015 Add
 
-             WHERE (veget_max(:,j).GT.min_stomate.AND.ind(:,j).LE.2.)
+             WHERE (veget_max(:,j).GT.min_stomate.AND.ind(:,j).LE.2.)    !! Arsene 22-05-2015. Original. Note that this where and the next one are in "competition"
+             !! Arsene 20-07-2015 On pourrait envisager que le nombre d'individus soit >> à 2.
+
+!             WHERE (veget_max(:,j).GT.min_stomate.AND.ind(:,j).LE.ind_max)   !! Arsene 22-05-2015 Rempalce 2. by ind_max
 
                 !! 3.1.1 Only establish into growing stands 
                 !        Only establish into growing stands, ind can become very
@@ -500,16 +515,25 @@ CONTAINS
                 estab_rate_max_tree(:) = estab_max_tree * factor(:) !! Arsene 31-07-2014 modifications a vérif les variables associées a tree
 
                 !! 3.1.2 do establishment for natural PFTs\n
-                d_ind(:,j) = MAX( zero, estab_rate_max_tree(:) * dt/one_year)
+                d_ind(:,j) = MAX( zero, estab_rate_max_tree(:) * dt/one_year)      !! Arsene 22-05-2015 Maybe have to create news parameters for shrubs !!!
 
              ENDWHERE
 
              !SZ: quickfix: to simulate even aged stand, uncomment the following lines...
              !where (ind(:,j) .LE. min_stomate)
              !d_ind(:,j) = 0.1 !MAX( 0.0, estab_rate_max_tree(:) * dt/one_year)
-             WHERE (veget_max(:,j).GT.min_stomate .AND. ind(:,j).EQ.zero)
-                d_ind(:,j) = ind_0_estab
-             ENDWHERE
+!             IF ( .NOT. is_shrub(j) ) THEN                                                      !! Arsene 22-05-2015. Change the number of start indivual number with branche ratio (for shrubs)
+                WHERE (veget_max(:,j).GT.min_stomate .AND. ind(:,j).EQ.zero)
+                   d_ind(:,j) = ind_0_estab
+                ENDWHERE
+!             ELSE                                                                               !! Arsene 22-05-2015. Change the number of start indivual number with branche ratio (for shrubs)
+!                WHERE (veget_max(:,j).GT.min_stomate .AND. ind(:,j).EQ.zero)                    !! Arsene 22-05-2015. Change the number of start indivual number with branche ratio (for shrubs)
+!                   d_ind(:,j) = ind_0_estab * shrub_ind_frac                                    !! Arsene 22-05-2015. Change the number of start indivual number with branche ratio (for shrubs)
+!                ENDWHERE                                                                        !! Arsene 22-05-2015. Change the number of start indivual number with branche ratio (for shrubs)
+
+
+
+!             ENDIF                                                                              !! Arsene 22-05-2015. Change the number of start indivual number with branche ratio (for shrubs)
 
           !! 3.2 For natural grass PFTs
           ELSEIF ( natural(j) .AND. .NOT.is_tree(j) .AND. .NOT.is_shrub(j) ) THEN         !! Arsene 31-07-2014 modifications ok
@@ -574,6 +598,7 @@ CONTAINS
              ENDWHERE
           ENDDO
 
+
           !! 4.3 Woodmass calculation
 
           !! 4.3.1 with DGVM
@@ -606,9 +631,84 @@ CONTAINS
                       ENDIF
 
                       ! new diameter of PFT
+
+                      IF (is_tree(j)) THEN !! Arsene 03-08-2015 - Add allometry for shrubs
                       dia(i) = (woodmass_ind(i,j)/(pipe_density*pi/4.*pipe_tune2)) &
                            &                **(1./(2.+pipe_tune3))
                       vn(i) = (ind(i,j) + d_ind(i,j))*pipe_tune1*MIN(dia(i),maxdia(j))**pipe_tune_exp_coeff
+                      ELSEIF (is_shrub(j) .AND. shrubs_like_trees) THEN                 !! Arsene 03-08-2015 - Add allometry for shrubs
+                          dia(i) = (woodmass_ind(i,j)/(pipe_density_shrub*pi/4.*pipe_tune2_for_shrub)) &
+                               &            **(1./(2.+pipe_tune3_for_shrub))
+                          vn(i) = (ind(i,j) + d_ind(i,j))*pipe_tune1_for_shrub*MIN(dia(i),maxdia(j))**pipe_tune_exp_coeff_for_shrub
+                      ELSE !! Arsene 12-08-2015 - If shrub and New Allometry
+                          !! To calculate diameter and cover... it's more complicate...
+
+                          !! 1. Calculate the exact volume
+                           volume = woodmass_ind(i,j) / pipe_density_shrub
+
+                          !! 2. Stem diameter from Aiba & Kohyama
+                 !          Stem diameter is calculated by allometory... but no analytique solution...
+                 !! volume(i) = pi/4 * height_presc(j) * pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**(pipe_tune_shrub3+2) &
+                 !!               & / ( height_presc(j) + pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**pipe_tune_shrub3 )
+
+                 !! On part de la hauteur corresonpodant au minheight... ==> min dia !! Peut être que ça marche "bien" du premier coup (on peut toujours réver...)
+                 dia(i) = mindia(j)
+
+                 num_it = 0
+                 signe = 0
+                 signe_presc = 0
+                 accept_sigma = 0.001
+                 dia_ok = .false.
+                 DO WHILE ( .NOT.dia_ok )
+                    volume1 = pi/4 * height_presc(j) * pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**(pipe_tune_shrub3+2.) &
+                                & / ( height_presc(j) + pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**pipe_tune_shrub3 )
+
+                    IF ( ABS(volume1-volume).GT.0.001 .AND. (num_it.EQ.0)) THEN
+                       fact = dia(i)
+                    ELSEIF ( ABS(volume1-volume).GT.0.0001 .AND. (num_it.EQ.0)) THEN
+                       fact = dia(i)*0.1
+                    ELSEIF ( num_it.EQ.0 ) THEN !IF ( ABS(volume2-volume1).GT.0.00001 ) THEN
+                       fact = dia(i)*0.01
+                    ENDIF
+
+                    IF  ( (volume1-volume) .GT. (accept_sigma*volume) ) THEN  !! So Dia to important or min_stomate
+                       IF ( (dia(i)-fact).LT.min_stomate ) THEN
+                           signe = -signe_presc
+                       ELSE
+                           signe = -1
+                           dia(i) = dia(i) - fact
+                       ENDIF
+                    ELSEIF ( (volume1-volume) .LT. (accept_sigma*volume) ) THEN !! dia too low  min_stomate
+                       IF ( dia(i).GT.maxdia(j) ) THEN
+                           dia(i) = maxdia(j)
+                           dia_ok = .true.
+                       ELSE
+                           dia(i) = dia(i) + fact
+                           signe = 1
+                       ENDIF
+                    ELSE !! Good dia
+                       dia_ok = .true.
+                    ENDIF
+
+                    IF ( ((signe + signe_presc) .EQ. 0) .AND. .NOT.dia_ok ) THEN
+                       fact = fact / 10
+                    ELSEIF (.NOT.dia_ok .AND. signe_presc.EQ.0) THEN
+                       signe_presc = signe
+                    ENDIF
+
+                    num_it = num_it+1
+                    IF ((num_it .GE. 100 ) .AND. (.NOT.dia_ok) ) THEN ! Si trop de boucle... limit à 100 ?
+                       dia_ok = .true.
+                       write(*,*) "The iteration in lpj_crown.f90 need probably to be check (Arsene)"
+                       !! Arsene 11-08-2015 - By default: Dia = last dia...
+                    ENDIF
+
+                 ENDDO  !! While loops!! Arsene 11-08-2015 Attention à tester l'itération, notemment pour ajuster the "accept_sigma"
+
+                           vn(i) = pipe_tune_shrub1 * ((ind(i,j)+d_ind(i,j))*pi/4*dia(i)**2)**pipe_tune_shrub_exp_coeff
+
+write(*,*) "bobo: num_it", num_it, "dia (&mindia)", dia(i), mindia(j)
+                      ENDIF                !! Arsene 03-08-2015 - Add allometry for shrubs
 
                    ENDIF
                 ENDDO ! Loop over # pixels - domain size
@@ -620,7 +720,9 @@ CONTAINS
           ELSE 
              DO i=1,npts ! Loop over # pixels - domain size
                 IF( (is_tree(j) .OR. is_shrub(j)) .AND. (d_ind(i,j)+ind(i,j)).GT.min_stomate) THEN     !! Arsene 31-07-2014 modifications woodmass...!! Arsene 31-07-2014 modifications woodmass...
+
                    IF(total_bm_c(i).LE.min_stomate) THEN
+!IF((total_bm_c(i).LE.min_stomate) .AND. (.NOT. is_shrub(j)) ) THEN !! !! Arsene 22-05-2015 or near
 
                       ! new wood mass of PFT
                       woodmass_ind(i,j) = &
@@ -628,6 +730,15 @@ CONTAINS
                            & + biomass(i,j,iheartabove,icarbon) + biomass(i,j,iheartbelow,icarbon))) &
                            & + (bm_sapl(j,isapabove,icarbon) + bm_sapl(j,isapbelow,icarbon) &
                            & + bm_sapl(j,iheartabove,icarbon) + bm_sapl(j,iheartbelow,icarbon))*d_ind(i,j))/(ind(i,j)+d_ind(i,j))
+
+!ELSEIF ((total_bm_c(i).LE.min_stomate) .AND. is_shrub(j) ) THEN  !! Arsene 22-05-2015
+!
+!woodmass_ind(i,j) = &   !! Arsene 22-05-2015
+!                           & (((biomass(i,j,isapabove,icarbon) + biomass(i,j,isapbelow,icarbon) &!! Arsene 22-05-2015
+!                           & + biomass(i,j,iheartabove,icarbon) + biomass(i,j,iheartbelow,icarbon))) &!! Arsene 22-05-2015
+!                           & + (bm_sapl(j,isapabove,icarbon) + bm_sapl(j,isapbelow,icarbon) &!! Arsene 22-05-2015
+!                     & + bm_sapl(j,iheartabove,icarbon) + bm_sapl(j,iheartbelow,icarbon))*d_ind(i,j))/(ind(i,j)+d_ind(i,j)) !!bobo  !! Arsene 22-05-2015
+
 
                    ELSE
  
@@ -687,7 +798,6 @@ CONTAINS
              ENDWHERE
           ENDDO ! Loop over # litter tissues
 
-          
 
           !! 4.6 Decrease leaf age in youngest class if new leaf biomass is higher than old one.
           WHERE ( d_ind(:,j) * bm_sapl(j,ileaf,icarbon) .GT. min_stomate )
@@ -724,6 +834,7 @@ CONTAINS
           ENDDO
 
           !! 4.9 Update age and number of individuals
+
           WHERE ( d_ind(:,j) .GT. min_stomate )
 
              age(:,j) = age(:,j) * ind(:,j) / ( ind(:,j) + d_ind(:,j) )
@@ -740,6 +851,7 @@ CONTAINS
        ENDIF ! natural
 
     ENDDO ! Loop over # PFTs
+
 
   !! 5. history
 

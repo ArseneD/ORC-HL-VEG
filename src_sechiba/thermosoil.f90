@@ -511,6 +511,7 @@ CONTAINS
         !!  Computes some physical constants and arrays depending on the soil vertical discretization 
         !! (lskin, cstgrnd, zz, zz_coef, dz1, dz2); get the vertical humidity onto the thermal levels, and 
         !! initializes soil thermal properties (pkappa, pcapa); produces the first temperature diagnostic stempdiag.
+
         
         CALL thermosoil_var_init (kjpindex, zz, zz_coef, dz1, dz2, pkappa, pcapa, pcapa_en, &
         &        shumdiag_perma, stempdiag, snow, &
@@ -522,6 +523,7 @@ CONTAINS
         ! computes cgrd and dgrd coefficient from previous time step (restart)
         !
         !WRITE(numout,*) 'zd _coef IF(l_first_) 1 ','ptn(1,:,10)',ptn(1,:,10)
+
         CALL thermosoil_coef (kjpindex, dtradia, temp_sol_new, snow, ptn, soilcap, soilflx, zz, dz1, dz2, z1, zdz1,&
            & zdz2, cgrnd, dgrnd, zdz1_soil, zdz2_soil, cgrnd_soil, dgrnd_soil, pcapa, pcapa_en, pkappa,&
 !Isa
@@ -815,11 +817,13 @@ CONTAINS
     
     ! Compute long-term soil humidity (for permafrost)
     !    
+
     if (ok_wetdiaglong) then
         CALL thermosoil_wlupdate( kjpindex, dtradia, ptn, wetdiag, wetdiaglong )
     else
         wetdiaglong(:,:,:)=wetdiag(:,:,:)
     endif
+
 
   !! 4. Effective computation of the soil temperatures profile, using the cgrd and !dgrd coefficients from previsou tstep.
     !WRITE(numout,*) 'zd _profile 1 ','ptn(1,:,10)',ptn(1,:,10),'cgrnd_snow(1,:)',cgrnd_snow(1,:),'dgrnd_snow(1,:)',dgrnd_snow(1,:),'snowtemp(1,:)',snowtemp(1,:),'temp_sol_new(1)',temp_sol_new(1),'cgrnd(1,:,10)',cgrnd(1,:,10),'dgrnd(1,:,10)',dgrnd(1,:,10)
@@ -1017,7 +1021,6 @@ CONTAINS
 
      ok_wetdiaglong = .FALSE.
      CALL getin_p ('OK_WETDIAGLONG',ok_wetdiaglong)
-
     if (ok_freeze_thermix .AND. ok_pc) then
         ok_wetdiaglong = .TRUE.
     endif
@@ -1308,17 +1311,20 @@ CONTAINS
  
         ptn_beg(:,:,:) = ptn(:,:,:)
      
-	
 
-        wetdiaglong(:,:,:) = val_exp
-        DO m=1,nvm
-           WRITE(part_str,'(I2)') m
-           IF ( m < 10 ) part_str(1:1) = '0'
-           var_name = 'wetdiaglong_'//part_str(1:LEN_TRIM(part_str))
-           CALL ioconf_setatt_p('UNITS', '-')
-           CALL ioconf_setatt_p('LONG_NAME','Long-term soil humidity')
-           CALL restget_p (rest_id, var_name, nbp_glo, ngrnd, 1, kjit, .TRUE.,wetdiaglong(:,:,m), "gather", nbp_glo, index_g) !need to add veg dim
-        END DO
+
+!! Arsene 15-06-2015 Remove (see below)
+!        wetdiaglong(:,:,:) = val_exp
+!        DO m=1,nvm
+!           WRITE(part_str,'(I2)') m
+!           IF ( m < 10 ) part_str(1:1) = '0'
+!           var_name = 'wetdiaglong_'//part_str(1:LEN_TRIM(part_str))
+!           CALL ioconf_setatt_p('UNITS', '-')
+!           CALL ioconf_setatt_p('LONG_NAME','Long-term soil humidity')
+!           CALL restget_p (rest_id, var_name, nbp_glo, ngrnd, 1, kjit, .TRUE.,wetdiaglong(:,:,m), "gather", nbp_glo, index_g) !need to add veg dim
+!        END DO
+!! Arsene 15-06-2015 Remove (see below)
+
 
         wetdiag(:,:,:) = val_exp
         DO m=1,nvm
@@ -1329,6 +1335,22 @@ CONTAINS
            CALL ioconf_setatt_p('LONG_NAME','soil humidity')
            CALL restget_p (rest_id, var_name, nbp_glo, ngrnd, 1, kjit, .TRUE.,wetdiag(:,:,m), "gather", nbp_glo, index_g) !need to add veg dim 
         END DO
+
+
+        IF (ok_wetdiaglong) THEN   !! Arsene15-06-2015 Add... because if is not wetdiaglong is not def (and  wetdiaglong(:,:,:) = val_exp)
+           wetdiaglong(:,:,:) = val_exp
+           DO m=1,nvm
+              WRITE(part_str,'(I2)') m
+              IF ( m < 10 ) part_str(1:1) = '0'
+              var_name = 'wetdiaglong_'//part_str(1:LEN_TRIM(part_str))
+              CALL ioconf_setatt_p('UNITS', '-')
+              CALL ioconf_setatt_p('LONG_NAME','Long-term soil humidity')
+              CALL restget_p (rest_id, var_name, nbp_glo, ngrnd, 1, kjit, .TRUE.,wetdiaglong(:,:,m), "gather", nbp_glo, index_g) !need to add veg dim
+           END DO
+        ELSE                                     !! Arsene 15-06-2015 Add because the variable is not in the restart file if .NOT.
+            wetdiaglong(:,:,:)=wetdiag(:,:,:)    !! Arsene 15-06-2015 Add because the variable is not in the restart file if .NOT.
+        ENDIF                                    !! Arsene 15-06-2015 Add because the variable is not in the restart file if .NOT.
+
 
         IF ( ALL(ABS(wetdiag(:,:,:)-val_exp).LT.EPSILON(val_exp)) ) THEN
            wetdiag = 1.
@@ -1610,6 +1632,7 @@ CONTAINS
        !    CALL thermosoil_getdiff_old_thermix_with_snow( kjpindex, ptn, wetdiaglong, snow, pkappa, pcapa, pcapa_en,profil_froz )
        !endif 
     endif
+
   !! 3. Diagnostics : consistency checks on the vertical grid.
     sum = zero
     DO jg=1,ngrnd
@@ -1766,6 +1789,7 @@ CONTAINS
        !    CALL thermosoil_getdiff_old_thermix_with_snow( kjpindex, ptn, wetdiaglong, snow, pkappa, pcapa, pcapa_en,profil_froz )
        !endif
     endif
+
     !added by Tao for very thin snow layer
 !Isa
 if (ok_Ecorr) then
@@ -1786,20 +1810,17 @@ endif
     ! cgrnd, dgrnd
 
     !! 2.1.  some "buffer" values
-
      DO jv=1,nvm
        DO jg=1,ngrnd
           WHERE (veget_mask_2d(:,jv))
            zdz2(:,jg,jv)=pcapa(:,jg,jv) * dz2(jg)/dtradia
           ENDWHERE
        ENDDO
-       
        DO jg=1,ngrnd-1
           WHERE (veget_mask_2d(:,jv))
            zdz1(:,jg,jv) = dz1(jg) * pkappa(:,jg,jv)
           ENDWHERE
        ENDDO !DO jg=1,ngrnd-1
-
     
     !! 2.2.  the coefficients ! 
        WHERE (veget_mask_2d(:,jv))
@@ -1838,6 +1859,7 @@ endif
     dgrnd_soil(:) = zero
     zdz1_soil(:) = zero
     zdz2_soil(:) = zero
+
     DO ji = 1,kjpindex
           DO jv=1,nvm !pft
              IF ( veget_mask_2d(ji,jv) .AND. sum(snowdz(ji,:)) .LE. 0.01) THEN

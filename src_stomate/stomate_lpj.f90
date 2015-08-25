@@ -548,6 +548,7 @@ CONTAINS
   
   !! 1. Initializations
 !JCADD
+
     IF (firstcall) THEN
 
         firstcall = .FALSE.
@@ -596,6 +597,7 @@ CONTAINS
     !        state variables if running DGVM or dynamic mortality in static cover mode
     !??        Explain (maybe in the header once) why you mulitply with veget_max in the DGVM
     !??        and why you don't multiply with veget_max in stomate.
+
     IF ( control%ok_dgvm .OR. .NOT.lpj_gap_const_mort) THEN
        IF(control%ok_dgvm) THEN
           WHERE (ind(:,:).GT.min_stomate)
@@ -625,13 +627,12 @@ CONTAINS
     !        the DGVM afterwards. At the first call, if the DGVM is not activated, 
     !        impose a minimum biomass for prescribed PFTs and declare them present.
     !WRITE(numout,*) 'zd leaffrac1 prescribe leaf_frac(1,10,:)', leaf_frac(1,10,:)
-write(*,*) "ind before:", ind(:,15), "height(:,j)", height(:,15)
+
     CALL prescribe (npts, &
          veget_max, dt_days, PFTpresent, everywhere, when_growthinit, &
          biomass, leaf_frac, ind, cn_ind, co2_to_bm, height)   !! Arsene 04-09-2014 - Add height
     !WRITE(numout,*) 'zd leaffrac2 prescribe leaf_frac(1,10,:)', leaf_frac(1,10,:)
     !WRITE(numout,*) 'zd bio3 prescribe biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
-write(*,*) "ind after", ind(:,15), "height(:,j)", height(:,15)
 
   !! 2. Climatic constraints for PFT presence and regenerativeness
 
@@ -643,7 +644,6 @@ write(*,*) "ind after", ind(:,15), "height(:,j)", height(:,15)
 
 !! 2.1 Protection of shrub by snow. BY Arsene   08-2014
 !! #############################     AVANT été placé ici la protection des SHRUBS     ###########################
-
 
 
   !! 3. Determine introduction and elimination of PTS based on climate criteria
@@ -660,6 +660,7 @@ write(*,*) "ind after", ind(:,15), "height(:,j)", height(:,15)
 !JCADD
             sla_calc)
 !ENDJCADD 
+
        !WRITE(numout,*) 'zd leaffrac3 pftinout leaf_frac(1,10,:)', leaf_frac(1,10,:)
        !WRITE(numout,*) 'zd bio4 pftinout biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
        !! 3.2 Reset attributes for eliminated PFTs.
@@ -699,6 +700,7 @@ write(*,*) "ind after", ind(:,15), "height(:,j)", height(:,15)
        !WRITE(numout,*) 'zd bio6 crown biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
 
     ENDIF
+
     
   !! 4. Phenology
 
@@ -851,6 +853,7 @@ write(*,*) "ind after", ind(:,15), "height(:,j)", height(:,15)
   litter_not_avail(:,:,:) = litter(:,:,:,iabove,icarbon) * &
             (1.0 - litter_avail_frac(:,:,:))
 !ENDJCADD
+
     !! 7.2 Kill PFTs in DGVM
     IF ( control%ok_dgvm ) THEN
 
@@ -866,7 +869,6 @@ write(*,*) "ind after", ind(:,15), "height(:,j)", height(:,15)
     ENDIF ! control%ok_dgvm
  
   !! 8. Tree mortality
-
     ! Does not depend on age, therefore does not change crown area.
     CALL gap (npts, dt_days, &
          npp_longterm, turnover_longterm, lm_lastyearmax, &
@@ -884,7 +886,7 @@ write(*,*) "ind after", ind(:,15), "height(:,j)", height(:,15)
 !! #############################     protection of shrub by snow     ###########################
 !! ## Ne prend pas en compte : -  Take care about "termal chock" : si T chute trop rapidement
 !! ## Ne prend pas en compte : -  IF All(T) < T_crit THEN no loss of biomasse but mortality... 
-write(*,*) "height avant cut", height(:,15)
+!write(*,*) "height avant cut", height(:,15), "ind after afeer2:", ind(:,15), ind(:,8)
     IF ( ANY(is_shrub(:)) ) THEN
 
         !! ## On calcul la fration de strate de végétation, afin de "simuler" des différence de dépôt de masse / pixel
@@ -907,8 +909,8 @@ write(*,*) "height avant cut", height(:,15)
               !! ## Si besoin : s'il y a de la neige, des buissons, de la vegetation,... On commence
               IF ( is_shrub(j) .AND. ( SUM(snowdz_min(ji,:)) .GT. min_stomate ).AND. &
                       ind(ji,j).GE.min_stomate .AND.  PFTpresent(ji,j) .AND. &
-                      ((.NOT.control%ok_dgvm.AND.(height(ji,j).GT.(height_presc(j)/5))) .OR. control%ok_dgvm)) THEN !! Arsene 03-04-2015 If no DGVM, need heigth >= min_height. Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
-
+                      ((.NOT.control%ok_dgvm.AND.(height(ji,j).GT.(height_presc(j)/fact_min_height))) .OR. control%ok_dgvm)) THEN !! Arsene 03-04-2015 If no DGVM, need heigth >= min_height. Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
+write(*,*) "tadam ###########################################################"
                  !! ## Calcul des courbes de température, de bas en haut. Afin de calculer tmin_crit - t
                  biomass_loss = zero
                  DO i = nsnow+1, 1, -1
@@ -987,13 +989,16 @@ write(*,*) "height avant cut", height(:,15)
                     ENDIF
                  ENDDO ! nsnow: for nsnow layers
                  biomass_loss = MIN(un,biomass_loss)
-
-
+write(*,*) "biomass_loss", biomass_loss, "t2m_min_daily(ji)", t2m_min_daily(ji)
+write(*,*) "snowtemp_min(ji,i-1)", snowtemp_min(ji,3), snowtemp_min(ji,2), snowtemp_min(ji,1)
+!read(*,*)
                  !! ## Maintenant, si biomasse loss > 0, alors on doit "enlever" de la bionass et de la hauteur (dia & nb ind inchangé)
                  !! ##  ==> on diminue la hauteur, à travers une diminution de biomasse.
                  IF ( biomass_loss.GT.min_stomate ) THEN
 write(*,*) "biusson perte hauteur", "biomass_loss :           ", biomass_loss 
-write(*,*) "ind number before loss", ind(ji,j)
+write(*,*) "ind number before loss", ind(ji,j), "height(ji,j)", height(ji,j)
+write(*,*) "----------------------------------------------------!!"
+!read(*,*)
                      !! ## Calcul de la nouvelle heuteur du buissson (height)
                      !! ## Si DGVM non activé, heigth peut pas être inférieur à min heigh fixé ! Hmin = 50 cm ????????
                      !! ## Deux solution:  -soit on dis simplement que si ça réduit trop la taille, alors on fixe heigh = heigh_min
@@ -1003,9 +1008,10 @@ write(*,*) "ind number before loss", ind(ji,j)
                      !! ##                 -soit on dis que la partie < height_min n'est pas sensible dès le début (za & zb > heigh_min)
                      !! ##                      pb : sensibilité différente avec ou sans DGVM
 
-                     IF (.NOT.control%ok_dgvm .AND. ( ((1-biomass_loss)*height(ji,j)) .LT. (height_presc(j)/5)))   THEN !! Arsene 02-04-2015 Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
-                          biomass_loss = 1 - (height_presc(j)/5) / height(ji,j)     !! Arsene 02-04-2015 Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
-                          height(ji,j) = height_presc(j)/5                          !! Arsene 02-04-2015 Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
+                     IF (.NOT.control%ok_dgvm .AND. &
+                             & ( ((1-biomass_loss)*height(ji,j)) .LT. (height_presc(j)/fact_min_height)))   THEN !! Arsene 02-04-2015 Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
+                          biomass_loss = 1 - (height_presc(j)/fact_min_height) / height(ji,j)     !! Arsene 02-04-2015 Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
+                          height(ji,j) = height_presc(j)/fact_min_height                          !! Arsene 02-04-2015 Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
                      ELSE
                           height(ji,j) = (1-biomass_loss)*height(ji,j)
                      ENDIF
@@ -1066,9 +1072,6 @@ write(*,*) "ind number before loss", ind(ji,j)
       ENDDO ! on grill
    ENDIF ! if any shrub
 !! Arsene 20-08-2014 Add protection of shrub by snow. END.
-write(*,*) "height après cut", height(:,15)
-
-  
 
 
     IF ( control%ok_dgvm ) THEN
@@ -1109,10 +1112,10 @@ write(*,*) "height après cut", height(:,15)
     !WRITE(numout,*) 'zdcheck10 turn leaf_age(1,10,:)', leaf_age(1,10,:)
     !WRITE(numout,*) 'zd leaffrac12 turn leaf_frac(1,10,:)', leaf_frac(1,10,:)
     !WRITE(numout,*) 'zd bio16 turn biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
+
+
     !! 11. Light competition
 
-!write(*,*) "ind after afeter:", ind(:,15)
-    
     !! If not using constant mortality then kill with light competition
 !    IF ( control%ok_dgvm .OR. .NOT.(lpj_gap_const_mort) ) THEN
     IF ( control%ok_dgvm ) THEN
@@ -1125,7 +1128,7 @@ write(*,*) "height après cut", height(:,15)
          sla_calc)
 !ENDJCADD
        !WRITE(numout,*) 'zd bio17 light biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
-       
+
        !! 11.2 Reset attributes for eliminated PFTs
        CALL kill (npts, 'light     ', lm_lastyearmax, &
             ind, PFTpresent, cn_ind, biomass, senescence, RIP_time, &
@@ -1137,7 +1140,6 @@ write(*,*) "height après cut", height(:,15)
 
     ENDIF
 
-write(*,*) "ind after afeer2:", ind(:,15),  "hauteur:", height(:,15)
     
   !! 12. Establishment of saplings
     
@@ -1153,6 +1155,7 @@ write(*,*) "ind after afeer2:", ind(:,15),  "hauteur:", height(:,15)
 !JCADD
             sla_calc)
 !ENDJCADD
+
        !WRITE(numout,*) 'zdcheck12 establish leaf_age(1,10,:)', leaf_age(1,10,:)
        !WRITE(numout,*) 'zd leaffrac14 establish leaf_frac(1,10,:)', leaf_frac(1,10,:)
        !WRITE(numout,*) 'zd bio19 establish biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
@@ -1166,7 +1169,7 @@ write(*,*) "ind after afeer2:", ind(:,15),  "hauteur:", height(:,15)
     ENDIF
 !JCADD Grassland_management
 
-write(*,*) "ind after afeter3:", ind(:,15), "hauteur:", height(:,15)
+
     !
     ! 13 calculate grazing by animals or cutting for forage
     !
@@ -1281,6 +1284,7 @@ write(*,*) "ind after afeter3:", ind(:,15), "hauteur:", height(:,15)
     carb_mass_total(:)=SUM((tot_live_biomass(:,:,icarbon)+tot_litter_carb+tot_soil_carb)*veget_max,dim=2) + &
          &                 (prod10_total + prod100_total)
     carb_mass_variation(:)=carb_mass_total(:)+carb_mass_variation(:)
+
     
   !! 17. Write history
 

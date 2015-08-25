@@ -2561,7 +2561,7 @@ CONTAINS
     ok_explicitsnow = .FALSE.
     CALL getin_p('OK_EXPLICITSNOW', ok_explicitsnow)
 
-    !Config Key   = OK_EXPLICITSNOW
+    !Config Key   = OK_PC
     !Config Desc  = Activate explict snow scheme
     !Config If    = OK_SECHIBA
     !Config Def   = FALSE
@@ -2681,7 +2681,7 @@ CONTAINS
     control_flags%ok_cropsfertil_NOx = .FALSE.
     CALL getin_p('NOx_FERTILIZERS_USE', control_flags%ok_cropsfertil_NOx)
     WRITE(numout,*) 'NOx Fertilizers use: ', control_flags%ok_cropsfertil_NOx
- 
+
 
     !
     ! control initialisation with sechiba
@@ -5746,10 +5746,10 @@ CONTAINS
             &               nvm,1,nvm, hist_PFTaxis_id,32, ave(3), dt, hist_dt)
 
 
-       ! dayly moisture stress         !! Arsene 13-05-2014 100/100 Arsene
+       ! daily moisture stress         !! Arsene 13-05-2014 100/100 Arsene
        CALL histdef (hist_id_stom, &
             &               TRIM("MOISTRESS_daily     "), &
-            &               TRIM("dayly moisture stress                             "), &
+            &               TRIM("daily moisture stress                             "), &
             &               TRIM("-                   "), iim,jjm, hist_hori_id, &
             &               nvm,1,nvm, hist_PFTaxis_id,32, ave(1), dt, hist_dt)
 !! Arsene 13-05-2014 100/100 Arsene

@@ -122,12 +122,31 @@ CONTAINS
     REAL(r_std), DIMENSION(npts)                              :: woodmass_ind    !! woodmass of an individual (gC)
     INTEGER(i_std)                                            :: i,j             !! index (unitless)
     REAL(r_std)                                               :: height2, woodmass2, ratio         !! local height (m) !! Arsene 04-09-2014
-    REAL(r_std), DIMENSION(nvm)                               :: mindia !! Arsene 29-10-2014
+!    REAL(r_std), DIMENSION(nvm)                               :: maxdia2, mindia !! Arsene 29-10-2014 - !! Arsene 11-08-2015 - Remove...
+
+    REAL(r_std)                                   :: signe, signe_presc, factor, num_it, accept_sigma, volume1, volume2, dia2 !! Arsene 03-08-2015 - Add for iteration
+    LOGICAL                                                   :: ind_ok !! Arsene 03-08-2015 - Add for iteration
+    REAL(r_std)                                       :: pt1, pt2, pt3, ptcoeff, pdensity  !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+
 !_ ================================================================================================================================
 
     DO j = 2,nvm
 
       ! only when the DGVM is not activated or agricultural PFT.
+
+                IF ( is_tree(j) ) THEN                        !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+                   pt1 = pipe_tune1
+                   pt2 = pipe_tune2
+                   pt3 = pipe_tune3
+                   ptcoeff = pipe_tune_exp_coeff
+                   pdensity = pipe_density
+                ELSE
+                   pt1 = pipe_tune1_for_shrub
+                   pt2 = pipe_tune2_for_shrub
+                   pt3 = pipe_tune3_for_shrub
+                   ptcoeff = pipe_tune_exp_coeff_for_shrub
+                   pdensity = pipe_density_shrub
+                ENDIF                                         !! Arsene 03-08-2015 - Change pipe_tune for shrubs
 
       IF ( ( .NOT. control%ok_dgvm .AND. lpj_gap_const_mort ) .OR. ( .NOT. natural(j) ) ) THEN
 
@@ -158,15 +177,30 @@ CONTAINS
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!
 !! Arsene 30-10-2014 -START- New Version... Because the version before was tooooooooo full of bugs
+!write(*,*) "PFT n° ", j, "woodmass avant", woodmass(i), "ind", ind(i,j)
+
+!                IF ( is_tree(j) ) THEN                        !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+!                   pt1 = pipe_tune1
+!                   pt2 = pipe_tune2
+!                   pt3 = pipe_tune3
+!                   ptcoeff = pipe_tune_exp_coeff
+!                   pdensity = pipe_density
+!                ELSE
+!                   pt1 = pipe_tune1_for_shrub
+!                   pt2 = pipe_tune2_for_shrub
+!                   pt3 = pipe_tune3_for_shrub
+!                   ptcoeff = pipe_tune_exp_coeff_for_shrub
+!                   pdensity = pipe_density_shrub
+!                ENDIF                                         !! Arsene 03-08-2015 - Change pipe_tune for shrubs
 
                 ratio=2.
-                IF ( is_shrub(j) .AND. ind(i,j).GT.min_stomate) THEN
+                IF ( is_shrub(j) .AND. ind(i,j).GT.min_stomate .AND. shrubs_like_trees ) THEN        !! 03-08-2015 Rajout de "shrubs_like_trees"
 
                 !
                 !! 1. We have to compare the height save and the height from number of ind ==> height2 
                 !
 
-                  height2 = pipe_tune2 * (veget_max(i,j) / (ind(i,j) * pipe_tune1))**(pipe_tune3/pipe_tune_exp_coeff)
+                  height2 = pt2 * (veget_max(i,j) / (ind(i,j) * pt1)) **(pt3/ptcoeff)
 
                   !! Intermediate Calcul
                   !cn_ind(i,j) = veget_max(i,j) / ind(i,j)
@@ -185,30 +219,220 @@ CONTAINS
                 !!           => for the second point, we need height min (from mindia) < height min (cut on snow) -> stomate_lpj
 
                   IF ((height2-height(i,j)) .GT. 0.001 .AND. height(i,j).LT.height_presc(j)  &
-                              .AND. height(i,j).GT.(height_presc(j)/5) ) THEN !! .AND. height(i,j).GT.minheight) ??
-!write(*,*) "on redimensionne"
-!read(*,*)
+                              .AND. height(i,j).GT.(height_presc(j)/fact_min_height) ) THEN !! .AND. height(i,j).GT.minheight) ??
+!write(*,*) "On modifie la hauteur du buisson"
                   !! 3. In this case the shrub maintain the basis of its cylinder, but the lost in only on height
                   !!      That mean: ind=cst & cn_ind=cst & dia=cst. We have ind ==> we can recalculate the both other
                   !
 
                     cn_ind(i,j) = veget_max(i,j) / ind(i,j)
-                    dia = (cn_ind(i,j)/pipe_tune1)**(1/pipe_tune_exp_coeff)
+                    dia = (cn_ind(i,j)/pt1)**(1/ptcoeff)
 
                   !
                   !! 4. With a homogeneous vertical density on shrub, the lost of biomass is a linear fonction with height
                   !!      We can calcul the height with simple comparison between theorical woodmass (with the dia) and the woodmass
                   !
-                    woodmass2 = ind(i,j) * pipe_density*pi/4.*pipe_tune2 * (height2/(pipe_tune2))**((2.+pipe_tune3)/ pipe_tune3)
+                    woodmass2 = ind(i,j) * pdensity * pi/4. * pt2 * &
+                       & (height2/pt2)**((2.+pt3)/ pt3)
 
                   !!      After we deduce ce ratio between bot and we calculate the new height
                     ratio=woodmass(i)/woodmass2
                     height(i,j)=ratio*height2
-
+!write(*,*) "ratio", ratio
                   ENDIF
-                ENDIF
+                ENDIF   ! IF is_shrub
 
-                IF ( ratio .GE. 1. ) THEN
+! Nouveau buissons !
+                IF ( is_shrub(j) .AND. ratio .GE. 1. .AND. .NOT.shrubs_like_trees) THEN
+
+                   !
+                   !! 5. Calculate the provisionnal vegetation area
+                   !
+
+                   !! 5.1 Calculate stem diameter per individual shrub (dia)        !! Arsene 22-07-2015
+                   ! Equation from Aiba & Kohyama (1996), Constant value from Martinez et Lopez (2003)
+                   ! No need "max diameter", because is already take into account in the equation
+                   ! dia(i) = ( 1 / (pipe_tune_shrub2 * ( 1/height(i,j) - 1/height_presc(j) )))**(1/pipe_tune_shrub3) /100
+
+!                   mindia(j)= ( 1 / (pipe_tune_shrub2 * &
+!                      & ( 1/(height_presc(j)/fact_min_height) - 1/height_presc(j) )))**(1/pipe_tune_shrub3) / 100
+!min dia ok ==> via min height
+!write(*,*) "ind initial = ", ind(i,j), "woodmass(i)", woodmass(i), "veget_max(i,j)", veget_max(i,j)
+
+              !! On définit maxdia à 95% de max height (car fonction infinie, ce qui peut donner des chiffres impossibles...
+!              maxdia2(j) = ( height_presc(j) * 0.93 / (pipe_tune_shrub2*0.07) )**(1/pipe_tune_shrub3) / 100 
+!              mindia(j) = ( height_presc(j) / (pipe_tune_shrub2 * (fact_min_height-1)) )**(1/pipe_tune_shrub3) / 100
+!write(*,*) "maxdia2", maxdia2(j), "height", height_presc(j)*pipe_tune_shrub2*100**pipe_tune_shrub3*maxdia2(j)**pipe_tune_shrub3 &
+!                         & / ( height_presc(j) + pipe_tune_shrub2 * 100**pipe_tune_shrub3 * maxdia2(j)**pipe_tune_shrub3 ), &
+!          & "mindia(j)", mindia(j), height_presc(j) * pipe_tune_shrub2 * 100**pipe_tune_shrub3 * mindia(j)**pipe_tune_shrub3 &
+!                         & / ( height_presc(j) + pipe_tune_shrub2 * 100**pipe_tune_shrub3 * mindia(j)**pipe_tune_shrub3 )
+               
+              signe = 0
+              signe_presc = 0
+              factor = ind(i,j)*0.1 
+
+              ind_ok = .false.
+              num_it = 0
+
+!              accept_sigma = woodmass(i) / ( pipe_density_shrub * 0.000001 )
+              accept_sigma = 0.002
+!write(*,*) "accept_sigma", accept_sigma
+              DO WHILE ( .NOT.ind_ok ) ! ( ind_ok .EQV. .false. )
+
+!                   signe_presc = signe
+
+! two way to calculate volume:
+! 1. by the woodmass, density and ind number
+                   volume1 = woodmass(i) / ( pipe_density_shrub * ind(i,j) )
+
+! 2. by the diameter... (calcul by ind number & crown area= veget_max)
+                   dia2 = ( veget_max(i,j) / pipe_tune_shrub1 )**(1/(2*pipe_tune_shrub_exp_coeff)) / (pi/4 * ind(i,j))**0.5 ! pipe_tune_shrub1 = beta ( et non log beta)==> beta = 10**(log(beta)) 
+                   volume2 = pi/4 * height_presc(j) * pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia2**(pipe_tune_shrub3+2) &
+                                & / ( height_presc(j) + pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia2**pipe_tune_shrub3 )
+
+               !    volume(i) = woodmass(i) * 10**(pipe_tune_shrub1) * dia(i)**pipe_tune_shrub_exp_coeff / (veget_max(i,j) * pipe_density)  ==> Pour les arbres !
+!write(*,*) "pipe_tune_shrub1", pipe_tune_shrub1, "pipe_tune_shrub_exp_coeff", pipe_tune_shrub_exp_coeff, "ind(i,j)", ind(i,j)
+
+!write(*,*) "première partie = ", ( veget_max(i,j) / pipe_tune_shrub1 )**(1/(2*pipe_tune_shrub_exp_coeff)) 
+!write(*,*) "deuxième  partie = ", (pi/4 * ind(i,j))**(1/2), "pi/4 =", pi/4, "ind =", ind(i,j), "esn:", (pi/4 * ind(i,j))
+!write(*,*) "3**(1/2)", 3**(1/2),  (pi/4 * ind(i,j)), (pi/4 * ind(i,j))**(1/2), (1/2), 0.5, (1./2.) 
+
+!write(*,*) "volume1", volume1, "dia2", dia2,  "volume2", volume2,"vol1-vol2= ", volume2-volume1
+!read(*,*)
+
+!! Arsene ==> on pourrait faire dépendre le facteur "factor", dépendement de la première différence de volume... mais attention ^^
+!! TEST :
+                   IF ( ABS(volume2-volume1).GT.0.001 .AND. (num_it.EQ.0)) THEN
+                       factor = ind(i,j)
+                   ELSEIF ( ABS(volume2-volume1).GT.0.0001 .AND. (num_it.EQ.0)) THEN
+                       factor = ind(i,j)*0.1
+                   ELSEIF ( num_it.EQ.0 ) THEN !IF ( ABS(volume2-volume1).GT.0.00001 ) THEN
+                       factor = ind(i,j)*0.01
+                   ENDIF
+
+                   IF  ( (volume2-volume1) .GT. min_stomate ) THEN ! Si les 2 volume sont 'positivement' different, par rapport à une valeur définie...
+                        ! Alors cela signifie que ind(i,j) utilisee < ind(i,j) réel
+                        ind(i,j) = ind(i,j) + factor
+                        signe = 1
+!write(*,*) "(volume2-volume1) .GT. accept_sigma"
+                   ELSEIF ( (volume2-volume1).LT.-min_stomate .AND. (ind(i,j) - factor).LT.min_stomate ) THEN
+ !                      write(*,*) "on est ici..."
+                       signe = -signe_presc 
+                   ELSEIF ( (volume2-volume1) .LT. -min_stomate ) THEN
+                        ind(i,j) = ind(i,j) - factor
+                        signe = -1
+!write(*,*) "(volume2-volume1) .LT. accept_sigma )"
+                   ELSE !! Alors on est < accept sigma = > on à la bonne valeur de "ind"
+                        ind_ok = .true.
+!write(*,*) "on a trouvé le bon nombre d'individus"
+                   ENDIF
+
+                   IF ( ((signe + signe_presc) .EQ. 0) .AND. .NOT.ind_ok ) THEN
+                        factor = factor / 10
+!write(*,*) "Dimin ution of factor..."
+                        IF ( factor.LT.(accept_sigma*ind(i,j)) ) THEN ! Precision de ind...
+                            ind_ok = .true.
+!write(*,*) "########################################################################################################"
+                        ENDIF
+                   ELSEIF ( signe.EQ.-1 .AND. dia2.GE.maxdia(j) ) THEN
+                        ind_ok = .true.  !! Dia max est atteint
+!                        dia(i) = maxdia2(j)@
+                        ind(i,j) = (veget_max(i,j)/pipe_tune_shrub1)**(1/pipe_tune_shrub_exp_coeff) / &
+                                          & (pi/4*maxdia(j)**2)
+!write(*,*) "max_dia atteind", "ind =", ind(i,j)
+!read(*,*)
+                   ELSEIF ( signe.EQ.1 .AND. dia2.LE.mindia(j) ) THEN
+                        ind_ok = .true.
+!                        dia(i) = mindia(j)
+                        ind(i,j) = (veget_max(i,j)/pipe_tune_shrub1)**(1/pipe_tune_shrub_exp_coeff) / &
+                                          & (pi/4*mindia(j)**2)
+!write(*,*) "min_dia atteind", "ind =", ind(i,j) 
+!read(*,*)          
+                   ELSEIF (.NOT.ind_ok .AND. signe_presc.EQ.0) THEN
+                        signe_presc = signe
+                   !! Pas besoin de redéfinir le signe prescedent car on revint tj au dernier "bon"
+!                   ELSEIF (.NOT.ind_ok .AND. dia2.GT.maxdia(j) THEN
+                        
+                   ENDIF
+                        
+
+                   
+                   num_it = num_it+1
+!                   write(*,*) "number of iteration = " , num_it, "ind = ", ind(i,j)
+                   IF ((num_it .GE. 100 ) .AND. (.NOT.ind_ok) ) THEN ! Si trop de boucle... limit à 100 ?
+                        ind_ok = .true.
+                        dia(i) = (maxdia(j)+mindia(j))/2 !! Au pif...
+!                        write(*,*) "iteration shrubs not efficient"
+!read(*,*)
+                   ENDIF
+
+              ENDDO !! FIN DE BOUCLE WHILE
+
+!read(*,*)
+                    !! Une fois la boucle achevée, on a notre "ind"
+                    !! On recalcule donc tous les termes
+                    dia(i) = ( veget_max(i,j) / pipe_tune_shrub1 )**(1/(2*pipe_tune_shrub_exp_coeff)) / (pi/4 * ind(i,j))**0.5
+                    !! ==> Penser à rajouter les min /max
+
+                    woodmass_ind(i) = woodmass(i) / ind(i,j)
+
+                    cn_ind(i,j) = pipe_tune_shrub1 * (ind(i,j)*pi/4*dia(i)**2)**pipe_tune_shrub_exp_coeff / ind(i,j)
+!                   cn_ind(i,j) = veget_max(i,j) / ind
+
+                    height(i,j) = height_presc(j) * pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**pipe_tune_shrub3 &
+                         & / ( height_presc(j) + pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**pipe_tune_shrub3 )
+
+!write(*,*) "couronne", cn_ind(i,j) * ind(i,j), cn_ind(i,j), "dia", dia(i), "height", height(i,j)
+
+!read(*,*)
+
+
+
+!                   dia(i) = MAX( ( woodmass(i) / (veget_max(i,j) * pipe_density*pi/4. &
+!                         & *pipe_tune2/pipe_tune1) )**(1/(2.+pipe_tune3-pipe_tune_exp_coeff)), mindia(j))
+
+!write(*,*) "PFT n°",j,"  dia0", dia(i), "maxdia", maxdia2(j), "mindia", mindia(j)
+                   !! Because 1. ind(i,j) = woodmass(i) / ( pipe_density*pi/4.*pipe_tune2 * dia(i)**(2.+pipe_tune3) ) 
+                   !!         2. cn_ind(i,j) * ind(i,j) =  veget_max(i,j) because without DGVM
+                   !!         3. cn_ind(i,j) = pipe_tune1 * MIN( maxdia(j), dia(i) ) ** pipe_tune_exp_coeff avec MIN( maxdia(j), dia(i)) = dia(i)
+                   !!         4. simplification
+                   !!         5. dia(i) = MAX( (MIN( maxdia(j), dia(i))), mindia )
+
+                   !! 5.2 So, 1. give:
+!                   ind(i,j) = woodmass(i) / &
+!                           ( pipe_density*pi/4.*pipe_tune2 * dia(i)**(2.+pipe_tune3) )
+
+                   !! 5.3 Individual biomass corresponding to this critical density of individuals
+
+!                   woodmass_ind(i) = woodmass(i) / ind(i,j)
+                   !So : woodmass_ind(i) =  ( pipe_density*pi/4.*pipe_tune2 * dia(i)**(2.+pipe_tune3) )
+
+
+                   !! 5.4 Calculate provisional tree crown area for per individual tree
+
+                   ! equation: CrownArea=pipe_tune1 * Diameter^{1.6}
+!                   cn_ind(i,j) = pipe_tune1 * dia(i)** pipe_tune_exp_coeff
+
+                   !! 5.5 Calculate height from dia
+!                   height(i,j)=pipe_tune2 * dia(i)**(pipe_tune3)
+!write(*,*) "ind", ind(i,j),"height", height(i,j)
+
+
+
+                   !
+                   !! 6. If total tree crown area for this tree PFT exceeds its veget_max, tree density is recalculated.
+                   !
+
+!                   IF ( cn_ind(i,j) * ind(i,j) .GT. 1.002* veget_max(i,j) ) THEN
+!                       ind(i,j) = veget_max(i,j) / cn_ind(i,j)
+!                       woodmass_ind(i) = woodmass(i) / ind(i,j)
+!                   ELSEIF ( cn_ind(i,j) * ind(i,j) .LT. 1.002* veget_max(i,j) ) THEN
+!                       cn_ind(i,j) = veget_max(i,j) / ind(i,j)
+!                   ENDIF
+
+
+
+                ELSEIF ( .NOT.is_shrub(j) .OR. shrubs_like_trees ) THEN     !! if no biomass & height (no ind) loss due to frost... (shrubs only)
                    !
                    !! 5. Calculate the provisionnal vegetation area
                    !
@@ -216,12 +440,23 @@ CONTAINS
                    !! 5.1 Calculate stem diameter per individual tree (dia)        !! Arsene 03-09-2014
                    ! With min and max dia (to don't have no realistique value when DGVM is desactivate)
                    !dia(i) = ( height(i,j) / pipe_tune2 ) **(1/ pipe_tune3 ) !! Arsene 29-10-2014
-                   maxdia(j)= (height_presc(j)/(pipe_tune2))**(1/ pipe_tune3)
-                   mindia(j)= (height_presc(j)/(10*pipe_tune2))**(1/ pipe_tune3)       !! Arsene 02-04-2015 Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
+!                   maxdia2(j)= (height_presc(j)/(pt2))**(1/ pt3)
+!                   mindia(j)= (height_presc(j)/(fact_min_height*pt2))**(1/ pt3)       !! Arsene 02-04-2015 Pour le moment, height_max=height_presc & height_min = height_presc/fact_min_height
 
-                   dia(i) = MAX(MIN( maxdia(j), ( woodmass(i) / (veget_max(i,j) * pipe_density*pi/4. &
-                         & *pipe_tune2/pipe_tune1) )**(1/(2.+pipe_tune3-pipe_tune_exp_coeff)) ),mindia(j))
 
+!#Ajout pour test
+!                   dia(i) =  ( woodmass(i) / (veget_max(i,j) * pdensity*pi/4. &
+!                         & *pt2/pt1) )**(1/(2.+pt3-ptcoeff))
+!                   ind(i,j) = woodmass(i) / &
+!                           ( pdensity*pi/4.*pt2 * dia(i)**(2.+pt3) )
+!height(i,j)=pt2 * dia(i)**(pt3)
+!write(*,*) "PFT n°", j, "dia1", dia(i), "ind", ind(i,j), "height", height(i,j) 
+!#Ajout pour test
+
+                   dia(i) = MAX(MIN( maxdia(j), ( woodmass(i) / (veget_max(i,j) * pdensity*pi/4. &
+                         & *pt2/pt1) )**(1/(2.+pt3-ptcoeff)) ),mindia(j))
+
+!write(*,*) "PFT n°",j,"  dia2", dia(i), "maxdia", maxdia(j), "mindia", mindia(j)
                    !! Because 1. ind(i,j) = woodmass(i) / ( pipe_density*pi/4.*pipe_tune2 * dia(i)**(2.+pipe_tune3) ) 
                    !!         2. cn_ind(i,j) * ind(i,j) =  veget_max(i,j) because without DGVM
                    !!         3. cn_ind(i,j) = pipe_tune1 * MIN( maxdia(j), dia(i) ) ** pipe_tune_exp_coeff avec MIN( maxdia(j), dia(i)) = dia(i)
@@ -230,7 +465,7 @@ CONTAINS
 
                    !! 5.2 So, 1. give:
                    ind(i,j) = woodmass(i) / &
-                           ( pipe_density*pi/4.*pipe_tune2 * dia(i)**(2.+pipe_tune3) )
+                           ( pdensity*pi/4.*pt2 * dia(i)**(2.+pt3) )
 
                    !! 5.3 Individual biomass corresponding to this critical density of individuals
 
@@ -241,7 +476,13 @@ CONTAINS
                    !! 5.4 Calculate provisional tree crown area for per individual tree
 
                    ! equation: CrownArea=pipe_tune1 * Diameter^{1.6}
-                   cn_ind(i,j) = pipe_tune1 * MIN( maxdia(j), dia(i) ) ** pipe_tune_exp_coeff
+                   cn_ind(i,j) = pt1 * dia(i)** ptcoeff
+
+                   !! 5.5 Calculate height from dia
+                   height(i,j)=pt2 * dia(i)**(pt3)
+!write(*,*) "ind", ind(i,j),"height", height(i,j)
+
+
 
                    !
                    !! 6. If total tree crown area for this tree PFT exceeds its veget_max, tree density is recalculated.
@@ -249,36 +490,28 @@ CONTAINS
   
                    IF ( cn_ind(i,j) * ind(i,j) .GT. 1.002* veget_max(i,j) ) THEN
                        ind(i,j) = veget_max(i,j) / cn_ind(i,j)
+                       woodmass_ind(i) = woodmass(i) / ind(i,j)
                    ELSEIF ( cn_ind(i,j) * ind(i,j) .LT. 1.002* veget_max(i,j) ) THEN
                        cn_ind(i,j) = veget_max(i,j) / ind(i,j)
-                   ENDIF
-
-                   !
-                   !! 7. In this case, we recalculate the height
-                   !
-
-                   woodmass_ind(i) = woodmass(i) / ind(i,j)
-
-                   dia(i) = ( woodmass_ind(i) / ( pipe_density * pi/4. * pipe_tune2 ) ) ** &
-                              ( un / ( 2. + pipe_tune3 ) )
-
-                   height(i,j)=pipe_tune2 * dia(i)**(pipe_tune3)
-
-                   IF ( height(i,j) .GT. height_presc(j) ) THEN
-                       height(i,j)=height_presc(j)
                    ENDIF
 
                  ENDIF  !! Arsene 30-10-2014
 
 !! Arsene 30-10-2014 -END- New Version... Because the version before was tooooooooo full of bugs
 !!!!!!!!!!!!!!!!!!!!!!!!!!
-
+!write(*,*) "PFT n° ", j ," woodmass(i)", woodmass(i)
               ELSE !woodmas=0  => impose some value
 
-                dia(:) = maxdia(j)
+!!                dia(:) = maxdia(j)                                            !! Arsene 20-05-2015 Remove
+!! mindia(j)= (height_presc(j)/(fact_min_height*pipe_tune2))**(1/ pipe_tune3)   !! Arsene 20-05-2015 A other solution ? 
 
-                cn_ind(i,j) = pipe_tune1 * MIN( maxdia(j), dia(i) ) ** pipe_tune_exp_coeff
-
+                IF ( is_tree(j) .OR. shrubs_like_trees ) THEN  !! 05-08-2015 FOr shrub Add
+                    cn_ind(i,j) = pt1 * maxdia(j)** ptcoeff      !! Arsene 20-05-2015 Use mindia or maxdia2 ???
+                ELSE                    !! 05-08-2015 FOr shrub Add
+                    cn_ind(i,j) =  pipe_tune_shrub1 * (pi/4*maxdia(j)**2)**pipe_tune_shrub_exp_coeff  !! Arsene 12-08-2015 With ind=1
+!cn_ind(i,j) = 67. ! 5.     !! 05-08-2015 FOr shrub Add ==> à vérifier comment caler ça... Donnees de Martinez et lopezz ==> Maxdia ~= 0.18 ==> Crown area = 67. Marche avec 5..
+                ENDIF                   !! 05-08-2015 FOr shrub Add
+!write(*,*) "pft", j, "cn_ind(i,j)", cn_ind(i,j)
               ENDIF ! IF ( woodmass(i) .GT. min_stomate )
 
             ENDIF    ! veget_max .GT. 0.
@@ -300,7 +533,7 @@ CONTAINS
         !
         !! 2 density of individuals
         !
-        
+!write(*,*) "pft=", j, "ind 00002 = ", ind(1,j)        
         WHERE ( veget_max(:,j) .GT. zero )
 
           ind(:,j) = veget_max(:,j) / cn_ind(:,j)  
@@ -310,10 +543,11 @@ CONTAINS
           ind(:,j) = zero
 
         ENDWHERE
-
+!write(*,*) "pft=", j, "ind 00003 = ", ind(1,j)
       ENDIF     ! IF ( ( .NOT. control%ok_dgvm .AND. lpj_gap_const_mort ) .OR. ( .NOT. natural(j) ) )
 
     ENDDO       ! loop over PFTs
+!read(*,*) !! Arsene 20-07-2015
 
     !
     !!? it's better to move the code for first call at the beginning of the module.
@@ -331,6 +565,21 @@ CONTAINS
       WRITE(numout,*) '   > Declaring prescribed PFTs present.'
 
       DO j = 2,nvm ! loop over PFTs
+
+                IF ( is_tree(j) ) THEN                        !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+                   pt1 = pipe_tune1
+                   pt2 = pipe_tune2
+                   pt3 = pipe_tune3
+                   ptcoeff = pipe_tune_exp_coeff
+                   pdensity = pipe_density
+                ELSE
+                   pt1 = pipe_tune1_for_shrub
+                   pt2 = pipe_tune2_for_shrub
+                   pt3 = pipe_tune3_for_shrub
+                   ptcoeff = pipe_tune_exp_coeff_for_shrub
+                   pdensity = pipe_density_shrub
+                ENDIF                                         !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+
         DO i = 1, npts ! loop over grid points
 
           ! is vegetation static or PFT agricultural?
@@ -347,6 +596,7 @@ CONTAINS
                  ( veget_max(i,j) .GT. min_stomate ) .AND. &
                  ( SUM( biomass(i,j,:,icarbon) ) .LE. min_stomate ) ) THEN
                !!? here the code is redundant, as "veget_max(i,j) .GT. min_stomate" is already met in the above if condition.
+
                IF (veget_max(i,j) .GT. min_stomate) THEN
                   biomass(i,j,:,:) = (bm_sapl_rescale * bm_sapl(j,:,:) * ind(i,j)) / veget_max(i,j)
                ELSE

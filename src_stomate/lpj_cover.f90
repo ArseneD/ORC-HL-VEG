@@ -244,7 +244,6 @@ CONTAINS
                 bm_to_litter(i,j,:,:) = bm_to_litter(i,j,:,:) * veget_max_old(i,j) / veget_max(i,j)
 
              ENDIF
-
           ENDDO ! loop over PFTs
        ENDDO ! loop over grid points
     ENDIF

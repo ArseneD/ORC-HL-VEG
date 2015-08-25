@@ -146,7 +146,7 @@ CONTAINS
     REAL(r_std)                                  :: alpha   !! alpha's : (unitless)
     REAL(r_std)                                  :: dia     !! stem diameter (m)
     REAL(r_std)                                  :: csa_sap !! Crown specific area sapling @tex $(m^2.ind^{-1})$ @endtex
-
+!    REAL(r_std)                                  :: ind_frac!! fraction of real individu by ind (special for shrub) !! 22-05-2015 Arsene
 !_ ================================================================================================================================
 
     IF ( bavard .GE. 1 ) WRITE(numout,*) 'data: PFT characteristics'
@@ -257,6 +257,54 @@ CONTAINS
        IF ( bavard .GE. 1 ) WRITE(numout,*) '       specific leaf area (m**2/gC) (::sla):', sla(j), 12./leaflife_tab(j)
 
        !
+       ! 7 critical stem diameter: beyond this diameter, the crown area no longer
+       !     increases (m)
+       !
+
+       IF ( is_tree(j) ) THEN       !! Arsene 31-07-2014 modifications ATTENTION. A vérif
+
+          !!\latexonly
+          !!\input{stomate_data_stem_diameter.tex}
+          !!\endlatexonly
+
+!! Arsene 03-09-2014 - It's possible to define maxdia with - TreeHeight=pipe_tune2 * Diameter^{pipe_tune3} ==> Definition in stomate_establish.f90 or lpj_crown.f90
+!           maxdia(j) = ( height_presc(j) / pipe_tune2 ) **(1/ pipe_tune3) 
+
+!!          maxdia(j) = ( ( pipe_tune4 / ((pipe_tune2*pipe_tune3)/(maxdia_coeff(1)**pipe_tune3)) ) &     !! Arsene 11-08-2015 BEFORE CHANGES - NOTE: Constant, not PFT dependent...
+!!               ** ( un / ( pipe_tune3 - un ) ) ) * maxdia_coeff(2)                                     !! Arsene 11-08-2015 BEFORE CHANGES - Note: maxdia_coeff & pipe_tune4 not use now
+!! Arsene 30-03-2015 ==> I think better to change, but not yet !!!!!!!!!!!!!!!!!!! ==> !! Arsene 11-08-2015 - YET !
+
+          maxdia(j) = ( height_presc(j) / pipe_tune2 ) **(1/ pipe_tune3)         !! Arsene 11-08-2015 - New ! - Note:  height_presc(j) = max height
+          mindia(j)= (height_presc(j)/(fact_min_height*pipe_tune2))**(1/ pipe_tune3)
+
+          cn_sapl(j) = cn_sapl_init !crown of individual tree, first year
+
+       ELSEIF ( is_shrub(j) .AND. shrubs_like_trees ) THEN  !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+
+!          maxdia(j) = ( ( pipe_tune4 / ((pipe_tune2_for_shrub*pipe_tune3_for_shrub)/ &    !! Arsene 04-08-2015 - No pipe_tune_4_shrub
+!              & (maxdia_coeff(1)**pipe_tune3_for_shrub)) ) ** ( un / ( pipe_tune3_for_shrub - un ) ) ) * maxdia_coeff(2)
+
+          maxdia(j) = ( height_presc(j) / pipe_tune2_for_shrub ) **(1/ pipe_tune3_for_shrub)
+          mindia(j)= (height_presc(j)/(fact_min_height*pipe_tune2_for_shrub))**(1/ pipe_tune3_for_shrub)
+
+          cn_sapl(j) = cn_sapl_init !crown of individual tree, first year (like trees)
+
+       ELSEIF ( is_shrub(j) .AND. .NOT.shrubs_like_trees ) THEN  !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+
+          maxdia(j) = ( height_presc(j) * 0.93 / (pipe_tune_shrub2*0.07) )**(1/pipe_tune_shrub3) / 100 !! Arsene 11-08-2015 - 0.93 correspond au observatio [90 - 96]
+          mindia(j) = ( height_presc(j) / (pipe_tune_shrub2 * (fact_min_height-1)) )**(1/pipe_tune_shrub3) / 100
+
+          cn_sapl(j) = cn_sapl_init !crown of individual tree, first year (like trees)
+
+       ELSE
+          maxdia(j) = undef
+          cn_sapl(j)=1
+       ENDIF !( is_tree(j) )
+
+       IF ( bavard .GE. 1 ) WRITE(numout,*) '       critical stem diameter (m): (::maxdia(j))', maxdia(j)
+       IF ( bavard .GE. 1 ) WRITE(numout,*) '       critical stem diameter (m): (::mindia(j))', mindia(j)
+
+       !
        ! 5 sapling characteristics
        !
 
@@ -268,16 +316,56 @@ CONTAINS
           !!\input{stomate_data_sapl_tree.tex}
           !!\endlatexonly
    
-          IF ( is_tree(j) ) THEN          !! Arsene 31-07-2014 modifications
+!! Arsene 11-08-2015 - Change all, beginning with dia = mindia, and reverse some équations...
+
+!!*          IF ( is_tree(j) ) THEN          !! Arsene 31-07-2014 modifications
+!!*              alpha = alpha_tree
+!!*
+!!*          bm_sapl(j,ileaf,icarbon) = &
+!!*               &     (((bm_sapl_leaf(1)*pipe_tune1*(mass_ratio_heart_sap *bm_sapl_leaf(2)*sla(j)/(pi*pipe_k1)) &
+!!*               &     **bm_sapl_leaf(3))/sla(j))**bm_sapl_leaf(4))
+!!*          ELSE                            !! Arsene 31-07-2014 modifications
+!!*              alpha = alpha_shrub         !! Arsene 31-07-2014 modifications
+!!*
+!!*          bm_sapl(j,ileaf,icarbon) = &     !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+!!*               &     (((bm_sapl_leaf(1)*pipe_tune1_for_shrub*(mass_ratio_heart_sap *bm_sapl_leaf(2)*sla(j)/(pi*pipe_k1_shrub)) &   !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+!!*               &     **bm_sapl_leaf(3))/sla(j))**bm_sapl_leaf(4))
+!!*
+!!*          ENDIF                           !! Arsene 31-07-2014 modifications
+!!*
+!!*          IF ( pheno_type(j) .NE. 1 ) THEN
+!!*             ! not evergreen
+!!*             bm_sapl(j,icarbres,icarbon) = bm_sapl_carbres * bm_sapl(j,ileaf,icarbon)
+!!*          ELSE
+!!*             bm_sapl(j,icarbres,icarbon) = zero
+!!*          ENDIF ! (pheno_type_tab(j) .NE. 1 )
+!!*
+!!*          csa_sap = bm_sapl(j,ileaf,icarbon) / ( pipe_k1 / sla(j) )
+!!*
+!!*          dia = (mass_ratio_heart_sap * csa_sap * dia_coeff(1) / pi ) ** dia_coeff(2)
+
+
+          !! 5.1.1 - Compute sapl diameter  = min dia:
+          dia= mindia(j)*5.     !! Like that bm_sapl_leaf and dia_coeff can be remove ! 
+
+          !! 5.2.2 - Compute cas_sap: Reverse the original equation:
+          !!    dia = (mass_ratio_heart_sap * csa_sap * dia_coeff(1) / pi ) ** dia_coeff(2)
+          csa_sap = pi * dia**(1/dia_coeff(2)) / ( mass_ratio_heart_sap * dia_coeff(1) )
+
+          !! 5.2.3 - Compute bm_sapl for leaf: reverse the original equation
+          !!    csa_sap = bm_sapl(j,ileaf,icarbon) / ( pipe_k1 / sla(j)
+          !!    Note: before - bm_sapl(j,ileaf,icarbon) = &
+          !!         &     (((bm_sapl_leaf(1)*pipe_tune1*(mass_ratio_heart_sap *bm_sapl_leaf(2)*sla(j)/(pi*pipe_k1)) &
+          !!         &     **bm_sapl_leaf(3))/sla(j))**bm_sapl_leaf(4))
+          IF ( is_tree(j) ) THEN
+              bm_sapl(j,ileaf,icarbon) = csa_sap * pipe_k1 / sla(j)
               alpha = alpha_tree
-          ELSE                            !! Arsene 31-07-2014 modifications
-              alpha = alpha_shrub         !! Arsene 31-07-2014 modifications
-          ENDIF                           !! Arsene 31-07-2014 modifications
+          ELSE
+              bm_sapl(j,ileaf,icarbon) = csa_sap * pipe_k1_shrub / sla(j)
+              alpha = alpha_shrub
+          ENDIF
 
-          bm_sapl(j,ileaf,icarbon) = &
-               &     ((bm_sapl_leaf(1)*pipe_tune1*(mass_ratio_heart_sap *bm_sapl_leaf(2)*sla(j)/(pi*pipe_k1)) & 
-               &     **bm_sapl_leaf(3))/sla(j))**bm_sapl_leaf(4)
-
+          !! 5.2.4 - Compute bm_sapl for icarbres (like original)
           IF ( pheno_type(j) .NE. 1 ) THEN
              ! not evergreen
              bm_sapl(j,icarbres,icarbon) = bm_sapl_carbres * bm_sapl(j,ileaf,icarbon)
@@ -285,12 +373,27 @@ CONTAINS
              bm_sapl(j,icarbres,icarbon) = zero
           ENDIF ! (pheno_type_tab(j) .NE. 1 )
 
-          csa_sap = bm_sapl(j,ileaf,icarbon) / ( pipe_k1 / sla(j) )
+          !! 5.2.4 - Compute bm_sapl for isapabove (quite like original.. exept for shrub because of "pipe_tune2 * dia ** pipe_tune3"= height)
+          IF ( is_tree(j) ) THEN  !! Arsene 03-08-2015
+             bm_sapl(j,isapabove,icarbon) = &
+                & bm_sapl_sapabove * pipe_density * csa_sap * pipe_tune2 * dia ** pipe_tune3
 
-          dia = (mass_ratio_heart_sap * csa_sap * dia_coeff(1) / pi ) ** dia_coeff(2)
+          ELSEIF ( shrubs_like_trees) THEN  !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+             bm_sapl(j,isapabove,icarbon) = &  !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+                & bm_sapl_sapabove * pipe_density_shrub * csa_sap * pipe_tune2_for_shrub * dia ** pipe_tune3_for_shrub  !! Arsene 03-08-2015 - Change pipe_tune for shrubs
 
-          bm_sapl(j,isapabove,icarbon) = &
-               bm_sapl_sapabove * pipe_density * csa_sap * pipe_tune2 * dia ** pipe_tune3
+
+          ELSE
+             bm_sapl(j,isapabove,icarbon) = &
+                & bm_sapl_sapabove * pipe_density_shrub * csa_sap * &
+                & height_presc(j) * pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia**(pipe_tune_shrub3) &
+                                & / ( height_presc(j) + pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia**pipe_tune_shrub3 )
+
+
+          ENDIF
+!! Arsene 11-08-2015 - Change all, beginning with dia = mindia, and reverse some équations...
+
+          !! 5.2.6 - Compute bm_sapl for other "i" (original)
           bm_sapl(j,isapbelow,icarbon) = bm_sapl(j,isapabove,icarbon)
 
           bm_sapl(j,iheartabove,icarbon) = bm_sapl_heartabove * bm_sapl(j,isapabove,icarbon)
@@ -309,7 +412,7 @@ CONTAINS
           IF ( natural(j) .AND. vascular(j)) THEN       !! Arsene 03-03-2015
              bm_sapl(j,ileaf,icarbon) = init_sapl_mass_leaf_nat / sla(j)
           ELSEIF ( .NOT. vascular(j) ) THEN             !! Arsene 05-03-14
-             bm_sapl(j,ileaf,icarbon) = 1. / sla(j)     !! Arsene 05-03-14 On prend init_sapl_mass_leaf_nat = 1, cf src_parameters/constantes_var.f90
+             bm_sapl(j,ileaf,icarbon) = init_sapl_mass_leaf_novasc / sla(j)     !! Arsene 18-08-15 - = .05 ?, cf src_parameters/constantes_var.f90
           ELSE
              bm_sapl(j,ileaf,icarbon) = init_sapl_mass_leaf_agri / sla(j)
           ENDIF
@@ -330,7 +433,6 @@ CONTAINS
 
        IF ( vascular(j) ) THEN                   !! Arsene 05-03-14
           bm_sapl(j,iroot,icarbon) = init_sapl_mass_root * (1./alpha) * bm_sapl(j,ileaf,icarbon)
-
           bm_sapl(j,ifruit,icarbon) = init_sapl_mass_fruit  * bm_sapl(j,ileaf,icarbon)   !! init_sapl_mass_fruit = 0.3
        ELSE                                      !! Arsene 05-03-14
           bm_sapl(j,iroot,icarbon) = zero        !! Arsene 05-03-14
@@ -370,11 +472,11 @@ CONTAINS
        IF ( bavard .GE. 1 ) WRITE(numout,*) '       migration speed (m/year): (::migrate(j))', migrate(j)
 
        !
-       ! 7 critical stem diameter: beyond this diameter, the crown area no longer
+!*       ! 7 critical stem diameter: beyond this diameter, the crown area no longer
        !     increases (m)
        !
 
-       IF ( is_tree(j) .OR. is_shrub(j) ) THEN       !! Arsene 31-07-2014 modifications ATTENTION. A vérif
+!*       IF ( is_tree(j) ) THEN       !! Arsene 31-07-2014 modifications ATTENTION. A vérif
 
           !!\latexonly
           !!\input{stomate_data_stem_diameter.tex}
@@ -383,20 +485,38 @@ CONTAINS
 !! Arsene 03-09-2014 - It's possible to define maxdia with - TreeHeight=pipe_tune2 * Diameter^{pipe_tune3} ==> Definition in stomate_establish.f90 or lpj_crown.f90
 !           maxdia(j) = ( height_presc(j) / pipe_tune2 ) **(1/ pipe_tune3) 
 
-          maxdia(j) = ( ( pipe_tune4 / ((pipe_tune2*pipe_tune3)/(maxdia_coeff(1)**pipe_tune3)) ) &
-               ** ( un / ( pipe_tune3 - un ) ) ) * maxdia_coeff(2)
-!! Arsene 30-03-2015 ==> I think better to change, but not yet !!!!!!!!!!!!!!!!!!!
+!!          maxdia(j) = ( ( pipe_tune4 / ((pipe_tune2*pipe_tune3)/(maxdia_coeff(1)**pipe_tune3)) ) &     !! Arsene 11-08-2015 BEFORE CHANGES - NOTE: Constant, not PFT dependent...
+!!               ** ( un / ( pipe_tune3 - un ) ) ) * maxdia_coeff(2)                                     !! Arsene 11-08-2015 BEFORE CHANGES - Note: maxdia_coeff & pipe_tune4 not use now
+!! Arsene 30-03-2015 ==> I think better to change, but not yet !!!!!!!!!!!!!!!!!!! ==> !! Arsene 11-08-2015 - YET !
 
-          cn_sapl(j) = cn_sapl_init !crown of individual tree, first year
+!*          maxdia(j) = ( height_presc(j) / pipe_tune2 ) **(1/ pipe_tune3)         !! Arsene 11-08-2015 - New ! - Note:  height_presc(j) = max height
+!*          mindia(j)= (height_presc(j)/(fact_min_height*pipe_tune2))**(1/ pipe_tune3)
 
-       ELSE
+!          maxdia(j) = ( ( pipe_tune4 / ((pipe_tune2*pipe_tune3)/(maxdia_coeff(1)**pipe_tune3)) ) &     !! Arsene 11-08-2015 BEFORE CHANGES - NOTE: Constant, not PFT dependent...
+!               ** ( un / ( pipe_tune3 - un ) ) ) * maxdia_coeff(2) 
 
-          maxdia(j) = undef
-          cn_sapl(j)=1
+!*          cn_sapl(j) = cn_sapl_init !crown of individual tree, first year
 
-       ENDIF !( is_tree(j) )
+!*       ELSEIF ( is_shrub(j) .AND. shrubs_like_trees ) THEN  !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+!          maxdia(j) = ( ( pipe_tune4 / ((pipe_tune2_for_shrub*pipe_tune3_for_shrub)/ &    !! Arsene 04-08-2015 - No pipe_tune_4_shrub
+!              & (maxdia_coeff(1)**pipe_tune3_for_shrub)) ) ** ( un / ( pipe_tune3_for_shrub - un ) ) ) * maxdia_coeff(2)
 
-       IF ( bavard .GE. 1 ) WRITE(numout,*) '       critical stem diameter (m): (::maxdia(j))', maxdia(j)
+!*          maxdia(j) = ( height_presc(j) / pipe_tune2_for_shrub ) **(1/ pipe_tune3_for_shrub) 
+!*          mindia(j)= (height_presc(j)/(fact_min_height*pipe_tune2_for_shrub))**(1/ pipe_tune3_for_shrub)
+
+!*          cn_sapl(j) = cn_sapl_init !crown of individual tree, first year (like trees)
+
+!*       ELSEIF ( is_shrub(j) .AND. .NOT.shrubs_like_trees ) THEN  !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+
+!*          maxdia(j) = ( height_presc(j) * 0.93 / (pipe_tune_shrub2*0.07) )**(1/pipe_tune_shrub3) / 100 !! Arsene 11-08-2015 - 0.93 correspond au observatio [90 - 96]
+!*          mindia(j) = ( height_presc(j) / (pipe_tune_shrub2 * (fact_min_height-1)) )**(1/pipe_tune_shrub3) / 100
+
+!*       ELSE 
+!*          maxdia(j) = undef
+!*          cn_sapl(j)=1
+
+!*       ENDIF !( is_tree(j) )
+!*       IF ( bavard .GE. 1 ) WRITE(numout,*) '       critical stem diameter (m): (::maxdia(j))', maxdia(j)
 
        !
        ! 8 Coldest tolerable temperature (K)

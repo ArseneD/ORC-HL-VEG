@@ -616,7 +616,7 @@ CONTAINS
        DO jv = 2,nvm
           netco2flux(:) = netco2flux(:) + co2_flux(:,jv)*veget_max(:,jv)
        ENDDO
-        
+
        !! 1.4 Initialize diffusion coefficients
        CALL diffuco_main (kjit, kjpindex, dtradia, ldrestart_read, ldrestart_write, index, indexveg, indexlai, u, v, &
             & zlev, z0, roughheight, temp_sol, temp_air, temp_growth, rau, tq_cdrag, qsurf, qair, q2m, t2m, pb ,  &
@@ -634,7 +634,6 @@ CONTAINS
             & vevapp, transpir, transpot, vevapnu, vevapwet, vevapsno, vevapflo, t2mdiag, temp_sol, tsol_rad, &
             & temp_sol_new, qsurf, evapot, evapot_corr, rest_id, hist_id, hist2_id, &
             & precip_rain,snow,snowdz,snowrho,pgflux,snowflx,snowcap,temp_sol_add)
- 
 
        !! 1.6 Initialize some hydrological variables from restart file
        IF (ldrestart_read) THEN
@@ -667,7 +666,7 @@ CONTAINS
              ENDIF
           ENDIF
        ENDIF ! ldrestart_read
-       
+ 
        !! 1.7 Initialize remaining hydrological variables
        IF ( .NOT. hydrol_cwrr ) THEN
           ! 1.7.1 Initialize remaining hydrological variables from Choisnel module (2 soil layers)
@@ -709,7 +708,7 @@ CONTAINS
           !WRITE(numout,*) 'zd hydrol_main 2 ','snowtemp(1,:)',snowtemp(1,:)
 
        ENDIF
-       
+
        !! 1.8 Initialize some water balance variables from restart file
        IF (ldrestart_read) THEN
           
@@ -745,13 +744,12 @@ CONTAINS
 
        ENDIF ! ldrestart_read
 
-        
        !! 1.9 Initialize surface parameters (emissivity, albedo and roughness)
        CALL condveg_main (kjit, kjpindex, dtradia, ldrestart_read, ldrestart_write, index, &
             & lalo, neighbours, resolution, contfrac, veget, veget_max, frac_nobio, totfrac_nobio, &
             & zlev, snow, snow_age, snow_nobio, snow_nobio_age, &
             & drysoil_frac, height,  emis, albedo, z0, roughheight, rest_id, hist_id, hist2_id, snowdz) !! Arsene 30-03-2015 Add snowdz
-       
+
        !! 1.10 Initialization of soil thermodynamics
        !WRITE(numout,*) 'zd thermosoil_main 1 ','snowtemp(1,:)',snowtemp(1,:)
        CALL thermosoil_main (kjit, kjpindex, dtradia, ldrestart_read, ldrestart_write, &
@@ -826,7 +824,7 @@ CONTAINS
          & vbeta, valpha, vbeta1, vbeta2, vbeta3, vbeta3pot, vbeta4, vbeta5, gsmean, rveget, rstruct, cimean, gpp, &
          & lalo, neighbours, resolution, ptnlev1, precip_rain, frac_age, &
          & rest_id, hist_id, hist2_id)
-   
+
     !! 2.3 Compute energy balance
     CALL enerbil_main (kjit, kjpindex, dtradia, ldrestart_read, myfalse, &
          & index, indexveg, zlev, lwdown, swnet, epot_air, temp_air, u, v, petAcoef, petBcoef, &
@@ -835,7 +833,7 @@ CONTAINS
          & vevapp, transpir, transpot, vevapnu, vevapwet, vevapsno, vevapflo, t2mdiag, temp_sol, tsol_rad, &
          & temp_sol_new, qsurf, evapot, evapot_corr, rest_id, hist_id, hist2_id,&
          & precip_rain,snow,snowdz,snowrho,pgflux,snowflx,snowcap,temp_sol_add)
-    
+
     !! 2.4 Compute hydrology
     IF ( .NOT. hydrol_cwrr ) THEN
        ! 2.4.1 Water balance from Choisnel module (2 soil layers)
@@ -879,12 +877,11 @@ CONTAINS
        rsol(:) = -un
 
     ENDIF
-     
+
     !! 2.5 Compute remaining components of the energy balance
     CALL enerbil_fusion (kjpindex, dtradia, tot_melt, soilcap, snowdz, &
                          temp_sol_new, fusion)
          
-    
     !! 2.6 Compute surface variables (emissivity, albedo and roughness)
     CALL condveg_main (kjit, kjpindex, dtradia, ldrestart_read, myfalse, index,&
          & lalo, neighbours, resolution, contfrac, veget, veget_max, frac_nobio, totfrac_nobio, &
@@ -945,14 +942,13 @@ CONTAINS
     DO jv = 2,nvm
        netco2flux(:) = netco2flux(:) + co2_flux(:,jv)*veget_max(:,jv)
     ENDDO
- 
+
     !! 2.10 Update the temperature (temp_sol) with newly computed values
     !WRITE(numout,*) 'zd sechiba_end 1 ','snowtemp(1,:)',snowtemp(1,:)
     CALL sechiba_end (kjpindex, dtradia, temp_sol_new, snowtemp, snowdz, &
                       temp_sol)
     !WRITE(numout,*) 'zd sechiba_end 2 ','snowtemp(1,:)',snowtemp(1,:)
 
-   
     !! 2.11 Write internal variables to output fields
     z0_out(:) = z0(:)
     emis_out(:) = emis(:)

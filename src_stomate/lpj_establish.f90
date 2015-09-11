@@ -103,7 +103,7 @@ CONTAINS
        leaf_age, leaf_frac, &
        ind, biomass, age, everywhere, co2_to_bm,veget_max, woodmass_ind, &
 !JCADD
-       sla_calc)
+       sla_calc,height,dia_cut) !! Arsene 26-08-2015 - Add height (in) & !! Arsene 01-09-2015 - Add dia_cut 
 !ENDJCADD 
     !! 0. Variable and parameter declaration
     
@@ -134,6 +134,10 @@ CONTAINS
     REAL(r_std), DIMENSION(npts,nvm), INTENT(in)              :: npp_longterm    !! longterm NPP, for each PFT (gC m^{-2})   
     REAL(r_std), DIMENSION(npts,nvm), INTENT(inout)           :: veget_max       !! "maximal" coverage fraction of a PFT 
                                                                                  !! (LAI -> infinity) on ground (unitless)
+    REAL(r_std),DIMENSION(npts,nvm),INTENT(in)                :: height          !! Arsene 26-08-2015 - Add for shrub if not_like_trees!! Height of vegetation (m)
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(in)              :: dia_cut         !! Arsene 01-09-2015 - Add dia_cut 
+
+
     !! 0.2 Output variables
     
     !! 0.3 Modified variables
@@ -148,7 +152,7 @@ CONTAINS
     REAL(r_std), DIMENSION(npts,nvm), INTENT(inout)           :: co2_to_bm       !! biomass up take for establishment i.e. 
                                                                                  !! pseudo-photosynthesis (gC m^{-2} day^{-1}) 
     REAL(r_std), DIMENSION(npts,nvm), INTENT(inout)           :: woodmass_ind    !! woodmass of the individual, needed to calculate
-                                                                                 !! crownarea in lpj_crownarea (gC m^{-2 })  
+                                                                                 !! crownarea in lpj_crownarea (gC m^{-2 })
 !JCADD
     REAL(r_std), DIMENSION(npts,nvm), INTENT(in)            :: sla_calc
 !ENDJCADD
@@ -203,8 +207,8 @@ CONTAINS
 !
 !    REAL(r_std)                                               :: ind_max         !! 2. * fraction of real individu by ind (special for shrub) !! 22-05-2015 Arsene
 
-    REAL(r_std)                                       :: volume, signe, signe_presc, fact, num_it, accept_sigma, volume1 !! Arsene 11-08-2015 - Add for iteration
-    LOGICAL                                           :: dia_ok !! Arsene 11-08-2015 - Add for iteration
+    REAL(r_std)                                       :: volume, signe, fact, num_it, volume1 !! Arsene 11-08-2015 - Add for iteration -signe_presc, 
+    LOGICAL                                           :: dia_ok, init_ok !! Arsene 11-08-2015 - Add for iteration
 
 !
 !_ ================================================================================================================================
@@ -633,13 +637,17 @@ CONTAINS
                       ! new diameter of PFT
 
                       IF (is_tree(j)) THEN !! Arsene 03-08-2015 - Add allometry for shrubs
-                      dia(i) = (woodmass_ind(i,j)/(pipe_density*pi/4.*pipe_tune2)) &
-                           &                **(1./(2.+pipe_tune3))
-                      vn(i) = (ind(i,j) + d_ind(i,j))*pipe_tune1*MIN(dia(i),maxdia(j))**pipe_tune_exp_coeff
+                          dia(i) = (woodmass_ind(i,j)/(pipe_density*pi/4.*pipe_tune2)) &
+                              &       **(1./(2.+pipe_tune3))
+                          vn(i) = (ind(i,j) + d_ind(i,j))*pipe_tune1* &
+                                  & MIN(MAX(dia(i),dia_cut(i,j)),maxdia(j))**pipe_tune_exp_coeff           !! Arsene 01-09-2015 - Add dia_cut
+
                       ELSEIF (is_shrub(j) .AND. shrubs_like_trees) THEN                 !! Arsene 03-08-2015 - Add allometry for shrubs
                           dia(i) = (woodmass_ind(i,j)/(pipe_density_shrub*pi/4.*pipe_tune2_for_shrub)) &
                                &            **(1./(2.+pipe_tune3_for_shrub))
-                          vn(i) = (ind(i,j) + d_ind(i,j))*pipe_tune1_for_shrub*MIN(dia(i),maxdia(j))**pipe_tune_exp_coeff_for_shrub
+                          vn(i) = (ind(i,j) + d_ind(i,j))*pipe_tune1_for_shrub* &
+                                  & MIN(MAX(dia(i),dia_cut(i,j)),maxdia(j))**pipe_tune_exp_coeff_for_shrub !! Arsene 01-09-2015 - Add dia_cut
+
                       ELSE !! Arsene 12-08-2015 - If shrub and New Allometry
                           !! To calculate diameter and cover... it's more complicate...
 
@@ -647,67 +655,110 @@ CONTAINS
                            volume = woodmass_ind(i,j) / pipe_density_shrub
 
                           !! 2. Stem diameter from Aiba & Kohyama
-                 !          Stem diameter is calculated by allometory... but no analytique solution...
+                 !          Stem diameter is calculated by allometory... but no analytique solution for this equation:
                  !! volume(i) = pi/4 * height_presc(j) * pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**(pipe_tune_shrub3+2) &
                  !!               & / ( height_presc(j) + pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**pipe_tune_shrub3 )
 
-                 !! On part de la hauteur corresonpodant au minheight... ==> min dia !! Peut être que ça marche "bien" du premier coup (on peut toujours réver...)
-                 dia(i) = mindia(j)
+!                 !! On part de la hauteur corresonpodant au minheight... ==> min dia !! Peut être que ça marche "bien" du premier coup (on peut toujours réver...)
+!                 dia(i) = mindia(j)
+                 !! On part de la hauteur initiale, et on essaye de trouver le bon diamètre...
+                 IF ( height(i,j) .LT. height_presc(j) ) THEN  !! Arsene 11-08-2015 Garde fou
+                     dia(i) = (height(i,j)*height_presc(j) / (pipe_tune_shrub2*(height_presc(j)-height(i,j))) ) &
+                                 & **(1/pipe_tune_shrub3) /100
+                 ELSE
+                     dia(i) = maxdia(j)
+                 ENDIF
 
                  num_it = 0
                  signe = 0
-                 signe_presc = 0
-                 accept_sigma = 0.001
+                 init_ok = .false.
                  dia_ok = .false.
                  DO WHILE ( .NOT.dia_ok )
+                    IF ( num_it .EQ. 1) init_ok=.TRUE.
                     volume1 = pi/4 * height_presc(j) * pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**(pipe_tune_shrub3+2.) &
                                 & / ( height_presc(j) + pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**pipe_tune_shrub3 )
 
-                    IF ( ABS(volume1-volume).GT.0.001 .AND. (num_it.EQ.0)) THEN
+                    IF ( ABS(volume1-volume)/volume.GT.1. .AND. (num_it.EQ.0)) THEN
+                       fact = 0.3
+                    ELSEIF ( ABS(volume1-volume)/volume.GT.0.5 .AND. (num_it.EQ.0)) THEN
                        fact = dia(i)
-                    ELSEIF ( ABS(volume1-volume).GT.0.0001 .AND. (num_it.EQ.0)) THEN
+                    ELSEIF ( ABS(volume1-volume)/volume.GT.0.1 .AND. (num_it.EQ.0)) THEN
                        fact = dia(i)*0.1
                     ELSEIF ( num_it.EQ.0 ) THEN !IF ( ABS(volume2-volume1).GT.0.00001 ) THEN
                        fact = dia(i)*0.01
                     ENDIF
 
-                    IF  ( (volume1-volume) .GT. (accept_sigma*volume) ) THEN  !! So Dia to important or min_stomate
-                       IF ( (dia(i)-fact).LT.min_stomate ) THEN
-                           signe = -signe_presc
-                       ELSE
-                           signe = -1
-                           dia(i) = dia(i) - fact
+                    IF  ( (volume1-volume) .GT. (accept_sigma_it*volume) ) THEN  !! So Dia to important or min_stomate
+                       IF ( signe.EQ.1. .AND. .NOT.init_ok) THEN
+                          fact = fact / factor_div_it 
+                           signe = -1.
+                          IF ( fact .LT. (0.1 * accept_sigma_it * dia(i)) ) THEN
+                             dia_ok = .true.
+                          ENDIF
                        ENDIF
-                    ELSEIF ( (volume1-volume) .LT. (accept_sigma*volume) ) THEN !! dia too low  min_stomate
+                       DO WHILE ( (dia(i)-fact).LT.min_stomate .AND. ((signe.EQ.-1.).OR.(.NOT.init_ok)))     !! On ne peut pas utiliser ce facteur..., car trop important ou changement de sens...
+                          fact = fact / factor_div_it
+                          IF ( fact .LT. (0.1 * accept_sigma_it * dia(i)) ) THEN
+                             fact = 2*dia(i)
+                             dia_ok = .true.
+                          ENDIF
+                       ENDDO
+
+                       IF ( .NOT.dia_ok ) THEN
+                          IF ( signe.EQ.1. .AND. init_ok  ) THEN !! Arsene 02-09-2015 - Alors on reviens au début et on diminue the factor
+                             dia(i) = dia(i) - fact !! on revient à l'état préscedent ;)
+                             fact = fact / factor_div_it
+                             IF ( fact .LT. (0.1 * accept_sigma_it * dia(i)) ) THEN
+                                dia_ok = .true.
+                             ENDIF
+                          ELSE
+                             IF (init_ok .AND. num_it.GE.1) init_ok=.FALSE.
+                             signe = -1
+                             dia(i) = dia(i) - fact
+                          ENDIF
+                       ENDIF
+                    ELSEIF ( (volume1-volume) .LT. (accept_sigma_it*volume) ) THEN !! dia too low  min_stomate
                        IF ( dia(i).GT.maxdia(j) ) THEN
-                           dia(i) = maxdia(j)
-                           dia_ok = .true.
-                       ELSE
-                           dia(i) = dia(i) + fact
-                           signe = 1
+                          dia(i) = maxdia(j)
+                          dia_ok = .true.
+                       ELSEIF ( signe.EQ.-1. .AND. num_it.NE.1) THEN
+                          fact = fact / factor_div_it
+                          IF ( fact .LT. (0.1 * accept_sigma_it * dia(i)) ) THEN
+                             dia_ok = .true.
+                          ENDIF
+                       ENDIF
+                       IF ( .NOT.dia_ok ) THEN
+                          IF ( signe.EQ.-1. .AND. init_ok ) THEN !! Arsene 02-09-2015 - Alors on reviens au début et on diminue the factor
+                             dia(i) = dia(i) + fact !! on revient à l'état préscedent ;)
+                             fact = fact / factor_div_it
+                             IF ( fact .LT. (0.1 * accept_sigma_it * dia(i)) ) THEN
+                                dia_ok = .true.
+                             ENDIF
+                          ELSE
+                             IF (init_ok .AND. num_it.GE.1.) init_ok=.FALSE.
+                             signe = 1.
+                             dia(i) = dia(i) + fact
+                          ENDIF
                        ENDIF
                     ELSE !! Good dia
                        dia_ok = .true.
                     ENDIF
 
-                    IF ( ((signe + signe_presc) .EQ. 0) .AND. .NOT.dia_ok ) THEN
-                       fact = fact / 10
-                    ELSEIF (.NOT.dia_ok .AND. signe_presc.EQ.0) THEN
-                       signe_presc = signe
-                    ENDIF
+!write(*,*) "num_it", num_it, "dia", dia(1)
 
                     num_it = num_it+1
-                    IF ((num_it .GE. 100 ) .AND. (.NOT.dia_ok) ) THEN ! Si trop de boucle... limit à 100 ?
+                    IF ((num_it .GE. 100 ) .AND. (.NOT.dia_ok) ) THEN ! Si trop de boucle... limit à 100 ?1
                        dia_ok = .true.
-                       write(*,*) "The iteration in lpj_crown.f90 need probably to be check (Arsene)"
+                       write(*,*) "The iteration in lpj_establish.f90 need probably to be check (Arsene)"
                        !! Arsene 11-08-2015 - By default: Dia = last dia...
                     ENDIF
 
                  ENDDO  !! While loops!! Arsene 11-08-2015 Attention à tester l'itération, notemment pour ajuster the "accept_sigma"
 
-                           vn(i) = pipe_tune_shrub1 * ((ind(i,j)+d_ind(i,j))*pi/4*dia(i)**2)**pipe_tune_shrub_exp_coeff
 
-write(*,*) "bobo: num_it", num_it, "dia (&mindia)", dia(i), mindia(j)
+                           vn(i) = pipe_tune_shrub1 * ((ind(i,j)+d_ind(i,j))*pi/4* &
+                                   & MAX(MIN(dia(i),maxdia(j)),dia_cut(i,j))**2)**pipe_tune_shrub_exp_coeff   !! Arsene 01-09-2015 - Add dia_cut
+
                       ENDIF                !! Arsene 03-08-2015 - Add allometry for shrubs
 
                    ENDIF
@@ -719,10 +770,9 @@ write(*,*) "bobo: num_it", num_it, "dia (&mindia)", dia(i), mindia(j)
           !! 4.3.2 without DGVM (static)\n
           ELSE 
              DO i=1,npts ! Loop over # pixels - domain size
-                IF( (is_tree(j) .OR. is_shrub(j)) .AND. (d_ind(i,j)+ind(i,j)).GT.min_stomate) THEN     !! Arsene 31-07-2014 modifications woodmass...!! Arsene 31-07-2014 modifications woodmass...
+                IF( (is_tree(j) .OR. is_shrub(j)) .AND. (d_ind(i,j)+ind(i,j)).GT.min_stomate) THEN     !! Arsene 31-07-2014 modifications woodmass...
 
                    IF(total_bm_c(i).LE.min_stomate) THEN
-!IF((total_bm_c(i).LE.min_stomate) .AND. (.NOT. is_shrub(j)) ) THEN !! !! Arsene 22-05-2015 or near
 
                       ! new wood mass of PFT
                       woodmass_ind(i,j) = &
@@ -730,15 +780,6 @@ write(*,*) "bobo: num_it", num_it, "dia (&mindia)", dia(i), mindia(j)
                            & + biomass(i,j,iheartabove,icarbon) + biomass(i,j,iheartbelow,icarbon))) &
                            & + (bm_sapl(j,isapabove,icarbon) + bm_sapl(j,isapbelow,icarbon) &
                            & + bm_sapl(j,iheartabove,icarbon) + bm_sapl(j,iheartbelow,icarbon))*d_ind(i,j))/(ind(i,j)+d_ind(i,j))
-
-!ELSEIF ((total_bm_c(i).LE.min_stomate) .AND. is_shrub(j) ) THEN  !! Arsene 22-05-2015
-!
-!woodmass_ind(i,j) = &   !! Arsene 22-05-2015
-!                           & (((biomass(i,j,isapabove,icarbon) + biomass(i,j,isapbelow,icarbon) &!! Arsene 22-05-2015
-!                           & + biomass(i,j,iheartabove,icarbon) + biomass(i,j,iheartbelow,icarbon))) &!! Arsene 22-05-2015
-!                           & + (bm_sapl(j,isapabove,icarbon) + bm_sapl(j,isapbelow,icarbon) &!! Arsene 22-05-2015
-!                     & + bm_sapl(j,iheartabove,icarbon) + bm_sapl(j,iheartbelow,icarbon))*d_ind(i,j))/(ind(i,j)+d_ind(i,j)) !!bobo  !! Arsene 22-05-2015
-
 
                    ELSE
  
@@ -840,7 +881,8 @@ write(*,*) "bobo: num_it", num_it, "dia (&mindia)", dia(i), mindia(j)
              age(:,j) = age(:,j) * ind(:,j) / ( ind(:,j) + d_ind(:,j) )
 
              ind(:,j) = ind(:,j) + d_ind(:,j)
-
+             !! Arsene 01-09-2015 - If dia_cut, it's ok to increase ind number if height it's not obtain ?
+             !!                       ==> chose: Yes, because we can find land-scape with low shrubs...
           ENDWHERE
 
           !! 4.10 Convert excess sapwood to heartwood

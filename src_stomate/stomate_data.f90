@@ -346,7 +346,7 @@ CONTAINS
 
 
           !! 5.1.1 - Compute sapl diameter  = min dia:
-          dia= mindia(j)*5.     !! Like that bm_sapl_leaf and dia_coeff can be remove ! 
+          dia= mindia(j)*5.     !! Like that bm_sapl_leaf and dia_coeff can be remove !
 
           !! 5.2.2 - Compute cas_sap: Reverse the original equation:
           !!    dia = (mass_ratio_heart_sap * csa_sap * dia_coeff(1) / pi ) ** dia_coeff(2)
@@ -483,7 +483,7 @@ CONTAINS
           !!\endlatexonly
 
 !! Arsene 03-09-2014 - It's possible to define maxdia with - TreeHeight=pipe_tune2 * Diameter^{pipe_tune3} ==> Definition in stomate_establish.f90 or lpj_crown.f90
-!           maxdia(j) = ( height_presc(j) / pipe_tune2 ) **(1/ pipe_tune3) 
+!           maxdia(j) = ( height_presc(j) / pipe_tune2 ) **(1/ pipe_tune3)
 
 !!          maxdia(j) = ( ( pipe_tune4 / ((pipe_tune2*pipe_tune3)/(maxdia_coeff(1)**pipe_tune3)) ) &     !! Arsene 11-08-2015 BEFORE CHANGES - NOTE: Constant, not PFT dependent...
 !!               ** ( un / ( pipe_tune3 - un ) ) ) * maxdia_coeff(2)                                     !! Arsene 11-08-2015 BEFORE CHANGES - Note: maxdia_coeff & pipe_tune4 not use now
@@ -493,7 +493,7 @@ CONTAINS
 !*          mindia(j)= (height_presc(j)/(fact_min_height*pipe_tune2))**(1/ pipe_tune3)
 
 !          maxdia(j) = ( ( pipe_tune4 / ((pipe_tune2*pipe_tune3)/(maxdia_coeff(1)**pipe_tune3)) ) &     !! Arsene 11-08-2015 BEFORE CHANGES - NOTE: Constant, not PFT dependent...
-!               ** ( un / ( pipe_tune3 - un ) ) ) * maxdia_coeff(2) 
+!               ** ( un / ( pipe_tune3 - un ) ) ) * maxdia_coeff(2)
 
 !*          cn_sapl(j) = cn_sapl_init !crown of individual tree, first year
 
@@ -501,7 +501,7 @@ CONTAINS
 !          maxdia(j) = ( ( pipe_tune4 / ((pipe_tune2_for_shrub*pipe_tune3_for_shrub)/ &    !! Arsene 04-08-2015 - No pipe_tune_4_shrub
 !              & (maxdia_coeff(1)**pipe_tune3_for_shrub)) ) ** ( un / ( pipe_tune3_for_shrub - un ) ) ) * maxdia_coeff(2)
 
-!*          maxdia(j) = ( height_presc(j) / pipe_tune2_for_shrub ) **(1/ pipe_tune3_for_shrub) 
+!*          maxdia(j) = ( height_presc(j) / pipe_tune2_for_shrub ) **(1/ pipe_tune3_for_shrub)
 !*          mindia(j)= (height_presc(j)/(fact_min_height*pipe_tune2_for_shrub))**(1/ pipe_tune3_for_shrub)
 
 !*          cn_sapl(j) = cn_sapl_init !crown of individual tree, first year (like trees)
@@ -511,7 +511,7 @@ CONTAINS
 !*          maxdia(j) = ( height_presc(j) * 0.93 / (pipe_tune_shrub2*0.07) )**(1/pipe_tune_shrub3) / 100 !! Arsene 11-08-2015 - 0.93 correspond au observatio [90 - 96]
 !*          mindia(j) = ( height_presc(j) / (pipe_tune_shrub2 * (fact_min_height-1)) )**(1/pipe_tune_shrub3) / 100
 
-!*       ELSE 
+!*       ELSE
 !*          maxdia(j) = undef
 !*          cn_sapl(j)=1
 

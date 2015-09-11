@@ -63,7 +63,7 @@ CONTAINS
   SUBROUTINE kill (npts, whichroutine, lm_lastyearmax, &
        ind, PFTpresent, cn_ind, biomass, senescence, RIP_time, &
        lai, age, leaf_age, leaf_frac, npp_longterm, &
-       when_growthinit, everywhere, veget_max, bm_to_litter)
+       when_growthinit, everywhere, veget_max, bm_to_litter, dia_cut) !! Arsene 01-09-2015 - Add dia_cut
 
  !! 0. Variable and parameter description
 
@@ -106,6 +106,7 @@ CONTAINS
     REAL(r_std), DIMENSION(npts,nvm,nparts,nelements), INTENT(inout) :: biomass       !! Biomass @tex $(gC.m^{-2})$ @endtex
     REAL(r_std), DIMENSION(npts,nvm,nparts,nelements), INTENT(inout) :: bm_to_litter  !! Conversion of biomass to litter 
                                                                                       !! @tex $(gC.m^{-2} day^{-1})$ @endtex
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(inout)           :: dia_cut         !! Arsene 01-09-2015 - Add dia_cut
 
     !! 0.4 Local variables
 
@@ -226,6 +227,8 @@ CONTAINS
                 when_growthinit(:,j) = large_value 
 
                 everywhere(:,j) = zero
+
+                dia_cut(:,j) = zero   !! Arsene 01-09-2015
 
 !                veget(:,j) = zero
 !MM à imposer ?!

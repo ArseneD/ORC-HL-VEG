@@ -193,7 +193,7 @@ CONTAINS
        convflux,cflux_prod10,cflux_prod100, harvest_above, carb_mass_total, lcchange, &
        fpc_max, Tseason, Tseason_length, Tseason_tmp, &
        Tmin_spring, Tmin_spring_time, begin_leaves, onset_date, &
-       MatrixA, npp0_cumul, snowtemp_min, snowdz_min, &  !! Arsene 25-06-2014 NPPcumul Add npp0_cumul !! Arsene 19-08-2014 Add snowtemp_min & snowdz_min)
+       MatrixA, npp0_cumul, snowtemp_min, snowdz_min, dia_cut, &  !! Arsene 25-06-2014 NPPcumul Add npp0_cumul !! Arsene 19-08-2014 Add snowtemp_min & snowdz_min) !! Arsene 27-08-2015 add dia_cut
        zz_coef_deep, deepC_a, deepC_s, deepC_p, & !pss:+
        ch4_flux_density_tot_0, ch4_flux_density_dif_0, ch4_flux_density_bub_0, ch4_flux_density_pla_0,&
        ch4_flux_density_tot_wet1,ch4_flux_density_dif_wet1,ch4_flux_density_bub_wet1,ch4_flux_density_pla_wet1,&
@@ -374,6 +374,7 @@ CONTAINS
     LOGICAL, DIMENSION(npts,nvm), INTENT(inout)                :: PFTpresent           !! Tab indicating which PFTs are present in 
                                                                                        !! each pixel 
     REAL(r_std), DIMENSION(npts,nvm), INTENT(inout)            :: age                  !! Age (years)    
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(inout)            :: dia_cut              !! Fix diameter of vegetation (for shrub) after loss biomass (above snow) !! Arsene 27-08-2015 add dia_cut
     REAL(r_std), DIMENSION(npts,nvm), INTENT(inout)            :: fireindex            !! Probability of fire (0 to 1, unitless)
     REAL(r_std), DIMENSION(npts,nvm), INTENT(inout)            :: firelitter           !! Longer term litter above the ground that 
                                                                                        !! can be burned, @tex $(gC m^{-2})$ @endtex 
@@ -617,7 +618,7 @@ CONTAINS
        !WRITE(numout,*) 'zd bio1 crown biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
        CALL crown (npts,  PFTpresent, &
             ind, biomass, woodmass_ind, &
-            veget_max, cn_ind, height)
+            veget_max, cn_ind, height, dia_cut) !! Arsene 27-08-2015 - Add dia_cut
        !WRITE(numout,*) 'zd bio2 crown biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
     ENDIF
 
@@ -627,10 +628,9 @@ CONTAINS
     !        the DGVM afterwards. At the first call, if the DGVM is not activated, 
     !        impose a minimum biomass for prescribed PFTs and declare them present.
     !WRITE(numout,*) 'zd leaffrac1 prescribe leaf_frac(1,10,:)', leaf_frac(1,10,:)
-
     CALL prescribe (npts, &
          veget_max, dt_days, PFTpresent, everywhere, when_growthinit, &
-         biomass, leaf_frac, ind, cn_ind, co2_to_bm, height)   !! Arsene 04-09-2014 - Add height
+         biomass, leaf_frac, ind, cn_ind, co2_to_bm, height, dia_cut)   !! Arsene 04-09-2014 - Add height !! 27-08-2015 Arsene - Add dia_cut
     !WRITE(numout,*) 'zd leaffrac2 prescribe leaf_frac(1,10,:)', leaf_frac(1,10,:)
     !WRITE(numout,*) 'zd bio3 prescribe biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
 
@@ -670,7 +670,7 @@ CONTAINS
        CALL kill (npts, 'pftinout  ', lm_lastyearmax, &
             ind, PFTpresent, cn_ind, biomass, senescence, RIP_time, &
             lai, age, leaf_age, leaf_frac, npp_longterm, &
-            when_growthinit, everywhere, veget_max, bm_to_litter)
+            when_growthinit, everywhere, veget_max, bm_to_litter, dia_cut) !! Arsene 27-08-2015 - Add dia_cut
        !WRITE(numout,*) 'zdcheck2 kill leaf_age(1,10,:)', leaf_age(1,10,:)
        !WRITE(numout,*) 'zd leaffrac4 kill leaf_frac(1,10,:)', leaf_frac(1,10,:)
        !WRITE(numout,*) 'zd bio5 kill biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
@@ -696,7 +696,7 @@ CONTAINS
        ! Calculate crown area and diameter for all PFTs (including the newly established)
        CALL crown (npts, PFTpresent, &
             ind, biomass, woodmass_ind, &
-            veget_max, cn_ind, height)
+            veget_max, cn_ind, height, dia_cut) !! Arsene 27-08-2015 - Add dia_cut
        !WRITE(numout,*) 'zd bio6 crown biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
 
     ENDIF
@@ -804,7 +804,7 @@ CONTAINS
        CALL kill (npts, 'npp       ', lm_lastyearmax,  &
             ind, PFTpresent, cn_ind, biomass, senescence, RIP_time, &
             lai, age, leaf_age, leaf_frac, npp_longterm, &
-            when_growthinit, everywhere, veget_max, bm_to_litter)
+            when_growthinit, everywhere, veget_max, bm_to_litter, dia_cut) !! Arsene 27-08-2015 - Add dia_cut
        !WRITE(numout,*) 'zdcheck6 kill leaf_age(1,10,:)', leaf_age(1,10,:)
        !WRITE(numout,*) 'zd leaffrac8 kill leaf_frac(1,10,:)', leaf_frac(1,10,:)
        !WRITE(numout,*) 'zd bio10 kill biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
@@ -831,7 +831,7 @@ CONTAINS
        !! 6.2.2 New crown area and maximum vegetation cover after growth
        CALL crown (npts, PFTpresent, &
             ind, biomass, woodmass_ind,&
-            veget_max, cn_ind, height)
+            veget_max, cn_ind, height, dia_cut) !! Arsene 27-08-2015 - Add dia_cut
        !WRITE(numout,*) 'zd bio11 crown biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
 
     ENDIF ! control%ok_dgvm
@@ -861,7 +861,7 @@ CONTAINS
        CALL kill (npts, 'fire      ', lm_lastyearmax, &
             ind, PFTpresent, cn_ind, biomass, senescence, RIP_time, &
             lai, age, leaf_age, leaf_frac, npp_longterm, &
-            when_growthinit, everywhere, veget_max, bm_to_litter)
+            when_growthinit, everywhere, veget_max, bm_to_litter, dia_cut) !! Arsene 27-08-2015 - Add dia_cut
        !WRITE(numout,*) 'zdcheck7 kill leaf_age(1,10,:)', leaf_age(1,10,:)
        !WRITE(numout,*) 'zd leaffrac9 kill leaf_frac(1,10,:)', leaf_frac(1,10,:)
        !WRITE(numout,*) 'zd bio13 kill biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
@@ -879,14 +879,13 @@ CONTAINS
     !WRITE(numout,*) 'zd bio14 gap biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
 
 
-  !! 2.1 Protection of shrub by snow. BY Arsene   08-2014
+  !! 8.1 Protection of shrub by snow - shrub mortality. BY Arsene   08-2014
 
 !! Arsene 20-08-2014 Add protection of shrub by snow. START.
 !!
 !! #############################     protection of shrub by snow     ###########################
 !! ## Ne prend pas en compte : -  Take care about "termal chock" : si T chute trop rapidement
 !! ## Ne prend pas en compte : -  IF All(T) < T_crit THEN no loss of biomasse but mortality... 
-!write(*,*) "height avant cut", height(:,15), "ind after afeer2:", ind(:,15), ind(:,8)
     IF ( ANY(is_shrub(:)) ) THEN
 
         !! ## On calcul la fration de strate de végétation, afin de "simuler" des différence de dépôt de masse / pixel
@@ -910,7 +909,7 @@ CONTAINS
               IF ( is_shrub(j) .AND. ( SUM(snowdz_min(ji,:)) .GT. min_stomate ).AND. &
                       ind(ji,j).GE.min_stomate .AND.  PFTpresent(ji,j) .AND. &
                       ((.NOT.control%ok_dgvm.AND.(height(ji,j).GT.(height_presc(j)/fact_min_height))) .OR. control%ok_dgvm)) THEN !! Arsene 03-04-2015 If no DGVM, need heigth >= min_height. Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
-write(*,*) "tadam ###########################################################"
+                      !! Arsene 27-08-2015 - Could be interesting to ad a crteria : if ANY(temp) < temp_crit. (but wrong in extrem case)
                  !! ## Calcul des courbes de température, de bas en haut. Afin de calculer tmin_crit - t
                  biomass_loss = zero
                  DO i = nsnow+1, 1, -1
@@ -953,7 +952,9 @@ write(*,*) "tadam ###########################################################"
 
                      !! ## Si On a des températures inférieur à tmin_crit ET que l'on se situe à z < height (hauteur du buisson)
                      IF ( ( (ta .LT. tmin_crit(j)) .OR. (tb .LT. tmin_crit(j) ) ) & 
-                           & .AND. ((za .LT. height(ji,j)) .OR. (zb .LT. height(ji,j)) ) ) THEN     !! Arsene 01-04-2015 probably, don't need for zb vecause za<zb
+                           & .AND. ((za .LT. height(ji,j)) .OR. (zb .LT. height(ji,j)) ) &  !! Arsene 01-04-2015 probably, don't need for zb vecause za<zb
+                           & .AND. (control%ok_dgvm .OR. &
+                           & (za.GT.height(ji,j)/fact_min_height .OR. zb.GT.height(ji,j)/fact_min_height))) THEN     !! Arsene 01-04-2015 probably, don't need for za vecause za<zb
 
                         !! ## Pour simplifier le calcul, on fait un changement de repère
                         !! ##      - On passe de z à z/height: on a donc des valeurs [0-1] et vb-va = % hauteur
@@ -966,7 +967,7 @@ write(*,*) "tadam ###########################################################"
                         !! ## On calcul l'équation de chacune des courbes
                         slope = ( tb - ta ) / (zb - za )
                         offset = ( zb * ta - tb * za ) / ( zb - za )
-                        
+
                         !! ## On se s'intéresse qu'aux parties où t > 0
                         !! ## ==> Si ta et tb <0, on regarde où t = 0
                         IF ( (ta .LT. zero ) .AND. (tb .GT. zero ) ) THEN
@@ -981,24 +982,36 @@ write(*,*) "tadam ###########################################################"
                         ELSEIF ( za .GT. height(ji,j) ) THEN                !! Arsene 01-04-2015 probably, don't need for zb vecause za<zb
                             za = height(ji,j) ; ta = slope * za + offset    !! Arsene 01-04-2015 probably, don't need for zb vecause za<zb
                         ENDIF
+                        !! ## Si hors DGVM ==> on ne touche pas au buisson si height < min_height
+                        IF ( .NOT.control%ok_dgvm .AND. zb .LT. height(ji,j)/fact_min_height ) THEN
+                            zb = height(ji,j)/fact_min_height ; tb = slope * zb + offset
+                        ELSEIF ( .NOT.control%ok_dgvm .AND. za .LT. height(ji,j)/fact_min_height ) THEN                !! Arsene 01-04-2015 probably, don't need for za vecause za<zb
+                            za = height(ji,j)/fact_min_height ; ta = slope * za + offset    !! Arsene 01-04-2015 probably, don't need for za vecause za<zb
+                        ENDIF
 
                         !! ## Perte de biomasse fonction de l'aire sous la courbe
                         !! ## correspont à 4% par degrès de différence sur chaque hauteur
                         biomass_loss = 0.04 * ( (slope/2 * (zb**2-za**2)) + (offset*(zb-za)) ) + biomass_loss
                         !! Arsene 07-04-2014 Take care of snow temperature at first layer: with wind, it could be << T_air
+
                     ENDIF
                  ENDDO ! nsnow: for nsnow layers
                  biomass_loss = MIN(un,biomass_loss)
-write(*,*) "biomass_loss", biomass_loss, "t2m_min_daily(ji)", t2m_min_daily(ji)
-write(*,*) "snowtemp_min(ji,i-1)", snowtemp_min(ji,3), snowtemp_min(ji,2), snowtemp_min(ji,1)
-!read(*,*)
+
                  !! ## Maintenant, si biomasse loss > 0, alors on doit "enlever" de la bionass et de la hauteur (dia & nb ind inchangé)
                  !! ##  ==> on diminue la hauteur, à travers une diminution de biomasse.
                  IF ( biomass_loss.GT.min_stomate ) THEN
-write(*,*) "biusson perte hauteur", "biomass_loss :           ", biomass_loss 
-write(*,*) "ind number before loss", ind(ji,j), "height(ji,j)", height(ji,j)
-write(*,*) "----------------------------------------------------!!"
-!read(*,*)
+
+                     !! ## On calcul le diametre avant la coupe qui sera alors sauvegardé (afinde maintenir la "rupture" d'allometry) !! Arsene 27-08-2015
+                     !! ## Vérifier si jamais que la hauteur est bonne (non modif prescedement...) - On part ici du principe que l'on travail sur la hauteur "du jour"...
+                      IF (shrubs_like_trees) THEN
+                         dia_cut(ji,j) = (height(ji,j)/pipe_tune2_for_shrub)**(1/pipe_tune3_for_shrub)
+                      ELSE !! shrub and New Allometry
+                         dia_cut(ji,j) = (height(ji,j)*height_presc(j) / (pipe_tune_shrub2*(height_presc(j)-height(ji,j))) ) &
+                                 & **(1/pipe_tune_shrub3) /100
+                      ENDIF
+
+
                      !! ## Calcul de la nouvelle heuteur du buissson (height)
                      !! ## Si DGVM non activé, heigth peut pas être inférieur à min heigh fixé ! Hmin = 50 cm ????????
                      !! ## Deux solution:  -soit on dis simplement que si ça réduit trop la taille, alors on fixe heigh = heigh_min
@@ -1009,13 +1022,12 @@ write(*,*) "----------------------------------------------------!!"
                      !! ##                      pb : sensibilité différente avec ou sans DGVM
 
                      IF (.NOT.control%ok_dgvm .AND. &
-                             & ( ((1-biomass_loss)*height(ji,j)) .LT. (height_presc(j)/fact_min_height)))   THEN !! Arsene 02-04-2015 Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
-                          biomass_loss = 1 - (height_presc(j)/fact_min_height) / height(ji,j)     !! Arsene 02-04-2015 Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
-                          height(ji,j) = height_presc(j)/fact_min_height                          !! Arsene 02-04-2015 Note: Pour le moment, height_max=height_presc & height_min = height_presc/10 (see stomate_lpj)
+                             & ( ((1-biomass_loss)*height(ji,j)) .LT. (height_presc(j)/fact_min_height)))   THEN !! Arsene 02-04-2015
+                          biomass_loss = 1 - (height_presc(j)/fact_min_height) / height(ji,j)     !! Arsene 02-04-2015
+                          height(ji,j) = height_presc(j)/fact_min_height                          !! Arsene 02-04-2015
                      ELSE
                           height(ji,j) = (1-biomass_loss)*height(ji,j)
                      ENDIF
-
 
                      !! ## Simultanément, après avoir diminuer la hauteur on doit diminuer la biomasse (dans un cylindre, si uniquement height diminue ==> propotionnel à la biomasse
                      !! ## 2 méthodes : 1) on diminue seulement la biomasse en surface (ileaf, isapabove, iheartabove, ifruit et ?icarbres?): plus réaliste 
@@ -1045,10 +1057,7 @@ write(*,*) "----------------------------------------------------!!"
                            biomass(ji,j,ifruit,m) = (1-biomass_loss) * biomass(ji,j,ifruit,m)
                            biomass(ji,j,icarbres,m) = (1-biomass_loss) * biomass(ji,j,icarbres,m)
                      ENDDO
-!biomass_loss = MIN(un,(0.4/10*(tmin_crit(j)-t2m_min_daily(ji))))
-!write(*,*) "          --> si PFT8, biomasse loss =", biomass_loss
-!write(*,*) "          --> t2m_min_daily(ji)=", t2m_min_daily(ji), "snowtemp_min(ji,:)", snowtemp_min(ji,:)
-!* 
+
                      !! ## On met à jour la woodmass (au cas où ça serve rapidement... Mais possible que NON)
                      IF ( veget_max(ji,j) .GT. min_stomate) THEN
                            woodmass_ind(ji,j) = &
@@ -1058,7 +1067,6 @@ write(*,*) "----------------------------------------------------!!"
                            woodmass_ind(ji,j) =(biomass(ji,j,isapabove,icarbon) + biomass(ji,j,isapbelow,icarbon) &
                              + biomass(ji,j,iheartabove,icarbon) + biomass(ji,j,iheartbelow,icarbon))/ind(ji,j)
                      ENDIF
-!* 
 
                      !! ## si plus assez de biomasse, on "KILL"
                      IF ( SUM(biomass(ji,j,:,1)) .LT. min_stomate .AND. control%ok_dgvm) THEN
@@ -1080,7 +1088,7 @@ write(*,*) "----------------------------------------------------!!"
        CALL kill (npts, 'gap       ', lm_lastyearmax, &
             ind, PFTpresent, cn_ind, biomass, senescence, RIP_time, &
             lai, age, leaf_age, leaf_frac, npp_longterm, &
-            when_growthinit, everywhere, veget_max, bm_to_litter)
+            when_growthinit, everywhere, veget_max, bm_to_litter, dia_cut) !! Arsene 27-08-2015 - Add dia_cut
        !WRITE(numout,*) 'zdcheck8 kill leaf_age(1,10,:)', leaf_age(1,10,:)
        !WRITE(numout,*) 'zd leaffrac10 kill leaf_frac(1,10,:)', leaf_frac(1,10,:)
        !WRITE(numout,*) 'zd bio15 kill biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
@@ -1133,7 +1141,7 @@ write(*,*) "----------------------------------------------------!!"
        CALL kill (npts, 'light     ', lm_lastyearmax, &
             ind, PFTpresent, cn_ind, biomass, senescence, RIP_time, &
             lai, age, leaf_age, leaf_frac, npp_longterm, &
-            when_growthinit, everywhere, veget_max, bm_to_litter)
+            when_growthinit, everywhere, veget_max, bm_to_litter, dia_cut) !! Arsene 27-08-2015 - Add dia_cut
        !WRITE(numout,*) 'zdcheck11 kill leaf_age(1,10,:)', leaf_age(1,10,:)
        !WRITE(numout,*) 'zd leaffrac13 kill leaf_frac(1,10,:)', leaf_frac(1,10,:)
        !WRITE(numout,*) 'zd bio18 kill biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
@@ -1153,7 +1161,7 @@ write(*,*) "----------------------------------------------------!!"
             leaf_age, leaf_frac, &
             ind, biomass, age, everywhere, co2_to_bm, veget_max, woodmass_ind, &!)
 !JCADD
-            sla_calc)
+            sla_calc,height,dia_cut) !! Arsene 26-08-2015 - Add height (in)
 !ENDJCADD
 
        !WRITE(numout,*) 'zdcheck12 establish leaf_age(1,10,:)', leaf_age(1,10,:)
@@ -1163,9 +1171,8 @@ write(*,*) "----------------------------------------------------!!"
        !! 12.2 Calculate new crown area (and maximum vegetation cover)
        CALL crown (npts, PFTpresent, &
             ind, biomass, woodmass_ind, &
-            veget_max, cn_ind, height)
+            veget_max, cn_ind, height, dia_cut) !! Arsene 27-08-2015 - Add dia_cut
        !WRITE(numout,*) 'zd bio20 crown biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
-
     ENDIF
 !JCADD Grassland_management
 

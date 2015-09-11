@@ -1420,6 +1420,25 @@ CONTAINS
 !! Arsene 03-08-2015 - New parametrisation for shrub... if like tree -END
        !
        !
+!! Arsene 03-09-2015 - For iteration (new allomerty for shrubs)
+       !Config Key   = ACCEPT_SIGMA_IT
+       !Config Desc  = Define the precision wanted for the iteration result 
+       !Config If    = .NOT.SHRUBS_LIKE_TREES
+       !Config Def   = 0.01
+       !Config Help  = 
+       !Config Units = [-]    
+       CALL getin_p('ACCEPT_SIGMA_IT',accept_sigma_it)
+       !
+       !Config Key   = FACTOR_DIV_IT
+       !Config Desc  = Define the factor division bewtween iteration 
+       !Config If    = .NOT.SHRUBS_LIKE_TREES
+       !Config Def   = 5.
+       !Config Help  = 
+       !Config Units = [-]    
+       CALL getin_p('FACTOR_DIV_IT',factor_div_it)
+!! Arsene 03-09-2015 - For iteration (new allomerty for shrubs)
+       !
+       !
        !Config Key   = PRECIP_CRIT 
        !Config Desc  = minimum precip
        !Config If    = OK_STOMATE 
@@ -1905,7 +1924,7 @@ CONTAINS
        !Config Key   = FACT_MIN_HEIGHT
        !Config Desc  = Coefficient: min_height = height_presc * fact_min_height
        !Config If    = OK_STOMATE
-       !Config Def   = 5.
+       !Config Def   = 10.
        !Config Help  = 
        !Config Units = [-] 
        CALL getin_p('FACT_MIN_HEIGHT',fact_min_height)

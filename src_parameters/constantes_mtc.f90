@@ -567,7 +567,7 @@ MODULE constantes_mtc
   REAL(r_std), PARAMETER, DIMENSION (nvmc) :: lai_max_mtc  =  &          !! maximum LAI, PFT-specific 
   & (/ undef,   7.0,   7.0,   5.0,   5.0,   5.0,   4.5,  &               !! @tex $(m^2.m^{-2})$ @endtex
   &      4.5,   3.0,   2.5,   2.5,   5.0,   5.0, &
-  &      2.5,   4.5  /)                                                  !! Arsene 22-11-2013 : + 2 PFT
+  &      2.5,   3.5  /)                                                  !! Arsene 22-11-2013 : + 2 PFT
 
   INTEGER(i_std), PARAMETER, DIMENSION(nvmc) :: pheno_type_mtc  =  &     !! type of phenology (0-4, unitless)
   & (/  0,   1,   3,   1,   1,   2,   1,  &                              !! 0=bare ground 1=evergreen,  2=summergreen, 

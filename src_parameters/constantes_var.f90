@@ -808,6 +808,12 @@ MODULE constantes_var
   REAL(r_std), SAVE :: pipe_tune_shrub_exp_coeff = 0.8!! pipe tune exponential coeff (unitless)
 !$OMP THREADPRIVATE(pipe_tune_exp_coeff)
 !! Arsene 03-08-2015 - New parametrisation for shrub... END
+!! Arsene 03-09-2015 - For iteration (new allomerty for shrubs)
+  REAL(r_std), SAVE :: accept_sigma_it = 0.01         !! Define the precision wanted for the iteration result 
+!$OMP THREADPRIVATE(accept_sigma_it)
+  REAL(r_std), SAVE :: factor_div_it = 5.             !! Define the factor division bewtween iteration
+!$OMP THREADPRIVATE(factor_div_it)
+!! Arsene 03-09-2015 - For iteration (new allomerty for shrubs)
 
   ! 1.2 climatic parameters 
 
@@ -966,7 +972,7 @@ MODULE constantes_var
   REAL(r_std), SAVE :: frac_turnover_daily = 0.55  !! (0-1, unitless)
 !$OMP THREADPRIVATE(frac_turnover_daily)
 
-  REAL(r_std), SAVE :: fact_min_height = 5.  !! (1-10, unitless)  !! Arsene 20-05-2015 Add - Note: impoortante pour calc of bm_sap
+  REAL(r_std), SAVE :: fact_min_height = 10.  !! (1-10, unitless)  !! Arsene 20-05-2015 Add - Note: impoortante pour calc of bm_sap
 !$OMP THREADPRIVATE(fact_min_height)                              !! Arsene 20-05-2015 Add
 
   !

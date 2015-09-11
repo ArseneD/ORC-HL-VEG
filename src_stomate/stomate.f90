@@ -82,6 +82,8 @@ MODULE stomate
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)    :: age                  !! Age of PFT it normalized by biomass - can increase and
                                                                          !! decrease - (years)
 !$OMP THREADPRIVATE(age)
+  REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)    :: dia_cut              !! New height of vegetation after loss biomass (above snow)        !! Arsene 27-08-2015 add dia_cut
+!$OMP THREADPRIVATE(dia_cut)
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)    :: adapted              !! Winter too cold for PFT to survive (0-1, unitless)
 !$OMP THREADPRIVATE(adapted)
   REAL(r_std),ALLOCATABLE,SAVE,DIMENSION(:,:)    :: regenerate           !! Winter sufficiently cold to produce viable seeds 
@@ -1190,7 +1192,7 @@ SUBROUTINE stomate_main &
             &         global_years, ok_equilibrium, nbp_accu, nbp_flux, &
             &         MatrixV, VectorU, previous_stock, current_stock,&
 !! Arsene Add
-            &         npp0_cumul,snowtemp_min,snowdz_min, & !! Arsene 25-06-2014 NPPcumul ADD  !! Arsene 19-08-2014 Add snowtemp and snowdz
+            &         npp0_cumul,snowtemp_min,snowdz_min, dia_cut, & !! Arsene 25-06-2014 NPPcumul ADD  !! Arsene 19-08-2014 Add snowtemp and snowdz !! Arsene 27-08-2015 add dia_cut
             &         deepC_a, deepC_s, deepC_p, O2_soil, CH4_soil, O2_snow, CH4_snow, &
             &         thawed_humidity, depth_organic_soil, altmax,fixed_cryoturbation_depth, & !pss+:wetlabd CH4 emissions
             &         uo_0, uold2_0, uo_wet1, uold2_wet1, uo_wet2, &
@@ -1674,7 +1676,7 @@ SUBROUTINE stomate_main &
             &          global_years, ok_equilibrium, nbp_accu, nbp_flux, &
             &          MatrixV, VectorU, previous_stock, current_stock,&
 !! Arsene Add
-            &         npp0_cumul,snowtemp_min,snowdz_min, & !! Arsene 25-06-2014 NPPcumul ADD  !! Arsene 19-08-2014 Add snowtemp and snowdz
+            &         npp0_cumul,snowtemp_min,snowdz_min, dia_cut, & !! Arsene 25-06-2014 NPPcumul ADD  !! Arsene 19-08-2014 Add snowtemp and snowdz !! Arsene 27-08-2015 add dia_cut
             &          deepC_a, deepC_s, deepC_p, O2_soil, CH4_soil, O2_snow,CH4_snow, &
             &          thawed_humidity, depth_organic_soil, altmax,fixed_cryoturbation_depth, & !pss+:wetlabd CH4 emissions
             &         uo_0, uold2_0, uo_wet1, uold2_wet1, uo_wet2, &
@@ -2558,7 +2560,7 @@ SUBROUTINE stomate_main &
                &             convflux, cflux_prod10, cflux_prod100, harvest_above, carb_mass_total, lcchange,&
                &             fpc_max, Tseason, Tseason_length, Tseason_tmp, &
                &             Tmin_spring, Tmin_spring_time, begin_leaves, onset_date, &
-               &             matrixA, npp0_cumul, snowtemp_min, snowdz_min, &  !! Arsene 25-06-2014 NPPcumul Add npp0_cumul !! Arsene 19-08-2014 Add snowtemp_min & snowdz_min
+               &             matrixA, npp0_cumul, snowtemp_min, snowdz_min, dia_cut, &  !! Arsene 25-06-2014 NPPcumul Add npp0_cumul !! Arsene 19-08-2014 Add snowtemp_min & snowdz_min !! Arsene 27-08-2015 add dia_cut
                &             zz_coef_deep, deepC_a, deepC_s, deepC_p, & !pss:+
                &             ch4_flux_density_tot_0, ch4_flux_density_dif_0, ch4_flux_density_bub_0, &
                &             ch4_flux_density_pla_0, ch4_flux_density_tot_wet1,ch4_flux_density_dif_wet1, &
@@ -3673,6 +3675,15 @@ SUBROUTINE stomate_main &
        STOP 'stomate_init'
     ENDIF
 
+!! Arsene 27-08-2015 add dia_cut
+    ALLOCATE(dia_cut(kjpindex,nvm),stat=ier)                                                                         !! Arsene 27-08-2015 add dia_cut
+    l_error = l_error .OR. (ier /= 0)                                                                                !! Arsene 27-08-2015 add dia_cut
+    IF (l_error) THEN                                                                                                !! Arsene 27-08-2015 add dia_cut
+       WRITE(numout,*) 'Memory allocation error for dia_cut. We stop. We need kjpindex*nvm words',kjpindex,nvm       !! Arsene 27-08-2015 add dia_cut
+       STOP 'stomate_init'                                                                                           !! Arsene 27-08-2015 add dia_cut
+    ENDIF                                                                                                            !! Arsene 27-08-2015 add dia_cut
+!! Arsene 27-08-2015 add dia_cut
+
     ALLOCATE(resp_hetero_d(kjpindex,nvm),stat=ier)
     l_error = l_error .OR. (ier /= 0)
     IF (l_error) THEN
@@ -4587,6 +4598,7 @@ SUBROUTINE stomate_main &
     IF (ALLOCATED(begin_leaves)) DEALLOCATE(begin_leaves)
     IF (ALLOCATED(when_growthinit)) DEALLOCATE(when_growthinit)
     IF (ALLOCATED(age))  DEALLOCATE(age)
+    IF (ALLOCATED(dia_cut)) DEALLOCATE(dia_cut)           !! Arsene 27-08-2015 add dia_cut
     IF (ALLOCATED(resp_hetero_d)) DEALLOCATE(resp_hetero_d)
     IF (ALLOCATED(resp_hetero_radia)) DEALLOCATE(resp_hetero_radia)
     IF (ALLOCATED(resp_maint_d)) DEALLOCATE(resp_maint_d)

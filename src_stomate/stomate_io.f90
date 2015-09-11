@@ -65,7 +65,7 @@ CONTAINS
        &  Tmin_spring, Tmin_spring_time, begin_leaves, onset_date, &
        &  global_years, ok_equilibrium, nbp_accu, nbp_flux, &
        &  MatrixV, VectorU, previous_stock, current_stock,&
-       &  npp0_cumul,snowtemp_min,snowdz_min, &  !! Arsene 25-06-2014 NPPcumul ADD  !! Arsene 19-08-2014 Add snowtemp and snowdz
+       &  npp0_cumul,snowtemp_min,snowdz_min, dia_cut, &  !! Arsene 25-06-2014 NPPcumul ADD  !! Arsene 19-08-2014 Add snowtemp and snowdz !! Arsene 27-08-2015 add dia_cut
        &  deepC_a, deepC_s, deepC_p, O2_soil, CH4_soil, O2_snow, CH4_snow, &
        &  thawed_humidity, depth_organic_soil, altmax, fixed_cryoturbation_depth, & !pss+
        &  uo_0, uold2_0, uo_wet1, uold2_wet1, uo_wet2, uold2_wet2, uo_wet3, uold2_wet3, &
@@ -200,6 +200,8 @@ CONTAINS
     REAL(r_std), DIMENSION(npts,nsnow), INTENT(out) :: snowtemp_min   !! Arsene 19-08-2014 Add
     ! Min daily snow layer thicknesse (cm?)                           !! Arsene 19-08-2014 Add
     REAL(r_std), DIMENSION(npts,nsnow), INTENT(out) :: snowdz_min     !! Arsene 19-08-2014 Add
+    ! Fix diameter of vegetation (for shrub) after loss biomass (above snow) !! Arsene 27-08-2015 add dia_cut
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(out)   :: dia_cut               !! Arsene 27-08-2015 add dia_cut
 
     ! last year's maximum leaf mass, for each PFT (gC/m**2)
     REAL(r_std),DIMENSION(npts,nvm),INTENT(out) :: lm_lastyearmax
@@ -986,6 +988,14 @@ CONTAINS
          &                .TRUE., age, 'gather', nbp_glo, index_g)
     IF (ALL(age(:,:) == val_exp)) age(:,:) = zero
     !-
+!! Arsene 27-08-2015 Add dia_cut
+    dia_cut(:,:) = val_exp                                             !! Arsene 27-08-2015 Add
+    var_name = 'dia_cut'                                               !! Arsene 27-08-2015 Add
+    CALL restget_p (rest_id_stomate, var_name, nbp_glo, nvm , 1, itime, & !! Arsene 27-08-2015 Add
+         &                .TRUE., dia_cut, 'gather', nbp_glo, index_g) !! Arsene 27-08-2015 Add
+    IF (ALL(dia_cut(:,:) == val_exp)) dia_cut(:,:) = zero           !! Arsene 27-08-2015 Add
+!! Arsene 27-08-2015 Add dia_cut
+    !-
     ! 13 CO2
     !-
     resp_hetero(:,:) = val_exp
@@ -1645,7 +1655,7 @@ CONTAINS
        &  Tmin_spring, Tmin_spring_time, begin_leaves, onset_date, &
        &  global_years, ok_equilibrium, nbp_accu, nbp_flux, &
        &  MatrixV, VectorU, previous_stock, current_stock,&
-       &  npp0_cumul,snowtemp_min,snowdz_min, & !! Arsene 25-06-2014 NPPcumul ADD  !! Arsene 19-08-2014 Add snowtemp and snowdz
+       &  npp0_cumul,snowtemp_min,snowdz_min, dia_cut, & !! Arsene 25-06-2014 NPPcumul ADD  !! Arsene 19-08-2014 Add snowtemp and snowdz !! Arsene 27-08-2015 add dia_cut
        &  deepC_a, deepC_s, deepC_p, O2_soil, CH4_soil, O2_snow, CH4_snow, &
        &  thawed_humidity, depth_organic_soil, altmax, fixed_cryoturbation_depth, & !pss+
        &  uo_0, uold2_0, uo_wet1, uold2_wet1, uo_wet2, uold2_wet2, uo_wet3, uold2_wet3, &
@@ -1775,6 +1785,8 @@ CONTAINS
     REAL(r_std), DIMENSION(npts,nsnow), INTENT(in) :: snowtemp_min    !! Arsene 19-08-2014 Add
     ! Min daily snow layer thicknesse (cm?)                           !! Arsene 19-08-2014 Add
     REAL(r_std), DIMENSION(npts,nsnow), INTENT(in) :: snowdz_min      !! Arsene 19-08-2014 Add
+    ! Fix diameter of vegetation (for shrub) after loss biomass (above snow) !! Arsene 27-08-2015 add dia_cut
+    REAL(r_std), DIMENSION(npts,nvm), INTENT(in)   :: dia_cut               !! Arsene 27-08-2015 add dia_cut
 
     ! last year's maximum leaf mass, for each PFT (gC/m**2)
     REAL(r_std),DIMENSION(npts,nvm),INTENT(in) :: lm_lastyearmax
@@ -2404,8 +2416,13 @@ CONTAINS
          &                when_growthinit, 'scatter', nbp_glo, index_g)
     !-
     var_name = 'age'
-    CALL restput_p (rest_id_stomate, var_name, nbp_glo, nvm  , 1, itime, &
+    CALL restput_p (rest_id_stomate, var_name, nbp_glo, nvm, 1, itime, &
          &                age, 'scatter', nbp_glo, index_g)
+!! Arsene 27-08-2015 Add dia_cut
+    var_name = 'dia_cut'                                                 !! Arsene 27-08-2015 Add
+    CALL restput_p (rest_id_stomate, var_name, nbp_glo, nvm, 1, itime, & !! Arsene 27-08-2015 Add
+         &                dia_cut, 'scatter', nbp_glo, index_g)          !! Arsene 27-08-2015 Add
+!! Arsene 27-08-2015 Add dia_cut
     !-
     ! 13 CO2
     !-

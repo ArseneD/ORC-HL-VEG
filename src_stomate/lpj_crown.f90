@@ -110,7 +110,7 @@ CONTAINS
 
     REAL(r_std)                                       :: pt1, pt2, pt3, ptcoeff, pdensity  !! Arsene 03-08-2015 - Change pipe_tune for shrubs
     REAL(r_std),DIMENSION(npts)                       :: volume, woodmass_ind2     !! Arsene 11-08-2015 - New shrub allometry (from Aiba & Kohyama, 1996)
-    REAL(r_std)                                       :: signe, factor, num_it, volume1 !! Arsene 11-08-2015 - Add for iteration -, signe_presc
+    REAL(r_std)                                       :: signe, factor, num_it, num_it2, volume1 !! Arsene 11-08-2015 - Add for iteration -, signe_presc
     LOGICAL                                           :: dia_ok, init_ok !! Arsene 11-08-2015 - Add for iteration
     INTEGER(i_std)                                    :: i               !! Arsene 11-08-2015 - Add for iteration - index (unitless)
 
@@ -263,12 +263,15 @@ CONTAINS
                              dia_ok = .true.
                           ENDIF
                        ENDIF
-                       DO WHILE ( (dia(i)-factor).LT.min_stomate .AND. ((signe.EQ.-1.).OR.(.NOT.init_ok)) )    !! On ne peut pas utiliser ce facteur..., car trop important ou changement de sens...
+                       num_it2 = 0
+                       DO WHILE ( (dia(i)-factor).LT.min_stomate .AND. (num_it2.LT.5.) .AND. ((signe.EQ.-1.).OR.(.NOT.init_ok)) )    !! On ne peut pas utiliser ce facteur..., car trop important ou changement de sens...
                           factor = factor / factor_div_it
                           IF ( factor .LT. (0.1 * accept_sigma_it * dia(i)) ) THEN
                              factor = 2*dia(i) 
                              dia_ok = .true.
                           ENDIF
+                          num_it2 = num_it2 + 1.
+                          IF ( num_it2.GE.5. ) write(*,*) "small iteration in lpj_crown.f90 need to be check (Arsene)"
                        ENDDO
 
                        IF ( .NOT.dia_ok ) THEN

@@ -118,12 +118,12 @@ MODULE constantes_mtc
    REAL(r_std), PARAMETER, DIMENSION(nvmc)     ::    sla_max_mtc = &
   & (/ 1.5E-2,   1.53E-2,   2.6E-2,   9.26E-3,     2E-2, &
   &    2.6E-2,   9.26E-3,   2.6E-2,    1.9E-2,   2.6E-2, &
-  &    2.6E-2,    2.6E-2,   2.6E-2,    0.4E-2,   2.6E-2 /)               !! Arsene 24-02-2015 : + 2 PFT. Take care of value for moss... in test !
+  &    2.6E-2,    2.6E-2,   2.6E-2,    0.6E-2,   2.6E-2 /)               !! Arsene 24-02-2015 : + 2 PFT. Take care of value for moss... in test !
   ! miniimum specific leaf area (m**2/gC)
    REAL(r_std), PARAMETER, DIMENSION(nvmc)     ::    sla_min_mtc  = &
   & (/ 1.5E-2,   1.53E-2,   2.6E-2,   9.26E-3,     2E-2, &
   &    2.6E-2,   9.26E-3,   2.6E-2,    1.9E-2,   2.6E-2, & 
-  &    2.6E-2,    2.6E-2,   2.6E-2,    0.4E-2,   2.6E-2 /)               !! Arsene 24-02-2015 : + 2 PFT. Take care of value for moss... in test !
+  &    2.6E-2,    2.6E-2,   2.6E-2,    0.6E-2,   2.6E-2 /)               !! Arsene 24-02-2015 : + 2 PFT. Take care of value for moss... in test !
 !ENDJCADD
 
   CHARACTER(LEN=5), PARAMETER, DIMENSION(nvmc) :: type_of_lai_mtc  =  &  !! Type of behaviour of the LAI evolution algorithm
@@ -170,7 +170,7 @@ MODULE constantes_mtc
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: sla_mtc  =  &              !! specif leaf area @tex $(m^2.gC^{-1})$ @endtex
   & (/ 1.5E-2,   1.53E-2,   2.6E-2,   9.26E-3,     2E-2,   2.6E-2,   9.26E-3,  &
   &    2.6E-2,    1.9E-2,   2.6E-2,    2.6E-2,   2.6E-2,   2.6E-2, &
-  &    0.4E-2,    2.6E-2 /)                                             !! Arsene 22-11-2013 : + 2 PFT
+  &    0.6E-2,    2.6E-2 /)                                             !! Arsene 22-11-2013 : + 2 PFT
 !! pour les mousses test / 4 Arsene 11-06-2014 2.6E-2/4==> 0.65E-2 mais attention aux consequences.. test again on 09-01-2014
 !! Arsene 14-01-2014 Result test ==> around 0.473E (-> max 450) / 0.4 (around 500) ==> depend of the relation with lai_max (add for moss) and change the vcmax with
  
@@ -350,7 +350,7 @@ MODULE constantes_mtc
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: Vcmax25_mtc  =  &          !! Maximum rate of Rubisco activity-limited carboxylation at 25°C
   & (/ undef,   65.0,    65.0,    45.0,   45.0,   55.0,   45.0,  &      !! @tex $(\mu mol.m^{-2}.s^{-1})$ @endtex
   &     45.0,   35.0,    70.0,    70.0,   70.0,   70.0, &
-  &     47.0,   45.0  /)                                                !! Arsene 24-02-2015 : +2 PFT Note ==> have to test this values !
+  &     35.0,   45.0  /)                                                !! Arsene 24-02-2015 : +2 PFT Note ==> have to test this values !
 
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: arJV_mtc    = &            !! a coefficient of the linear regression (a+bT) defining the Jmax25/Vcmax25 ratio (mu mol e- (mu mol CO2)-1)
   & (/undef,    2.59,    2.59,    2.59,    2.59,    2.59,    2.59,  &   !! See Table 3 of Kattge & Knorr (2007)

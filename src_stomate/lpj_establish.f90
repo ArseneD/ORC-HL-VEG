@@ -207,7 +207,7 @@ CONTAINS
 !
 !    REAL(r_std)                                               :: ind_max         !! 2. * fraction of real individu by ind (special for shrub) !! 22-05-2015 Arsene
 
-    REAL(r_std)                                       :: volume, signe, fact, num_it, volume1 !! Arsene 11-08-2015 - Add for iteration -signe_presc, 
+    REAL(r_std)                                       :: volume, signe, fact, num_it, num_it2, volume1 !! Arsene 11-08-2015 - Add for iteration -signe_presc, 
     LOGICAL                                           :: dia_ok, init_ok !! Arsene 11-08-2015 - Add for iteration
 
 !
@@ -696,12 +696,15 @@ CONTAINS
                              dia_ok = .true.
                           ENDIF
                        ENDIF
-                       DO WHILE ( (dia(i)-fact).LT.min_stomate .AND. ((signe.EQ.-1.).OR.(.NOT.init_ok)))     !! On ne peut pas utiliser ce facteur..., car trop important ou changement de sens...
+                       num_it2 = 0
+                       DO WHILE ( (dia(i)-fact).LT.min_stomate .AND. (num_it2.LT.5.) .AND. ((signe.EQ.-1.).OR.(.NOT.init_ok)))     !! On ne peut pas utiliser ce facteur..., car trop important ou changement de sens...
                           fact = fact / factor_div_it
                           IF ( fact .LT. (0.1 * accept_sigma_it * dia(i)) ) THEN
                              fact = 2*dia(i)
                              dia_ok = .true.
                           ENDIF
+                          num_it2 = num_it2 + 1.
+                          IF ( num_it2.GE.5. ) write(*,*) "small iteration in lpj_establish.f90 need to be check (Arsene)"
                        ENDDO
 
                        IF ( .NOT.dia_ok ) THEN

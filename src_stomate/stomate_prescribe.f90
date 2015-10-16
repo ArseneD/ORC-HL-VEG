@@ -126,7 +126,7 @@ CONTAINS
     REAL(r_std)                                               :: height2, woodmass2!, ratio         !! local height (m) !! Arsene 04-09-2014
 !    REAL(r_std), DIMENSION(nvm)                               :: maxdia2, mindia !! Arsene 29-10-2014 - !! Arsene 11-08-2015 - Remove...
 
-    REAL(r_std)                                   :: signe, signe_presc, factor, num_it, accept_sigma, volume1, volume2, dia2 !! Arsene 03-08-2015 - Add for iteration
+    REAL(r_std)                                   :: signe, factor, num_it, num_it2, volume1, volume2, dia2 !! Arsene 03-08-2015 - Add for iteration
     LOGICAL                                       :: ind_ok !! Arsene 03-08-2015 - Add for iteration
     REAL(r_std)                                   :: pt1, pt2, pt3, ptcoeff, pdensity  !! Arsene 03-08-2015 - Change pipe_tune for shrubs
 
@@ -265,11 +265,8 @@ CONTAINS
                    ! dia(i) = ( 1 / (pipe_tune_shrub2 * ( 1/height(i,j) - 1/height_presc(j) )))**(1/pipe_tune_shrub3) /100
 
                    signe = 0
-                   signe_presc = 0
-                   factor = ind(i,j)*0.1 
                    ind_ok = .false.
                    num_it = 0
-                   accept_sigma = 0.002
                    DO WHILE ( .NOT.ind_ok ) ! ( ind_ok .EQV. .false. )
 
                       ! two way to calculate volume:
@@ -282,44 +279,88 @@ CONTAINS
                       volume2 = pi/4 * height_presc(j) * pt2 * 100**pt3 * dia(i)**(pt3+2) &
                                 & / ( height_presc(j) + pt2 * 100**pt3 * dia(i)**pt3 )
 
-                      !! Arsene ==> on pourrait faire dépendre le facteur "factor", dépendement de la première différence de volume... mais attention ^^
-                      IF ( (ABS(volume2-volume1)/(volume2+volume1)).GT.0.5 .AND. (num_it.EQ.0)) THEN
-                         factor = 1.
-                      ELSEIF ( (ABS(volume2-volume1)/(volume2+volume1)).GT.0.1 .AND. (num_it.EQ.0)) THEN
-                         factor = ind(i,j)
-                      ELSEIF (( ABS(volume2-volume1)/(volume2+volume1)).GT.0.01 .AND. (num_it.EQ.0)) THEN
-                         factor = ind(i,j)*0.1
-                      ELSEIF ( num_it.EQ.0 ) THEN !IF ( ABS(volume2-volume1).GT.0.00001 ) THEN
-                         factor = ind(i,j)*0.01
-                      ENDIF
-
-                      IF  ( (volume2-volume1) .GT. min_stomate ) THEN ! Si les 2 volume sont 'positivement' different, par rapport à une valeur définie...
-                         ! Alors cela signifie que ind(i,j) utilisee < ind(i,j) réel
-                         ind(i,j) = ind(i,j) + factor
-                         signe = 1
-                      ELSEIF ( (volume2-volume1).LT.-min_stomate .AND. (ind(i,j) - factor).LT.min_stomate ) THEN
-                         signe = -signe_presc 
-                      ELSEIF ( (volume2-volume1) .LT. -min_stomate ) THEN
-                         ind(i,j) = ind(i,j) - factor
-                         signe = -1
-                      ELSE !! Alors on est < accept sigma = > on à la bonne valeur de "ind"
-                         ind_ok = .true.
-                      ENDIF
-
-                      IF ( ((signe + signe_presc) .EQ. 0) .AND. .NOT.ind_ok ) THEN
-                         factor = factor / 10
-                         IF ( factor.LT.(accept_sigma*ind(i,j)) ) THEN ! Precision de ind...
-                            ind_ok = .true.
+                      !! Suivant la valeur de la différence "vol2-vol1" on détermine les facteurs initiaux (methode prescriptive)
+                      IF (num_it.EQ.0) THEN
+                         IF ( (ABS(volume2-volume1)/(volume2+volume1)).GT.0.5 ) THEN
+                            factor = 0.3
+                         ELSEIF ( (ABS(volume2-volume1)/(volume2+volume1)).GT.0.1 ) THEN
+                            factor = ind(i,j)
+                         ELSEIF (( ABS(volume2-volume1)/(volume2+volume1)).GT.0.01 ) THEN
+                            factor = ind(i,j)*0.1
+                         ELSE !IF ( ABS(volume2-volume1).GT.0.00001 ) THEN
+                            factor = ind(i,j)*0.01
                          ENDIF
-                      ELSEIF ( signe.EQ.-1 .AND. dia(i).GE.maxdia(j) ) THEN
-                         ind_ok = .true.  !! Dia max est atteint
-                         ind(i,j) = (veget_max(i,j)/pt1)**(1/ptcoeff) / (pi/4*maxdia(j)**2)
-                      ELSEIF ( signe.EQ.1 .AND. (dia(i).LE.mindia(j) )) THEN
+                      ENDIF
+
+                    !! Suivant la valeur de "vol2-vol1" on détermine si le diamètre proposé est trop petit/grand ou pas mal
+                    !! On distingue 3 cas:
+                    !! Cas 1. Vol2>vol1 ==> Alors ind(i,j) utilisee < ind(i,j) réel
+                      IF  ( (volume2-volume1)/(volume2+volume1) .GT. accept_sigma_it ) THEN ! Si les 2 volume sont 'positivement' different, par rapport à une valeur définie...
+
+                          !! a. Si l'on doit augmenter ind, alors on doit diminuer dia...  On vérifie si on ne dépasse pas min_dia
+                         IF ( (dia(i).LE.mindia(j) )) THEN
+                            ind_ok = .true.
+                            ind(i,j) = (veget_max(i,j)/pt1)**(1/ptcoeff) / (pi/4*mindia(j)**2)
+
+                         !! a. Si on avait prescedement le cas "vol2<vol1", on revient à l'état prescendent, on diminue le facteur, et on retest ce facteur
+                         ELSEIF ( signe.EQ.-1. ) THEN 
+                            ind(i,j) = ind(i,j) + factor     !! On revient à l'état préscedent (avant les nouveaux calculs de volume)
+                            factor = factor / factor_div_it  !! On diminue le facteur préscedement utilisé
+                            IF ( factor .LT. (0.1 * accept_sigma_it * ind(i,j)) ) THEN  !! Si le facteur devient trop petit, c'est qu'on a trouvé le bon diamétre !
+                               ind_ok = .true.
+                            ELSE
+                               ind(i,j) = ind(i,j) - factor  !! On va donc pouvoir tester le nouveau facteur
+                            ENDIF
+
+                         !! b. le nombre d'individus est trop faible, on l'augmente donc...
+                         ELSE
+                            IF ( signe .NE. 1. ) signe = 1.
+                            ind(i,j) = ind(i,j) + factor
+                         ENDIF
+
+                      !! Cas 2. Vol2<Vol2 ==> Alors ind(i,j) utilisee > ind(i,j) réel
+                      ELSEIF ( (volume2-volume1)/(volume2+volume1) .LT. accept_sigma_it ) THEN
+                          
+                         !! a. Si l'on doit diminuer ind, alors on doit augmenter dia.. On vérifie si on ne dépasse pas max_dia
+                         IF ( dia(i).GE.maxdia(j) ) THEN
+                            ind_ok = .true.  !! Dia max est atteint
+                            ind(i,j) = (veget_max(i,j)/pt1)**(1/ptcoeff) / (pi/4*maxdia(j)**2)
+
+                         !! a. Si on avait prescedement le cas "vol2>vol1", on revient à l'état prescendent, on diminue le facteur, et on retest ce facteur
+                         ELSEIF ( signe.EQ.1. ) THEN !! Arsene 02-09-2015 - Alors on reviens au début et on diminue the factor
+                            ind(i,j) = ind(i,j) - factor     !! On revient à l'état préscedent (avant les nouveaux calculs de volume)
+                            factor = factor / factor_div_it  !! On diminue le facteur préscedement utilisé
+                            IF ( factor .LT. (0.1 * accept_sigma_it * ind(i,j)) ) THEN  !! Si le facteur devient trop petit, c'est qu'on a trouvé le bon diamétre !
+                               ind_ok = .true.
+                            ELSE
+                               ind(i,j) = ind(i,j) + factor   !! On va donc pouvoir tester le nouveau facteur
+                            ENDIF
+
+                         !! c. le nombre d'individus est trop important, on le diminue donc...
+                         ELSE
+
+                            !! b.1 On vérifie que si l'on diminue ind par le facteur, le résultat n'est pas négatif ou nul
+                            num_it2 = 0
+                            DO WHILE ( (ind(i,j)-factor).LT.min_stomate .AND. (num_it2.LT.5.) )  !! On ne peut pas utiliser ce facteur..., car trop important ou changement de sens...
+                               factor = factor / factor_div_it
+                               IF ( factor .LT. (0.1 * accept_sigma_it * ind(i,j)) ) THEN
+                                  num_it2 = 10.
+                                  ind_ok = .true.
+                               ENDIF
+                               num_it2 = num_it2 + 1.
+                               IF ( num_it2.EQ.5. ) write(*,*) "small iteration in stomate_prescribe.f90 need to be check (Arsene)"
+                            ENDDO
+
+                            !! b.2 Après vérification du facteur, la valeur du diamètre est trop grande... on la diminue donc...
+                            IF ( .NOT.ind_ok ) THEN
+                               IF ( signe .NE. -1. ) signe = -1.
+                               ind(i,j) = ind(i,j) - factor
+                            ENDIF
+                         ENDIF
+
+                      !! Cas 3. Vol2~=Vol1 ==> On s'arrete là !
+                      ELSE !! Good ind number
                          ind_ok = .true.
-                         ind(i,j) = (veget_max(i,j)/pt1)**(1/ptcoeff) / (pi/4*mindia(j)**2)
-                      ELSEIF (.NOT.ind_ok .AND. signe_presc.EQ.0) THEN
-                         signe_presc = signe
-                         !! Pas besoin de redéfinir le signe prescedent car on revint tj au dernier "bon"
                       ENDIF
 
                       num_it = num_it+1
@@ -329,14 +370,14 @@ CONTAINS
                          write(*,*) "The iteration in stomate_prescribe.f90 need probably to be check (Arsene)"
                       ENDIF
                    ENDDO !! FIN DE BOUCLE WHILE
+!write(*,*) "stomate_presc", num_it
 
                    !! Une fois la boucle achevée, on a notre "ind"
                    !! On recalcule donc tous les termes
-                   dia(i) = ( veget_max(i,j) / pt1 )**(1/(2*ptcoeff)) / (pi/4 * ind(i,j))**0.5
+                   dia(i) = MIN(MAX(mindia(j),( veget_max(i,j) / pt1 )**(1/(2*ptcoeff)) / (pi/4 * ind(i,j))**0.5),maxdia(j))
 
                    height(i,j) = height_presc(j) * pt2 * 100**pt3 * dia(i)**pt3 &
                          & / ( height_presc(j) + pt2 * 100**pt3 * dia(i)**pt3 )
-
 
                    !! On vérifie que le buisson n'a pas été coupé... Et s'il a été coupé on calcul la hauteur...
                    IF ( dia(i).LE.dia_cut(i,j) .AND. dia_cut(i,j).GT.min_stomate ) THEN 
@@ -350,11 +391,10 @@ CONTAINS
                         !! On Déduit la woodmasse théorique d'un tel cylindre (fonction de densité, height, dia)
                         woodmass2 = ind(i,j) * pdensity * pi/4. * dia(i)**2 * height2
                         !! On peut faire alors le ratio du woodmass théorique et réel
-                        height(i,j)=woodmass(i)/woodmass2*height2
+                        height(i,j)=MIN(woodmass(i)/woodmass2*height2,height_presc(j)) !! 21-09-2015 ==>0 pb, mais au cas où...
                     ELSEIF ( dia_cut(i,j).GT.min_stomate ) THEN
                         dia_cut(i,j) = zero
                     ENDIF
-
 
                     cn_ind(i,j) = pt1 * (ind(i,j)*pi/4*dia(i)**2)**ptcoeff / ind(i,j)
 

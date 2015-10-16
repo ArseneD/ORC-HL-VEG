@@ -2489,7 +2489,7 @@ SUBROUTINE diffuco_trans_co2 (kjpindex, dtradia, swdown, pb, qsurf, q2m, t2m, te
       !
       DO ji=1,kjpindex
          !
-         IF ( ( lai(ji,jv) .GT. 0.01 ) .AND. &
+         IF ( ( lai(ji,jv) .GT. 0.001 ) .AND. &   !! Arsene 18-09-2015 change 0.01 to 0.001
               ( veget_max(ji,jv) .GT. min_sechiba ) ) THEN
             
             IF ( ( veget(ji,jv) .GT. min_sechiba ) .AND. &

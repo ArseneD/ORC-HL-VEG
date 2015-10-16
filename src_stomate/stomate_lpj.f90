@@ -1010,6 +1010,7 @@ CONTAINS
                          dia_cut(ji,j) = (height(ji,j)*height_presc(j) / (pipe_tune_shrub2*(height_presc(j)-height(ji,j))) ) &
                                  & **(1/pipe_tune_shrub3) /100
                       ENDIF
+                      IF ( dia_cut(ji,j) .GE. maxdia(j)) dia_cut(ji,j)=zero !! Arsene 21-09-15 - If biomass accumulation... 
 
 
                      !! ## Calcul de la nouvelle heuteur du buissson (height)

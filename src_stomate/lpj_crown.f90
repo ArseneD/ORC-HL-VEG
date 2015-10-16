@@ -111,7 +111,7 @@ CONTAINS
     REAL(r_std)                                       :: pt1, pt2, pt3, ptcoeff, pdensity  !! Arsene 03-08-2015 - Change pipe_tune for shrubs
     REAL(r_std),DIMENSION(npts)                       :: volume, woodmass_ind2     !! Arsene 11-08-2015 - New shrub allometry (from Aiba & Kohyama, 1996)
     REAL(r_std)                                       :: signe, factor, num_it, num_it2, volume1 !! Arsene 11-08-2015 - Add for iteration -, signe_presc
-    LOGICAL                                           :: dia_ok, init_ok !! Arsene 11-08-2015 - Add for iteration
+    LOGICAL                                           :: dia_ok          !! Arsene 11-08-2015 - Add for iteration
     INTEGER(i_std)                                    :: i               !! Arsene 11-08-2015 - Add for iteration - index (unitless)
 
 !_ ================================================================================================================================
@@ -236,84 +236,98 @@ CONTAINS
                      dia(i) = maxdia(j)
                  ENDIF
 
-                 init_ok = .FALSE.
                  num_it = 0
                  signe = 0
                  dia_ok = .false.
                  DO WHILE ( .NOT.dia_ok )
-                    IF ( num_it .EQ. 1) init_ok=.TRUE.
+
+                    !! Principe: on connait le volume, et on essaye de déterminer qu'elle est le diamètre correspondant à ce volume
+                    !!     --> On part du diamètre initiale (issus de la hauteur), et on le modifie afin que volume1~=volume
+
                     volume1 = pi/4 * height_presc(j) * pt2 * 100**pt3 * dia(i)**(pt3+2.) &
                                 & / ( height_presc(j) + pt2 * 100**pt3 * dia(i)**pt3 )
 
-                    IF ( ABS(volume1-volume(i))/volume(i).GT.1. .AND. (num_it.EQ.0)) THEN  !! We know the good volume volume(i)
-                       factor = 0.3
-                    ELSEIF ( ABS(volume1-volume(i))/volume(i).GT.0.5 .AND. (num_it.EQ.0)) THEN
-                       factor = dia(i)
-                    ELSEIF ( ABS(volume1-volume(i))/volume(i).GT.0.1 .AND. (num_it.EQ.0)) THEN
-                       factor = dia(i)*0.1
-                    ELSEIF ( num_it.EQ.0 ) THEN !IF ( ABS(volume2-volume1).GT.0.00001 ) THEN
-                       factor = dia(i)*0.01
+                    !! Suivant la valeur de la différence "vol1-vol" on détermine les facteurs initiaux (methode prescriptive)
+                    IF (num_it.EQ.0) THEN
+                       IF ( ABS(volume1-volume(i))/volume(i).GT.1.) THEN  !! We know the good volume volume(i)
+                          factor = 0.3
+                       ELSEIF ( ABS(volume1-volume(i))/volume(i).GT.0.5 ) THEN
+                          factor = dia(i)
+                       ELSEIF ( ABS(volume1-volume(i))/volume(i).GT.0.1 ) THEN
+                          factor = dia(i)*0.1
+                      ELSE !IF ( ABS(volume2-volume1).GT.0.00001 ) THEN
+                          factor = dia(i)*0.01
+                       ENDIF
                     ENDIF
 
+                    !! Suivant la valeur de "vol1-vol" on détermine si le diamètre proposé est trop petit/grand ou pas mal
+                    !! On distingue 3 cas:
+                    !! Cas 1. Vol1>vol ==> Diameter too important
                     IF  ( (volume1-volume(i)) .GT. (accept_sigma_it*volume(i)) ) THEN  !! So Dia to important or min_stomate
-                       IF ( signe.EQ.1. .AND. .NOT.init_ok) THEN
-                          factor = factor / factor_div_it
-                          signe = -1.
-                          IF ( factor .LT. (0.1 * accept_sigma_it * dia(i)) ) THEN
-                             dia_ok = .true.
-                          ENDIF
-                       ENDIF
-                       num_it2 = 0
-                       DO WHILE ( (dia(i)-factor).LT.min_stomate .AND. (num_it2.LT.5.) .AND. ((signe.EQ.-1.).OR.(.NOT.init_ok)) )    !! On ne peut pas utiliser ce facteur..., car trop important ou changement de sens...
-                          factor = factor / factor_div_it
-                          IF ( factor .LT. (0.1 * accept_sigma_it * dia(i)) ) THEN
-                             factor = 2*dia(i) 
-                             dia_ok = .true.
-                          ENDIF
-                          num_it2 = num_it2 + 1.
-                          IF ( num_it2.GE.5. ) write(*,*) "small iteration in lpj_crown.f90 need to be check (Arsene)"
-                       ENDDO
 
-                       IF ( .NOT.dia_ok ) THEN
-                          IF ( signe.EQ.1. .AND. init_ok  ) THEN !! Arsene 02-09-2015 - Alors on reviens au début et on diminue the factor
-                             dia(i) = dia(i) - factor !! on revient à l'état préscedent ;)
+                       !! a. Si on avait prescedement le cas "vol1<vol", on revient à l'état prescendent, on diminue le facteur, et on retest ce facteur
+                       IF ( signe.EQ.1. ) THEN             !! Arsene 02-09-2015 - Alors on reviens au début et on diminue the factor
+                          dia(i) = dia(i) - factor         !! On revient à l'état préscedent (avant le nouveau calcul du volume)
+                          factor = factor / factor_div_it  !! On diminue le facteur préscedement utilisé
+                          IF ( factor .LT. (0.1 * accept_sigma_it * dia(i)) ) THEN  !! Si le facteur devient trop petit, c'est qu'on a trouvé le bon diamétre !
+                             dia_ok = .true.
+                          ELSE 
+                             dia(i) = dia(i) + factor      !! On va donc pouvoir tester le nouveau facteur
+                          ENDIF
+
+                       !! b. le diamètre est trop grand, on le diminue donc...
+                       ELSE
+
+                          !! b.1 On vérifie que si l'on diminue le diametre par le facteur, le résultat n'est pas négatif ou nul
+                          !!     ps: uniquement si l'on diminue le diametre: pas si signe = 1. (on revient à  l'état préscedent...)
+                          num_it2 = 0
+                          DO WHILE ( (dia(i)-factor).LT.min_stomate .AND. (num_it2.LT.5.) )  !! On ne peut pas utiliser ce facteur..., car trop important ou changement de sens...
                              factor = factor / factor_div_it
                              IF ( factor .LT. (0.1 * accept_sigma_it * dia(i)) ) THEN
+                                num_it2 = 10. 
                                 dia_ok = .true.
                              ENDIF
-                          ELSE
-                             IF (init_ok .AND. num_it.GE.1) init_ok=.FALSE.
-                             signe = -1
+                             num_it2 = num_it2 + 1.
+                             IF ( num_it2.EQ.5. ) write(*,*) "small iteration in lpj_crown.f90 need to be check (Arsene)"
+                          ENDDO
+
+                          !! b.1 Après vérification du facteur, la valeur du diamètre est trop grande... on la diminue donc...
+                          IF ( .NOT.dia_ok ) THEN
+                             IF ( signe .NE. -1. ) signe = -1.
                              dia(i) = dia(i) - factor
                           ENDIF
                        ENDIF
+
+                    !! Cas 2. Vol<Vol1 ==> Diametre trop faible
                     ELSEIF ( (volume1-volume(i)) .LT. (accept_sigma_it*volume(i)) ) THEN !! dia too low  min_stomate
+
+                       !! a. Si le diamettre est déjà supérieur au diamètre maximum, alors on arrête...
                        IF ( dia(i).GT.maxdia(j) ) THEN
                           dia(i) = maxdia(j)
                           dia_ok = .true.
-                       ELSEIF ( signe.EQ.-1. .AND. num_it.NE.1 ) THEN
-                          factor = factor / factor_div_it
-                          IF ( factor .LT. (0.1 * accept_sigma_it * dia(i)) ) THEN
+
+                       !! b. Si on avait prescedement le cas "vol1>vol", on revient à l'état prescendent, on diminue le facteur, et on retest ce facteur
+                       ELSEIF ( signe.EQ.-1. ) THEN !! Arsene 02-09-2015 - Alors on reviens au début et on diminue the factor
+                          dia(i) = dia(i) + factor         !! On revient à l'état préscedent (avant le nouveau calcul du volume)
+                          factor = factor / factor_div_it  !! On diminue le facteur préscedement utilisé
+                          IF ( factor .LT. (0.1 * accept_sigma_it * dia(i)) ) THEN  !! Si le facteur devient trop petit, c'est qu'on a trouvé le bon diamétre !
                              dia_ok = .true.
+                          ELSE 
+                             dia(i) = dia(i) - factor      !! On va donc pouvoir tester le nouveau facteur
                           ENDIF
+
+                       !! c. le diamètre est trop faible, on l'augmente donc...
+                       ELSE
+                          IF ( signe .NE. 1. ) signe = 1.
+                          dia(i) = dia(i) + factor
                        ENDIF
-                       IF ( .NOT.dia_ok ) THEN
-                          IF ( signe.EQ.-1. .AND. init_ok ) THEN !! Arsene 02-09-2015 - Alors on reviens au début et on diminue the factor
-                             dia(i) = dia(i) + factor !! on revient à l'état préscedent ;)
-                             factor = factor / factor_div_it
-                             IF ( factor .LT. (0.1 * accept_sigma_it * dia(i)) ) THEN
-                                dia_ok = .true.
-                             ENDIF
-                          ELSE
-                             IF (init_ok .AND. num_it.GE.1.) init_ok=.FALSE.
-                             signe = 1.
-                             dia(i) = dia(i) + factor
-                          ENDIF
-                       ENDIF
+
+                    !! Cas 3. Vol~=Vol1 ==> On s'arrete là !
                     ELSE !! Good dia
                        dia_ok = .true.
                     ENDIF
 
+                    !! Si au bout de 100 iteration c'est toujouts pas fini... on abord !
                     num_it = num_it+1
                     IF ((num_it .GE. 100 ) .AND. (.NOT.dia_ok) ) THEN ! Si trop de boucle... limit à 100 ?1
                        dia_ok = .true.
@@ -322,7 +336,7 @@ CONTAINS
                     ENDIF
 
                  ENDDO  !! While loops!! Arsene 11-08-2015 Attention à tester l'itération, notemment pour ajuster the "accept_sigma"
-!write(*,*) "lpj_crov it=", num_it, "dia=", dia(i), "dia_cut", dia_cut(:,j), "height before", height(:,j), "vol", volume(i)
+!write(*,*) "lpj_crov it=", num_it, "dia=", dia(i), "height before", height(:,j)
 
                  dia(i)=MIN(dia(i),maxdia(j))
 

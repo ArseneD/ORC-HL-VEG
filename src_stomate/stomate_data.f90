@@ -72,7 +72,6 @@ MODULE stomate_data
   REAL(r_std),PARAMETER :: adapted_crit = 1. - ( 1. / euler ) !! critical value for being adapted (1-1/e) (unitless)
   REAL(r_std),PARAMETER :: regenerate_crit = 1. / euler       !! critical value for being regenerative (1/e) (unitless)
 
-
   ! private & public routines
 
   PUBLIC data
@@ -146,7 +145,15 @@ CONTAINS
     REAL(r_std)                                  :: alpha   !! alpha's : (unitless)
     REAL(r_std)                                  :: dia     !! stem diameter (m)
     REAL(r_std)                                  :: csa_sap !! Crown specific area sapling @tex $(m^2.ind^{-1})$ @endtex
+
+!! Arsene 16-10-2015 Add for shrub allometry
+    INTEGER(i_std)                               :: ii, shrub_height_i
+    REAL(r_std)                                  :: shrub_min_h, shrub_max_h, shrub_h_x, shrub_h_cst
+    REAL(r_std)                                  :: vol_min, vol_max, shrub_vol_cst
+    REAL(r_std)                                  :: vol_last, vol_next, height_last, height_next
+
 !    REAL(r_std)                                  :: ind_frac!! fraction of real individu by ind (special for shrub) !! 22-05-2015 Arsene
+
 !_ ================================================================================================================================
 
     IF ( bavard .GE. 1 ) WRITE(numout,*) 'data: PFT characteristics'
@@ -284,15 +291,15 @@ CONTAINS
 !          maxdia(j) = ( ( pipe_tune4 / ((pipe_tune2_for_shrub*pipe_tune3_for_shrub)/ &    !! Arsene 04-08-2015 - No pipe_tune_4_shrub
 !              & (maxdia_coeff(1)**pipe_tune3_for_shrub)) ) ** ( un / ( pipe_tune3_for_shrub - un ) ) ) * maxdia_coeff(2)
 
-          maxdia(j) = ( height_presc(j) / pipe_tune2_for_shrub ) **(1/ pipe_tune3_for_shrub)
-          mindia(j)= (height_presc(j)/(fact_min_height*pipe_tune2_for_shrub))**(1/ pipe_tune3_for_shrub)
+          maxdia(j) = ( height_presc(j) / pipe_tune2_for_shrub ) **(1./ pipe_tune3_for_shrub)
+          mindia(j)= (height_presc(j)/(fact_min_height*pipe_tune2_for_shrub))**(1./ pipe_tune3_for_shrub)
 
           cn_sapl(j) = cn_sapl_init !crown of individual tree, first year (like trees)
 
        ELSEIF ( is_shrub(j) .AND. .NOT.shrubs_like_trees ) THEN  !! Arsene 03-08-2015 - Change pipe_tune for shrubs
 
-          maxdia(j) = ( height_presc(j) * 0.93 / (pipe_tune_shrub2*0.07) )**(1/pipe_tune_shrub3) / 100 !! Arsene 11-08-2015 - 0.93 correspond au observatio [90 - 96]
-          mindia(j) = ( height_presc(j) / (pipe_tune_shrub2 * (fact_min_height-1)) )**(1/pipe_tune_shrub3) / 100
+          maxdia(j) = ( height_presc(j) * shrub_lim_maxdia / (pipe_tune_shrub2*(1.-shrub_lim_maxdia)) )**(1./pipe_tune_shrub3) / 100. !! Arsene 11-08-2015 - 0.93 correspond au observatio [90 - 96]
+          mindia(j) = ( height_presc(j) / (pipe_tune_shrub2 * (fact_min_height-1.)) )**(1./pipe_tune_shrub3) / 100.
 
           cn_sapl(j) = cn_sapl_init !crown of individual tree, first year (like trees)
 
@@ -303,6 +310,74 @@ CONTAINS
 
        IF ( bavard .GE. 1 ) WRITE(numout,*) '       critical stem diameter (m): (::maxdia(j))', maxdia(j)
        IF ( bavard .GE. 1 ) WRITE(numout,*) '       critical stem diameter (m): (::mindia(j))', mindia(j)
+
+
+!!! Arsene 16-10-2015 - ADD - START
+       !
+       ! 4.bis - For shrubs (.NOT.shrubsliketrees): Calcul of array
+       ! This part is use only in lpj_crown.f90 and lpj_establish.f90 (not in stomate_prescribe) ==> only if DGVM or not lpj_cst
+       !
+       IF ( is_shrub(j) .AND. .NOT.shrubs_like_trees .AND. (control%ok_dgvm .OR. .NOT.lpj_gap_const_mort) ) THEN
+
+           !! 4.bis.1 Compute the "virtual array" volume=fn(height)
+           shrub_min_h = 0.01                                !! in m
+           shrub_max_h = height_presc(j) * shrub_lim_maxdia  !! real max height (height_presc(j) = theorical max)
+           shrub_h_x = 1.                                    !! fraction of "line" for "array" volume=fn(height), compute but not save...
+           shrub_h_cst = ( shrub_max_h / shrub_min_h )**( 1./ (shrub_h_x * shrub_allom_lig -1.))
+           !! ==> We have for each "ligne" i: Height = shrub_h_cst**(i-1.) * shrub_min_h
+           !!                          puis   Vol(i) = (pi/4) * Height(i) * dia(i)**2
+
+           !! 4.bis.2 Invert array dia=fn(vol): ligne discretisation
+           vol_min = (pi/4) * shrub_min_h * ((1./(pipe_tune_shrub2 * (1./shrub_min_h-1./height_presc(j)))) &
+                         **(1./pipe_tune_shrub3) /100. )**2
+           vol_max = (pi/4) * shrub_max_h * ((1./(pipe_tune_shrub2 * (1./shrub_max_h-1./height_presc(j)))) &
+                         **(1./pipe_tune_shrub3) /100. )**2
+           shrub_vol_cst = ( vol_max / vol_min )**( 1./ (shrub_allom_lig -1.))
+           !! ==> We have for each "ligne" ii: Vol = shrub_vol_cst**(ii-1) * vol_min
+
+           !! 4.bis.3 Fist and last value of array
+           shrub_allom_array(j,1,1) = vol_min
+           shrub_allom_array(j,1,2) = shrub_min_h
+           shrub_allom_array(j,shrub_allom_lig,1) = vol_max
+           shrub_allom_array(j,shrub_allom_lig,2) = shrub_max_h
+           shrub_allom_array(j,shrub_allom_lig+1,1) = shrub_vol_cst
+           shrub_allom_array(j,shrub_allom_lig+1,2) = shrub_h_cst
+
+           !! 4.bis.4 Initialise last and next value, to compute array
+           height_last = 0.                ! not use ?
+           height_next = shrub_min_h
+
+           vol_last = 0.                   ! not use ?
+           vol_next = vol_min
+
+           !! 4.bis.5 Start to compute heigt value for each 
+           shrub_height_i = 1
+           DO ii = 2,shrub_allom_lig-1
+
+                !! 4.bis.6 Compute next value of volume (for dia=fn(vol))
+                shrub_allom_array(j,ii,1) = shrub_vol_cst**(ii-1) * vol_min
+
+                !! 4.bis.7 Check if shrub_allom_array(j,ii,1) is between vol_last and vol_next (from vol=fn(dia)). If not, find goof ones.
+                DO WHILE ((shrub_allom_array(j,ii,1) .GT. vol_next) .AND. ( shrub_height_i.LE.(shrub_h_x * shrub_allom_lig) ))
+                     shrub_height_i = shrub_height_i + 1
+                     vol_last = vol_next
+                     height_last = height_next
+                     height_next = shrub_h_cst**(shrub_height_i-1.) * shrub_min_h
+                     vol_next = (pi/4) * height_next * ((1./(pipe_tune_shrub2 * (1./height_next-1./height_presc(j)))) &
+                         **(1./pipe_tune_shrub3) /100. )**2
+                ENDDO
+
+                !! 4.bis.8 Compute and save good dia for dia=fn(vol) with linear interpolation
+                !! It is possible to go outside the array... ?
+                !! First we se "where" is the volume:       vol_fract = ( shrub_allom_array(j,ii,1) - vol_last ) / (vol_next - vol_last)
+                !! Add the linear interpolation for height: shrub_allom_array(j,ii) = height_last + vol_fract * (height_next - height_last)
+                shrub_allom_array(j,ii,2) = height_last + (( shrub_allom_array(j,ii,1) - vol_last ) / (vol_next - vol_last)) &
+                        & * (height_next - height_last)
+           ENDDO
+
+       ENDIF
+
+!!! Arsene 16-10-2015 - ADD - END       
 
        !
        ! 5 sapling characteristics

@@ -157,9 +157,11 @@ CONTAINS
                                                                                        !! grid cell (unitless;0-1)   
     REAL(r_std)                                            :: sumfpc_wood              !! Total natural woody fpc (unitless)   
     REAL(r_std)                                            :: sumdelta_fpc_wood        !! Change in total woody fpc (unitless)   
-    REAL(r_std)                                            :: maxfpc_wood              !! Maximum wood fpc (unitless)   
-    INTEGER(i_std)                                         :: optpft_wood              !! Which woody pft is maximum (unitless)   
-    REAL(r_std)                                            :: sumfpc_grass             !! Total natural grass fpc (unitless)   
+    REAL(r_std)                                            :: sumfpc_shrub             !! Total natural shrub fpc (unitless)       !! Arsene 04-11-2015 - Add
+    REAL(r_std)                                            :: sumdelta_fpc_shrub       !! Change in total woody fpc (unitless)     !! Arsene 04-11-2015 - Add
+!!    REAL(r_std)                                            :: maxfpc_wood              !! Maximum wood fpc (unitless)            !! Arsene 04-11-2015 - Not use...
+!!    INTEGER(i_std)                                         :: optpft_wood              !! Which woody pft is maximum (unitless)  !! Arsene 04-11-2015 - Not use... 
+    REAL(r_std)                                            :: sumfpc_grass             !! Total natural grass fpc (unitless)     
     REAL(r_std), DIMENSION(npts,nvm)                       :: fpc_nat                  !! This year's foliage projected cover on 
                                                                                        !! natural part of the grid cell 
                                                                                        !! @tex $(m^2)$ @endtex
@@ -225,67 +227,78 @@ CONTAINS
              !!?? it seems that the treatment below for trees and grasses are the same? so there is no necessity to use IF...ELSE...ENDIF structure?
 	     !!?? CODE SHOULD BE CLEANED UP BELOW
 
-             !! 2.2.1.1 Trees
-             IF ( is_tree(j)  .OR. is_shrub(j) ) THEN        !! Arsene 31-07-2014 modifications pareil ds les 2 cas
+!! Arsene 04-11-2015 - Remove and remplace by:
+             
+             WHERE(fracnat(:).GE.min_stomate)
 
-                ! !! 2.1.1.1 trees: minimum cover due to stems, branches etc.
-                !          DO i = 1, npts
-                !             IF (lai(i,j) == val_exp) THEN
-                !                fpc_nat(i,j) = cn_ind(i,j) * ind(i,j)
-                !             ELSE
-                !                fpc_nat(i,j) = cn_ind(i,j) * ind(i,j) * &
-                !                     MAX( ( 1._r_std - exp( -lai(i,j) * ext_coeff(j) ) ), min_cover )
-                !             ENDIF
-                !          ENDDO
-                !NV : modif from SZ version : fpc is based on veget_max, not veget.
+                fpc_nat(:,j) = cn_ind(:,j) * ind(:,j) / fracnat(:)
 
-                WHERE(fracnat(:).GE.min_stomate)
+             ENDWHERE
 
-                   !            WHERE(LAI(:,j) == val_exp)
-                   !               fpc_nat(:,j) = cn_ind(:,j) * ind(:,j) / fracnat(:)
-                   !            ELSEWHERE
-                   !               fpc_nat(:,j) = cn_ind(:,j) * ind(:,j) / fracnat(:) * &
-                   !                    MAX( ( 1._r_std - exp( - lm_lastyearmax(:,j) * sla(j) * ext_coeff(j) ) ), min_cover )
-                   !            ENDWHERE
-
-                   fpc_nat(:,j) = cn_ind(:,j) * ind(:,j) / fracnat(:)
-                ENDWHERE
-
-             ELSE
-
-                !NV : modif from SZ version : fpc is based on veget_max, not veget.
-		!!?? DO GRASSES HAVE CROWNS?
-                
-                !! 2.2.1.1 Grasses
-                WHERE(fracnat(:).GE.min_stomate)
-
-                   !            WHERE(LAI(:,j) == val_exp)
-                   !               fpc_nat(:,j) = cn_ind(:,j) * ind(:,j) / fracnat(:)
-                   !            ELSEWHERE
-                   !               fpc_nat(:,j) = cn_ind(:,j) * ind(:,j) / fracnat(:) * &
-                   !                    ( 1._r_std - exp( - lm_lastyearmax(:,j) * sla(j) * ext_coeff(j) ) )
-                   !            ENDWHERE
-
-                   fpc_nat(:,j) = cn_ind(:,j) * ind(:,j) / fracnat(:)     !! Arsene 31-07-2014 modifications pareil dans les 2 cas, non ?
-                ENDWHERE
-
-!!!$                ! 2.1.1.2 bare ground 
-!!!$                IF (j == ibare_sechiba) THEN
-!!!$                   fpc_nat(:,j) = cn_ind(:,j) * ind(:,j) 
-!!!$
-!!!$                   ! 2.1.1.3 grasses
-!!!$                ELSE
-!!!$                   DO i = 1, npts
-!!!$                      IF (lai(i,j) == val_exp) THEN
-!!!$                         fpc_nat(i,j) = cn_ind(i,j) * ind(i,j)
-!!!$                      ELSE
-!!!$                         fpc_nat(i,j) = cn_ind(i,j) * ind(i,j) * &
-!!!$                              ( 1._r_std - exp( -lai(i,j) * ext_coeff(j) ) )
-!!!$                      ENDIF
-!!!$                   ENDDO
-!!!$                ENDIF
-
-             ENDIF  ! tree/grass
+!! Arsene 04-11-2015 - Remove start
+!!
+!!             !! 2.2.1.1 Trees
+!!             IF ( is_tree(j)  .OR. is_shrub(j) ) THEN        !! Arsene 31-07-2014 modifications pareil ds les 2 cas
+!!
+!!                ! !! 2.1.1.1 trees: minimum cover due to stems, branches etc.
+!!                !          DO i = 1, npts
+!!                !             IF (lai(i,j) == val_exp) THEN
+!!                !                fpc_nat(i,j) = cn_ind(i,j) * ind(i,j)
+!!                !             ELSE
+!!                !                fpc_nat(i,j) = cn_ind(i,j) * ind(i,j) * &
+!!                !                     MAX( ( 1._r_std - exp( -lai(i,j) * ext_coeff(j) ) ), min_cover )
+!!                !             ENDIF
+!!                !          ENDDO
+!!                !NV : modif from SZ version : fpc is based on veget_max, not veget.
+!!
+!!                WHERE(fracnat(:).GE.min_stomate)
+!!
+!!                   !            WHERE(LAI(:,j) == val_exp)
+!!                   !               fpc_nat(:,j) = cn_ind(:,j) * ind(:,j) / fracnat(:)
+!!                   !            ELSEWHERE
+!!                   !               fpc_nat(:,j) = cn_ind(:,j) * ind(:,j) / fracnat(:) * &
+!!                   !                    MAX( ( 1._r_std - exp( - lm_lastyearmax(:,j) * sla(j) * ext_coeff(j) ) ), min_cover )
+!!                   !            ENDWHERE
+!!
+!!                   fpc_nat(:,j) = cn_ind(:,j) * ind(:,j) / fracnat(:)
+!!                ENDWHERE
+!!
+!!             ELSE
+!!
+!!                !NV : modif from SZ version : fpc is based on veget_max, not veget.
+!!		!!?? DO GRASSES HAVE CROWNS?
+!!                
+!!                !! 2.2.1.1 Grasses
+!!                WHERE(fracnat(:).GE.min_stomate)
+!!
+!!                   !            WHERE(LAI(:,j) == val_exp)
+!!                   !               fpc_nat(:,j) = cn_ind(:,j) * ind(:,j) / fracnat(:)
+!!                   !            ELSEWHERE
+!!                   !               fpc_nat(:,j) = cn_ind(:,j) * ind(:,j) / fracnat(:) * &
+!!                   !                    ( 1._r_std - exp( - lm_lastyearmax(:,j) * sla(j) * ext_coeff(j) ) )
+!!                   !            ENDWHERE
+!!
+!!                   fpc_nat(:,j) = cn_ind(:,j) * ind(:,j) / fracnat(:)     !! Arsene 31-07-2014 modifications pareil dans les 2 cas, non ?
+!!                ENDWHERE
+!!
+!!!!!$                ! 2.1.1.2 bare ground 
+!!!!!$                IF (j == ibare_sechiba) THEN
+!!!!!$                   fpc_nat(:,j) = cn_ind(:,j) * ind(:,j) 
+!!!!!$
+!!!!!$                   ! 2.1.1.3 grasses
+!!!!!$                ELSE
+!!!!!$                   DO i = 1, npts
+!!!!!$                      IF (lai(i,j) == val_exp) THEN
+!!!!!$                         fpc_nat(i,j) = cn_ind(i,j) * ind(i,j)
+!!!!!$                      ELSE
+!!!!!$                         fpc_nat(i,j) = cn_ind(i,j) * ind(i,j) * &
+!!!!!$                              ( 1._r_std - exp( -lai(i,j) * ext_coeff(j) ) )
+!!!!!$                      ENDIF
+!!!!!$                   ENDDO
+!!!!!$                ENDIF
+!!
+!!             ENDIF  ! tree/grass
+!! Arsene 04-11-2015 - Remove - end
 
           ELSE
 
@@ -336,9 +349,11 @@ CONTAINS
              
              !! 2.4.1.3 Determine some characteristics of the fpc distribution
              sumfpc_wood = zero
+             sumfpc_shrub = zero       !! Arsene 04-11-2015 - Add
              sumdelta_fpc_wood = zero
-             maxfpc_wood = zero
-             optpft_wood = 0
+             sumdelta_fpc_shrub = zero  !! Arsene 04-11-2015 - Add
+!!             maxfpc_wood = zero      !! Arsene 04-11-2015 - Not use
+!!             optpft_wood = 0         !! Arsene 04-11-2015 - Not use
              sumfpc_grass = zero
 
              DO j = 2,nvm ! loop over #PFTs
@@ -355,14 +370,24 @@ CONTAINS
                       ! how much did the woody fpc increase
                       sumdelta_fpc_wood = sumdelta_fpc_wood + deltafpc(j)
 
-                      ! which woody pft is preponderant
-                      IF ( fpc_nat(i,j) .GT. maxfpc_wood ) THEN
+                      !! Arsene 04-11-2015 - Add
+                      !! Compute the total shruby fpc
+                      IF ( is_shrub(j) ) THEN
+                          sumfpc_shrub = sumfpc_shrub + fpc_nat(i,j)
+                          sumdelta_fpc_shrub = sumdelta_fpc_shrub + deltafpc(j)
+                      ENDIF 
+                      !! Arsene 04-11-2015 - Add
 
-                         optpft_wood = j
-
-                         maxfpc_wood = fpc_nat(i,j)
-
-                      ENDIF
+!! Arsene 04-11-2015 - Not use... Start
+!!                      ! which woody pft is preponderant
+!!                      IF ( fpc_nat(i,j) .GT. maxfpc_wood ) THEN
+!!
+!!                         optpft_wood = j
+!!
+!!                         maxfpc_wood = fpc_nat(i,j)
+!!
+!!                      ENDIF
+!! Arsene 04-11-2015 - Not use...End 
 
                    ELSE
 
@@ -401,13 +426,34 @@ CONTAINS
                       IF (sumfpc_wood .GE. fpc_crit .AND. fpc_nat(i,j) .GT. min_stomate .AND. & 
                            sumdelta_fpc_wood .GT. min_stomate) THEN
 
+                         IF (sumfpc_shrub .GT. min_stomate ) THEN     !! Arsene 04-11-2105 START ADD
+                            IF ( (sumfpc_wood - sumfpc_shrub) .LT. fpc_crit ) THEN
+                                IF ( is_tree(j) ) THEN
+                                    reduct = zero
+                                ELSE
+                                    !! On ne réduit que les buissons de tout ce qu'il y a en trop.
+                                    reduct = un - MIN((fpc_nat(i,j)-(sumfpc_wood-fpc_crit) &
+                                     * deltafpc(j)/sumdelta_fpc_shrub)/fpc_nat(i,j), un )
+                                ENDIF
+                            ELSE
+                                IF ( is_shrub(j) ) THEN
+                                    reduct = un
+                                ELSE
+                                    !! On supprime les arbres par rapport à ce qu'il reste à surrpimer
+                                    reduct = un - MIN((fpc_nat(i,j)-(sumfpc_wood-sumfpc_shrub-fpc_crit) &
+                                      * deltafpc(j)/(sumdelta_fpc_wood-sumdelta_fpc_shrub))/fpc_nat(i,j), un )
+                                ENDIF
+                            ENDIF
+                         ELSE !! Si on a pas de buissons...          !! Arsene 04-11-2105 End ADD (exept next endif)
+ 
                          ! reduct = MIN( ( ( deltafpc(j)/sumdelta_fpc_wood * &
                          !     (sumfpc_wood-fpc_crit) ) / fpc_nat(i,j) ), &
                          !     ( 1._r_std - 0.01 ) ) ! (0.01 = tree_mercy previously)
 
                          !!? difficult to fully understand but doesn't look so simple
-                         reduct = un - MIN((fpc_nat(i,j)-(sumfpc_wood-fpc_crit) & 
+                             reduct = un - MIN((fpc_nat(i,j)-(sumfpc_wood-fpc_crit) & 
                               * deltafpc(j)/sumdelta_fpc_wood)/fpc_nat(i,j), un )
+                         ENDIF
 
                       ELSE
 

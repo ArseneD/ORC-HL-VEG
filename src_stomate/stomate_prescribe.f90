@@ -123,12 +123,13 @@ CONTAINS
     REAL(r_std), DIMENSION(npts)                              :: woodmass        !! woodmass (gC/(m^2 of ground))
 !    REAL(r_std), DIMENSION(npts)                              :: woodmass_ind    !! woodmass of an individual (gC) !! Arsene 01-09-2015 - Remove (not use)
     INTEGER(i_std)                                            :: i,j             !! index (unitless)
-    REAL(r_std)                                               :: height2, woodmass2!, ratio         !! local height (m) !! Arsene 04-09-2014
-!    REAL(r_std), DIMENSION(nvm)                               :: maxdia2, mindia !! Arsene 29-10-2014 - !! Arsene 11-08-2015 - Remove...
+    REAL(r_std)                                               :: woodmass2       !! theorical woodmass (without dia_cut) - (gC/(m^2 of ground)) !! Arsene 04-09-2014
+    REAL(r_std)                                               :: pt1, pt2, pt3, ptcoeff, pdensity  !! Arsene 03-08-2015 - Change pipe_tune for shrubs
 
-    REAL(r_std)                                   :: signe, factor, num_it, num_it2, volume1, volume2, dia2 !! Arsene 03-08-2015 - Add for iteration
-    LOGICAL                                       :: ind_ok !! Arsene 03-08-2015 - Add for iteration
-    REAL(r_std)                                   :: pt1, pt2, pt3, ptcoeff, pdensity  !! Arsene 03-08-2015 - Change pipe_tune for shrubs
+
+!#!    REAL(r_std), DIMENSION(nvm)                    :: maxdia2, mindia !! Arsene 29-10-2014 - !! Arsene 11-08-2015 - Remove...
+!**!    REAL(r_std)                                   :: signe, factor, num_it, num_it2, volume1, volume2, dia2, height2 !! Arsene 03-08-2015 - Add for iteration
+!**!    LOGICAL                                       :: ind_ok, is_iteration !! Arsene 03-08-2015 - Add for iteration
 
 !_ ================================================================================================================================
 
@@ -186,221 +187,275 @@ CONTAINS
 
               IF ( woodmass(i) .GT. min_stomate ) THEN
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!
-!! Arsene 30-10-2014 -START- New Version... Because the version before was tooooooooo full of bugs
+!#!!! Arsene 27-08-2015 - Remove because change of allometry for shub - OLD VERSION
+!#!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!#!!! Arsene 30-10-2014 -START- New Version... Because the version before was tooooooooo full of bugs
+!#!
+!#!!! Arsene 27-08-2015 - Old version of save vegetation under snow - START
+!#!                ratio=2.
+!#!                IF ( is_shrub(j) .AND. ind(i,j).GT.min_stomate ) THEN
+!#!
+!#!                !
+!#!                !! 1. We have to compare the height save and the height from number of ind ==> height2 
+!#!                !
+!#!
+!#!                  IF (  shrubs_like_trees ) THEN
+!#!                      height2 = pt2 * (veget_max(i,j) / (ind(i,j) * pt1)) **(pt3/ptcoeff)
+!#!
+!#!                      !! Intermediate Calcul
+!#!                      !cn_ind(i,j) = veget_max(i,j) / ind(i,j)
+!#!                      !pipe_tune1 * dia(i) ** pipe_tune_exp_coeff = veget_max(i,j) / ind(i,j)
+!#!                      !dia(i) = (veget_max(i,j) / (ind(i,j) * pipe_tune1))**(1/pipe_tune_exp_coeff)
+!#!
+!#!                      !With relation:
+!#!                      ! (1) ind(i,j) = veget_max(i,j) / cn_ind(i,j) WITHOUT DGVM veget_max=cst
+!#!                      ! (2) cn_ind(i,j) = pipe_tune1 * dia(i) ** pipe_tune_exp_coeff
+!#!                      ! (3) height2 = pipe_tune2 * dia(i)**(pipe_tune3)
+!#!
+!#!                  ELSE
+!#!                      dia2 = ( veget_max(i,j) / pt1 )**(1./(2.*ptcoeff)) / (pi/4. * ind(i,j))**0.5
+!#!                      height2 = height_presc(j) * pt2 * 100.**pt3 * dia2**pt3 &
+!#!                             & / ( height_presc(j) + pt2 * 100.**pt3 * dia2**pt3 )
+!#!                      !! Cf to allometry of shrub
+!#!                  ENDIF
+!#!
+!#!
+!#!                !
+!#!                !! 2. If the relation is not true, that mean the shrub was cut
+!#!                !
+!#!                !!      Care ! Can also be if height > height_presc(j) or if height < height min (from mindia)
+!#!                !!           => for the second point, we need height min (from mindia) < height min (cut on snow) -> stomate_lpj
+!#!
+!#!                  IF ((height2-height(i,j)) .GT. 0.001 .AND. height(i,j).LT.height_presc(j)  &
+!#!                              .AND. height(i,j).GT.(height_presc(j)/fact_min_height) ) THEN !! .AND. height(i,j).GT.minheight) ??
+!#!
+!#!                  !! 3. Calculation of cn_ind
+!#!                  !! In this case the shrub maintain the basis of its cylinder, but the lost in only on height
+!#!                  !!      That mean: ind=cst & cn_ind=cst [& dia=cst]. We have ind ==> we can recalculate the both other
+!#!                  !
+!#!                     cn_ind(i,j) = veget_max(i,j) / ind(i,j)
+!#!                  !
+!#!                  !! 4. With a homogeneous vertical density on shrub, the lost of biomass is a linear fonction with height
+!#!                  !!      We can re-calcul the height with simple comparison between theorical woodmass2 (from the cylinder equation) and the woodmass
+!#!                  !!      woodmass2 = ind * volume * desity
+!#!                  !
+!#!
+!#!                     IF (  shrubs_like_trees ) THEN
+!#!                        dia(i) = (cn_ind(i,j)/pt1)**(1/ptcoeff) !! Arsene 25-08-2015 - A priori non utilisé
+!#!                        woodmass2 = ind(i,j) * pdensity * pi/4. * pt2 * &
+!#!                            & (height2/pt2)**((2.+pt3)/ pt3)
+!#!                     ELSE
+!#!                        woodmass2 = ind(i,j) * pdensity * pi/4. * dia2**2 * height2
+!#!                     ENDIF
+!#!
+!#!                  !!      After we deduce ce ratio between bot and we calculate the new height
+!#!                    ratio=woodmass(i)/woodmass2
+!#!                    height(i,j)=ratio*height2
+!#!write(*,*) "ratio", ratio
+!#!                  ENDIF
+!#!                ENDIF   ! IF is_shrub
+!#!!! Arsene 27-08-2015 - Old version of save vegetation under snow - END
 
-!! Arsene 27-08-2015 - Old version of save vegetation under snow - START
-!                ratio=2.
-!                IF ( is_shrub(j) .AND. ind(i,j).GT.min_stomate ) THEN
-
-                !
-                !! 1. We have to compare the height save and the height from number of ind ==> height2 
-                !
-
-!                  IF (  shrubs_like_trees ) THEN
-!                      height2 = pt2 * (veget_max(i,j) / (ind(i,j) * pt1)) **(pt3/ptcoeff)
-
-                      !! Intermediate Calcul
-                      !cn_ind(i,j) = veget_max(i,j) / ind(i,j)
-                      !pipe_tune1 * dia(i) ** pipe_tune_exp_coeff = veget_max(i,j) / ind(i,j)
-                      !dia(i) = (veget_max(i,j) / (ind(i,j) * pipe_tune1))**(1/pipe_tune_exp_coeff)
-
-                      !With relation:
-                      ! (1) ind(i,j) = veget_max(i,j) / cn_ind(i,j) WITHOUT DGVM veget_max=cst
-                      ! (2) cn_ind(i,j) = pipe_tune1 * dia(i) ** pipe_tune_exp_coeff
-                      ! (3) height2 = pipe_tune2 * dia(i)**(pipe_tune3)
-
-!                  ELSE
-!                      dia2 = ( veget_max(i,j) / pt1 )**(1./(2.*ptcoeff)) / (pi/4. * ind(i,j))**0.5
-!                      height2 = height_presc(j) * pt2 * 100.**pt3 * dia2**pt3 &
-!                             & / ( height_presc(j) + pt2 * 100.**pt3 * dia2**pt3 )
-                      !! Cf to allometry of shrub
-!                  ENDIF
-
-
-                !
-                !! 2. If the relation is not true, that mean the shrub was cut
-                !
-                !!      Care ! Can also be if height > height_presc(j) or if height < height min (from mindia)
-                !!           => for the second point, we need height min (from mindia) < height min (cut on snow) -> stomate_lpj
-
-!                  IF ((height2-height(i,j)) .GT. 0.001 .AND. height(i,j).LT.height_presc(j)  &
-!                              .AND. height(i,j).GT.(height_presc(j)/fact_min_height) ) THEN !! .AND. height(i,j).GT.minheight) ??
-
-                  !! 3. Calculation of cn_ind
-                  !! In this case the shrub maintain the basis of its cylinder, but the lost in only on height
-                  !!      That mean: ind=cst & cn_ind=cst [& dia=cst]. We have ind ==> we can recalculate the both other
-                  !
-!                     cn_ind(i,j) = veget_max(i,j) / ind(i,j)
-                  !
-                  !! 4. With a homogeneous vertical density on shrub, the lost of biomass is a linear fonction with height
-                  !!      We can re-calcul the height with simple comparison between theorical woodmass2 (from the cylinder equation) and the woodmass
-                  !!      woodmass2 = ind * volume * desity
-                  !
-
-!                     IF (  shrubs_like_trees ) THEN
-!!                        dia(i) = (cn_ind(i,j)/pt1)**(1/ptcoeff) !! Arsene 25-08-2015 - A priori non utilisé
-!                        woodmass2 = ind(i,j) * pdensity * pi/4. * pt2 * &
-!                            & (height2/pt2)**((2.+pt3)/ pt3)
-!                     ELSE
-!                        woodmass2 = ind(i,j) * pdensity * pi/4. * dia2**2 * height2
-!                     ENDIF
-
-                  !!      After we deduce ce ratio between bot and we calculate the new height
-!                    ratio=woodmass(i)/woodmass2
-!                    height(i,j)=ratio*height2
-!write(*,*) "ratio", ratio
-!                  ENDIF
-!                ENDIF   ! IF is_shrub
-!! Arsene 27-08-2015 - Old version of save vegetation under snow - END
+!**! !! Arsene 28-10-2015 ==> Remove iteration way, because other way is more efficient, true, .... don't need any more... - START
+!**!
+!**!                IF ( is_shrub(j) .AND. .NOT.shrubs_like_trees) THEN
+!**!
+!**!                 is_iteration = .false.
+!**!                 IF ( is_iteration ) THEN !! Arsene 16-10-2015 : Allometry of shubs via iteration (or array)
+!**!                                          !! To remove ==> better ad exact results without iterations.
+!**!                   !
+!**!                   !! 5. Calculate the provisionnal vegetation area
+!**!                   !
+!**!
+!**!                   !! 5.1 Calculate stem diameter per individual shrub (dia)        !! Arsene 22-07-2015
+!**!                   ! Equation from Aiba & Kohyama (1996), Constant value from Martinez et Lopez (2003)
+!**!                   ! No need "max diameter", because is already take into account in the equation
+!**!                   ! dia(i) = ( 1 / (pipe_tune_shrub2 * ( 1/height(i,j) - 1/height_presc(j) )))**(1/pipe_tune_shrub3) /100
+!**!
+!**!                   signe = 0
+!**!                   ind_ok = .false.
+!**!                   num_it = 0
+!**!                   DO WHILE ( .NOT.ind_ok ) ! ( ind_ok .EQV. .false. )
+!**!
+!**!                      ! two way to calculate volume:
+!**!                      ! 1. by the woodmass, density and ind number
+!**!                      volume1 = woodmass(i) / ( pdensity * ind(i,j) )
+!**!
+!**!                      ! 2. by the diameter... (calcul by ind number & crown area= veget_max)
+!**!                      dia(i) = ( veget_max(i,j) / pt1 )**(1/(2*ptcoeff)) / (pi/4 * ind(i,j))**0.5 ! pipe_tune_shrub1 = beta ( et non log beta)==> beta = 10**(log(beta))
+!**!                      !! Arsene 27-08-2015 - Note that if shrub is cut, initial "ind" can be "far aways" the real one...
+!**!                      volume2 = pi/4 * height_presc(j) * pt2 * 100**pt3 * dia(i)**(pt3+2) &
+!**!                                & / ( height_presc(j) + pt2 * 100**pt3 * dia(i)**pt3 )
+!**!
+!**!                      !! Suivant la valeur de la différence "vol2-vol1" on détermine les facteurs initiaux (methode prescriptive)
+!**!                      IF (num_it.EQ.0) THEN
+!**!                         IF ( (ABS(volume2-volume1)/(volume2+volume1)).GT.0.5 ) THEN
+!**!                            factor = 0.3
+!**!                         ELSEIF ( (ABS(volume2-volume1)/(volume2+volume1)).GT.0.1 ) THEN
+!**!                            factor = ind(i,j)
+!**!                         ELSEIF (( ABS(volume2-volume1)/(volume2+volume1)).GT.0.01 ) THEN
+!**!                            factor = ind(i,j)*0.1
+!**!                         ELSE !IF ( ABS(volume2-volume1).GT.0.00001 ) THEN
+!**!                            factor = ind(i,j)*0.01
+!**!                         ENDIF
+!**!                      ENDIF
+!**!
+!**!                    !! Suivant la valeur de "vol2-vol1" on détermine si le diamètre proposé est trop petit/grand ou pas mal
+!**!                    !! On distingue 3 cas:
+!**!                    !! Cas 1. Vol2>vol1 ==> Alors ind(i,j) utilisee < ind(i,j) réel
+!**!                      IF  ( (volume2-volume1)/(volume2+volume1) .GT. accept_sigma_it ) THEN ! Si les 2 volume sont 'positivement' different, par rapport à une valeur définie...
+!**!
+!**!                          !! a. Si l'on doit augmenter ind, alors on doit diminuer dia...  On vérifie si on ne dépasse pas min_dia
+!**!                         IF ( (dia(i).LE.mindia(j) )) THEN
+!**!                            ind_ok = .true.
+!**!                            ind(i,j) = (veget_max(i,j)/pt1)**(1/ptcoeff) / (pi/4*mindia(j)**2)
+!**!
+!**!                         !! a. Si on avait prescedement le cas "vol2<vol1", on revient à l'état prescendent, on diminue le facteur, et on retest ce facteur
+!**!                         ELSEIF ( signe.EQ.-1. ) THEN 
+!**!                            ind(i,j) = ind(i,j) + factor     !! On revient à l'état préscedent (avant les nouveaux calculs de volume)
+!**!                            factor = factor / factor_div_it  !! On diminue le facteur préscedement utilisé
+!**!                            IF ( factor .LT. (0.1 * accept_sigma_it * ind(i,j)) ) THEN  !! Si le facteur devient trop petit, c'est qu'on a trouvé le bon diamétre !
+!**!                               ind_ok = .true.
+!**!                            ELSE
+!**!                               ind(i,j) = ind(i,j) - factor  !! On va donc pouvoir tester le nouveau facteur
+!**!                            ENDIF
+!**!
+!**!                         !! b. le nombre d'individus est trop faible, on l'augmente donc...
+!**!                         ELSE
+!**!                            IF ( signe .NE. 1. ) signe = 1.
+!**!                            ind(i,j) = ind(i,j) + factor
+!**!                         ENDIF
+!**!
+!**!                      !! Cas 2. Vol2<Vol2 ==> Alors ind(i,j) utilisee > ind(i,j) réel
+!**!                      ELSEIF ( (volume2-volume1)/(volume2+volume1) .LT. accept_sigma_it ) THEN
+!**!                          
+!**!                         !! a. Si l'on doit diminuer ind, alors on doit augmenter dia.. On vérifie si on ne dépasse pas max_dia
+!**!                         IF ( dia(i).GE.maxdia(j) ) THEN
+!**!                            ind_ok = .true.  !! Dia max est atteint
+!**!                            ind(i,j) = (veget_max(i,j)/pt1)**(1/ptcoeff) / (pi/4*maxdia(j)**2)
+!**!
+!**!                         !! a. Si on avait prescedement le cas "vol2>vol1", on revient à l'état prescendent, on diminue le facteur, et on retest ce facteur
+!**!                         ELSEIF ( signe.EQ.1. ) THEN !! Arsene 02-09-2015 - Alors on reviens au début et on diminue the factor
+!**!                            ind(i,j) = ind(i,j) - factor     !! On revient à l'état préscedent (avant les nouveaux calculs de volume)
+!**!                            factor = factor / factor_div_it  !! On diminue le facteur préscedement utilisé
+!**!                            IF ( factor .LT. (0.1 * accept_sigma_it * ind(i,j)) ) THEN  !! Si le facteur devient trop petit, c'est qu'on a trouvé le bon diamétre !
+!**!                               ind_ok = .true.
+!**!                            ELSE
+!**!                               ind(i,j) = ind(i,j) + factor   !! On va donc pouvoir tester le nouveau facteur
+!**!                            ENDIF
+!**!
+!**!                         !! c. le nombre d'individus est trop important, on le diminue donc...
+!**!                         ELSE
+!**!
+!**!                            !! b.1 On vérifie que si l'on diminue ind par le facteur, le résultat n'est pas négatif ou nul
+!**!                            num_it2 = 0
+!**!                            DO WHILE ( (ind(i,j)-factor).LT.min_stomate .AND. (num_it2.LT.5.) )  !! On ne peut pas utiliser ce facteur..., car trop important ou changement de sens...
+!**!                               factor = factor / factor_div_it
+!**!                               IF ( factor .LT. (0.1 * accept_sigma_it * ind(i,j)) ) THEN
+!**!                                  num_it2 = 10.
+!**!                                  ind_ok = .true.
+!**!                               ENDIF
+!**!                               num_it2 = num_it2 + 1.
+!**!                               IF ( num_it2.EQ.5. ) write(*,*) "small iteration in stomate_prescribe.f90 need to be check (Arsene)"
+!**!                            ENDDO
+!**!
+!**!                            !! b.2 Après vérification du facteur, la valeur du diamètre est trop grande... on la diminue donc...
+!**!                            IF ( .NOT.ind_ok ) THEN
+!**!                               IF ( signe .NE. -1. ) signe = -1.
+!**!                               ind(i,j) = ind(i,j) - factor
+!**!                            ENDIF
+!**!                         ENDIF
+!**!
+!**!                      !! Cas 3. Vol2~=Vol1 ==> On s'arrete là !
+!**!                      ELSE !! Good ind number
+!**!                         ind_ok = .true.
+!**!                      ENDIF
+!**!
+!**!                      num_it = num_it+1
+!**!                      IF ((num_it .GE. 100 ) .AND. (.NOT.ind_ok) ) THEN ! Si trop de boucle... limit à 100 ?
+!**!                         ind_ok = .true.
+!**!!                         dia(i) = (maxdia(j)+mindia(j))/2 !! Au pif... Ou alors on prend le dernier dia calculer... le plus proche possible du bon résultat...
+!**!                         write(*,*) "The iteration in stomate_prescribe.f90 need probably to be check (Arsene)"
+!**!                      ENDIF
+!**!                   ENDDO !! FIN DE BOUCLE WHILE
+!**!!write(*,*) "stomate_presc", num_it
+!**!
+!**!                   !! Une fois la boucle achevée, on a notre "ind"
+!**!                   !! On recalcule donc tous les termes
+!**!                   dia(i) = MIN(MAX(mindia(j),( veget_max(i,j) / pt1 )**(1/(2*ptcoeff)) / (pi/4 * ind(i,j))**0.5),maxdia(j))
+!**!
+!**!                   height(i,j) = height_presc(j) * pt2 * 100**pt3 * dia(i)**pt3 &
+!**!                         & / ( height_presc(j) + pt2 * 100**pt3 * dia(i)**pt3 )
+!**!
+!**!                   !! On vérifie que le buisson n'a pas été coupé... Et s'il a été coupé on calcul la hauteur...
+!**!                   IF ( dia(i).LE.dia_cut(i,j) .AND. dia_cut(i,j).GT.min_stomate ) THEN 
+!**!                        !! On fix le diametre (identique à celui qu'il y avait lors de la coupe
+!**!                        dia(i) = dia_cut(i,j)
+!**!                        !! On en déduit me nombre d'individue (car cov = veget_max)
+!**!                        ind(i,j) =  (veget_max(i,j)/pt1)**(1/ptcoeff) / (pi/4*dia(i)**2)
+!**!                        !! Calcul de la hauteur théorique (pour le diametre dia_cut)
+!**!                        height2 = height_presc(j) * pt2 * 100**pt3 * dia(i)**pt3 &
+!**!                            & / ( height_presc(j) + pt2 * 100**pt3 * dia(i)**pt3 )  
+!**!                        !! On Déduit la woodmasse théorique d'un tel cylindre (fonction de densité, height, dia)
+!**!                        woodmass2 = ind(i,j) * pdensity * pi/4. * dia(i)**2 * height2
+!**!                        !! On peut faire alors le ratio du woodmass théorique et réel
+!**!                        height(i,j)=MIN(woodmass(i)/woodmass2*height2,height_presc(j)) !! 21-09-2015 ==>0 pb, mais au cas où...
+!**!                    ELSEIF ( dia_cut(i,j).GT.min_stomate ) THEN
+!**!                        dia_cut(i,j) = zero
+!**!                    ENDIF
+!**!
+!**!                    cn_ind(i,j) = pt1 * (ind(i,j)*pi/4*dia(i)**2)**ptcoeff / ind(i,j)
+!**!
+!**!                  ELSE  !! Arsene 16-10-2015 : Allometry of shubs 
+!**! !! Arsene 28-10-2015 ==> Remove iteration way, because other way is more efficient, true, .... don't need any more... - END
 
                 IF ( is_shrub(j) .AND. .NOT.shrubs_like_trees) THEN
-                   !
-                   !! 5. Calculate the provisionnal vegetation area
-                   !
 
-                   !! 5.1 Calculate stem diameter per individual shrub (dia)        !! Arsene 22-07-2015
-                   ! Equation from Aiba & Kohyama (1996), Constant value from Martinez et Lopez (2003)
-                   ! No need "max diameter", because is already take into account in the equation
-                   ! dia(i) = ( 1 / (pipe_tune_shrub2 * ( 1/height(i,j) - 1/height_presc(j) )))**(1/pipe_tune_shrub3) /100
+                    !! 5. Calculate the provisionnaegetation area
 
-                   signe = 0
-                   ind_ok = .false.
-                   num_it = 0
-                   DO WHILE ( .NOT.ind_ok ) ! ( ind_ok .EQV. .false. )
+                    !! 5.1 Calculate stem diameter per individual tree (dia)
+                    !! Calculate stem diameter per individual shrub (dia)
+                    !! Equation from Aiba & Kohyama (1996), Constant value from Martinez et Lopez (2003)
 
-                      ! two way to calculate volume:
-                      ! 1. by the woodmass, density and ind number
-                      volume1 = woodmass(i) / ( pdensity * ind(i,j) )
+                    dia(i) = MAX(MIN(maxdia(j), ((1./(pt2*(1./( woodmass(i)/(pdensity* (veget_max(i,j)/pt1)**(1/ptcoeff)) ) &
+                            & - 1./height_presc(j) )))**(1./pt3) /100. )),mindia(j))
 
-                      ! 2. by the diameter... (calcul by ind number & crown area= veget_max)
-                      dia(i) = ( veget_max(i,j) / pt1 )**(1/(2*ptcoeff)) / (pi/4 * ind(i,j))**0.5 ! pipe_tune_shrub1 = beta ( et non log beta)==> beta = 10**(log(beta))
-                      !! Arsene 27-08-2015 - Note that if shrub is cut, initial "ind" can be "far aways" the real one...
-                      volume2 = pi/4 * height_presc(j) * pt2 * 100**pt3 * dia(i)**(pt3+2) &
-                                & / ( height_presc(j) + pt2 * 100**pt3 * dia(i)**pt3 )
+                    !! Because 1. volume_tot(wood) = woodmass(i) / pdensity       ==> total volume depend of woodmass and density
+                    !!         2. height(i,j) = volume_tot(wood) / TotStemArea    ==> from geometry of volume (prisme): vol=base x height
+                    !!         3. veget_max(i,j) = pt1 * TotStemArea**ptcoeff     ==> From fix vegetation cover (=cover ) & Aiba & Kohyama (1996) 
+                    !!         3. dia(i) = ( 1 / (pt2 * ( 1/height(i,j) - 1/height_presc(j) )))**(1/pt3) /100   ==> from Aiba & Kohyama (1996)
+                    !!         4. dia(i) =  MAX(MIN( maxdia(j), dia(i) ),mindia(j))
 
-                      !! Suivant la valeur de la différence "vol2-vol1" on détermine les facteurs initiaux (methode prescriptive)
-                      IF (num_it.EQ.0) THEN
-                         IF ( (ABS(volume2-volume1)/(volume2+volume1)).GT.0.5 ) THEN
-                            factor = 0.3
-                         ELSEIF ( (ABS(volume2-volume1)/(volume2+volume1)).GT.0.1 ) THEN
-                            factor = ind(i,j)
-                         ELSEIF (( ABS(volume2-volume1)/(volume2+volume1)).GT.0.01 ) THEN
-                            factor = ind(i,j)*0.1
-                         ELSE !IF ( ABS(volume2-volume1).GT.0.00001 ) THEN
-                            factor = ind(i,j)*0.01
-                         ENDIF
-                      ENDIF
-
-                    !! Suivant la valeur de "vol2-vol1" on détermine si le diamètre proposé est trop petit/grand ou pas mal
-                    !! On distingue 3 cas:
-                    !! Cas 1. Vol2>vol1 ==> Alors ind(i,j) utilisee < ind(i,j) réel
-                      IF  ( (volume2-volume1)/(volume2+volume1) .GT. accept_sigma_it ) THEN ! Si les 2 volume sont 'positivement' different, par rapport à une valeur définie...
-
-                          !! a. Si l'on doit augmenter ind, alors on doit diminuer dia...  On vérifie si on ne dépasse pas min_dia
-                         IF ( (dia(i).LE.mindia(j) )) THEN
-                            ind_ok = .true.
-                            ind(i,j) = (veget_max(i,j)/pt1)**(1/ptcoeff) / (pi/4*mindia(j)**2)
-
-                         !! a. Si on avait prescedement le cas "vol2<vol1", on revient à l'état prescendent, on diminue le facteur, et on retest ce facteur
-                         ELSEIF ( signe.EQ.-1. ) THEN 
-                            ind(i,j) = ind(i,j) + factor     !! On revient à l'état préscedent (avant les nouveaux calculs de volume)
-                            factor = factor / factor_div_it  !! On diminue le facteur préscedement utilisé
-                            IF ( factor .LT. (0.1 * accept_sigma_it * ind(i,j)) ) THEN  !! Si le facteur devient trop petit, c'est qu'on a trouvé le bon diamétre !
-                               ind_ok = .true.
-                            ELSE
-                               ind(i,j) = ind(i,j) - factor  !! On va donc pouvoir tester le nouveau facteur
-                            ENDIF
-
-                         !! b. le nombre d'individus est trop faible, on l'augmente donc...
-                         ELSE
-                            IF ( signe .NE. 1. ) signe = 1.
-                            ind(i,j) = ind(i,j) + factor
-                         ENDIF
-
-                      !! Cas 2. Vol2<Vol2 ==> Alors ind(i,j) utilisee > ind(i,j) réel
-                      ELSEIF ( (volume2-volume1)/(volume2+volume1) .LT. accept_sigma_it ) THEN
-                          
-                         !! a. Si l'on doit diminuer ind, alors on doit augmenter dia.. On vérifie si on ne dépasse pas max_dia
-                         IF ( dia(i).GE.maxdia(j) ) THEN
-                            ind_ok = .true.  !! Dia max est atteint
-                            ind(i,j) = (veget_max(i,j)/pt1)**(1/ptcoeff) / (pi/4*maxdia(j)**2)
-
-                         !! a. Si on avait prescedement le cas "vol2>vol1", on revient à l'état prescendent, on diminue le facteur, et on retest ce facteur
-                         ELSEIF ( signe.EQ.1. ) THEN !! Arsene 02-09-2015 - Alors on reviens au début et on diminue the factor
-                            ind(i,j) = ind(i,j) - factor     !! On revient à l'état préscedent (avant les nouveaux calculs de volume)
-                            factor = factor / factor_div_it  !! On diminue le facteur préscedement utilisé
-                            IF ( factor .LT. (0.1 * accept_sigma_it * ind(i,j)) ) THEN  !! Si le facteur devient trop petit, c'est qu'on a trouvé le bon diamétre !
-                               ind_ok = .true.
-                            ELSE
-                               ind(i,j) = ind(i,j) + factor   !! On va donc pouvoir tester le nouveau facteur
-                            ENDIF
-
-                         !! c. le nombre d'individus est trop important, on le diminue donc...
-                         ELSE
-
-                            !! b.1 On vérifie que si l'on diminue ind par le facteur, le résultat n'est pas négatif ou nul
-                            num_it2 = 0
-                            DO WHILE ( (ind(i,j)-factor).LT.min_stomate .AND. (num_it2.LT.5.) )  !! On ne peut pas utiliser ce facteur..., car trop important ou changement de sens...
-                               factor = factor / factor_div_it
-                               IF ( factor .LT. (0.1 * accept_sigma_it * ind(i,j)) ) THEN
-                                  num_it2 = 10.
-                                  ind_ok = .true.
-                               ENDIF
-                               num_it2 = num_it2 + 1.
-                               IF ( num_it2.EQ.5. ) write(*,*) "small iteration in stomate_prescribe.f90 need to be check (Arsene)"
-                            ENDDO
-
-                            !! b.2 Après vérification du facteur, la valeur du diamètre est trop grande... on la diminue donc...
-                            IF ( .NOT.ind_ok ) THEN
-                               IF ( signe .NE. -1. ) signe = -1.
-                               ind(i,j) = ind(i,j) - factor
-                            ENDIF
-                         ENDIF
-
-                      !! Cas 3. Vol2~=Vol1 ==> On s'arrete là !
-                      ELSE !! Good ind number
-                         ind_ok = .true.
-                      ENDIF
-
-                      num_it = num_it+1
-                      IF ((num_it .GE. 100 ) .AND. (.NOT.ind_ok) ) THEN ! Si trop de boucle... limit à 100 ?
-                         ind_ok = .true.
-!                         dia(i) = (maxdia(j)+mindia(j))/2 !! Au pif... Ou alors on prend le dernier dia calculer... le plus proche possible du bon résultat...
-                         write(*,*) "The iteration in stomate_prescribe.f90 need probably to be check (Arsene)"
-                      ENDIF
-                   ENDDO !! FIN DE BOUCLE WHILE
-!write(*,*) "stomate_presc", num_it
-
-                   !! Une fois la boucle achevée, on a notre "ind"
-                   !! On recalcule donc tous les termes
-                   dia(i) = MIN(MAX(mindia(j),( veget_max(i,j) / pt1 )**(1/(2*ptcoeff)) / (pi/4 * ind(i,j))**0.5),maxdia(j))
-
-                   height(i,j) = height_presc(j) * pt2 * 100**pt3 * dia(i)**pt3 &
-                         & / ( height_presc(j) + pt2 * 100**pt3 * dia(i)**pt3 )
-
-                   !! On vérifie que le buisson n'a pas été coupé... Et s'il a été coupé on calcul la hauteur...
-                   IF ( dia(i).LE.dia_cut(i,j) .AND. dia_cut(i,j).GT.min_stomate ) THEN 
+                    IF ( dia(i).LT.dia_cut(i,j) .AND. dia_cut(i,j).GT.min_stomate ) THEN
                         !! On fix le diametre (identique à celui qu'il y avait lors de la coupe
                         dia(i) = dia_cut(i,j)
-                        !! On en déduit me nombre d'individue (car cov = veget_max)
-                        ind(i,j) =  (veget_max(i,j)/pt1)**(1/ptcoeff) / (pi/4*dia(i)**2)
-                        !! Calcul de la hauteur théorique (pour le diametre dia_cut)
-                        height2 = height_presc(j) * pt2 * 100**pt3 * dia(i)**pt3 &
-                            & / ( height_presc(j) + pt2 * 100**pt3 * dia(i)**pt3 )  
-                        !! On Déduit la woodmasse théorique d'un tel cylindre (fonction de densité, height, dia)
-                        woodmass2 = ind(i,j) * pdensity * pi/4. * dia(i)**2 * height2
-                        !! On peut faire alors le ratio du woodmass théorique et réel
-                        height(i,j)=MIN(woodmass(i)/woodmass2*height2,height_presc(j)) !! 21-09-2015 ==>0 pb, mais au cas où...
                     ELSEIF ( dia_cut(i,j).GT.min_stomate ) THEN
                         dia_cut(i,j) = zero
                     ENDIF
 
+                    !! 5.2 Compute the individual number
+                    !! ==> from Aiba & Kohyama (1996) & veget_max(i,j) = cover
+                    ind(i,j) = (veget_max(i,j)/pt1)**(1./ptcoeff) / (pi/4.*dia(i)**2.) 
+
+                    !! 5.3 Calculate provisional tree crown area for per individual tree
                     cn_ind(i,j) = pt1 * (ind(i,j)*pi/4*dia(i)**2)**ptcoeff / ind(i,j)
 
+                    !! 5.4 Calculate height from dia
+                    height(i,j) = height_presc(j) * pt2 * 100.**pt3 * dia(i)**pt3 &
+                            & / ( height_presc(j) + pt2 * 100.**pt3 * dia(i)**pt3 )
+                    !! Si le buisson a été coupé, on calcul la nouvel hauteur
+                    IF ( dia(i).EQ.dia_cut(i,j) .AND. dia_cut(i,j).GT.min_stomate ) THEN
+                        !! On calcul la woodmass théorique d'un cylindre de ce diamètre (fonction de densité, height, dia)
+                        woodmass2 = ind(i,j) * pdensity * pi/4. * dia(i)**2 * height(i,j)
+                        !! Compute the real height, from a ratio between therical and real woodmass
+                        height(i,j)=MIN( woodmass(i)/woodmass2 * height(i,j) , height(i,j) )
+                    ENDIF 
+
+!**!                  ENDIF !! Arsene 16-10-2015 : Allometry of shubs via Look-Up Table
+ 
                 ELSE!IF ( ratio .GE. 1.) THEN     !! if no biomass & height (no ind) loss due to frost... (shrubs only) => (.NOT.is_shrub(j) .OR. shrubs_like_trees)
                    !
-                   !! 5. Calculate the provisionnal vegetation area
+                   !! 5. Calculate the provisionnaegetation area
                    !
 
                    !! 5.1 Calculate stem diameter per individual tree (dia)        !! Arsene 03-09-2014

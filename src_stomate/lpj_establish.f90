@@ -207,8 +207,10 @@ CONTAINS
 !
 !    REAL(r_std)                                               :: ind_max         !! 2. * fraction of real individu by ind (special for shrub) !! 22-05-2015 Arsene
 
-    REAL(r_std)                                       :: volume, signe, fact, num_it, num_it2, volume1 !! Arsene 11-08-2015 - Add for iteration -signe_presc, 
-    LOGICAL                                           :: dia_ok, init_ok !! Arsene 11-08-2015 - Add for iteration
+    REAL(r_std)                                       :: volume, height2, signe, fact, num_it, num_it2, volume1 !! Arsene 11-08-2015 - Add for iteration -signe_presc, 
+    LOGICAL                                           :: dia_ok               !! Arsene 11-08-2015 - Add for iteration
+    INTEGER(i_std)                                    :: line                 !! Arsene 27-10-2015 - Add for Look-Up Table
+
 
 !
 !_ ================================================================================================================================
@@ -640,7 +642,7 @@ CONTAINS
                           dia(i) = (woodmass_ind(i,j)/(pipe_density*pi/4.*pipe_tune2)) &
                               &       **(1./(2.+pipe_tune3))
                           vn(i) = (ind(i,j) + d_ind(i,j))*pipe_tune1* &
-                                  & MIN(MAX(dia(i),dia_cut(i,j)),maxdia(j))**pipe_tune_exp_coeff           !! Arsene 01-09-2015 - Add dia_cut
+                                  & MIN(dia(i),maxdia(j))**pipe_tune_exp_coeff           !! Arsene 01-09-2015 - Add dia_cut
 
                       ELSEIF (is_shrub(j) .AND. shrubs_like_trees) THEN                 !! Arsene 03-08-2015 - Add allometry for shrubs
                           dia(i) = (woodmass_ind(i,j)/(pipe_density_shrub*pi/4.*pipe_tune2_for_shrub)) &
@@ -649,18 +651,21 @@ CONTAINS
                                   & MIN(MAX(dia(i),dia_cut(i,j)),maxdia(j))**pipe_tune_exp_coeff_for_shrub !! Arsene 01-09-2015 - Add dia_cut
 
                       ELSE !! Arsene 12-08-2015 - If shrub and New Allometry
-                          !! To calculate diameter and cover... it's more complicate...
+                           !! To calculate diameter and cover... it's more complicate...
 
-                          !! 1. Calculate the exact volume
-                           volume = woodmass_ind(i,j) / pipe_density_shrub
+                          !! 1. First calculate the exact volume
+                          volume = woodmass_ind(i,j) / pipe_density_shrub
+
+                          !! After we have two solutions: A. by iteration or B. by Look-Up Table
+
+                          IF ( shrub_it_ok ) THEN !! Arsene 16-10-2015 : Allometry of shubs via iteration (or Look-Up Table)
+                          !! A. by iteration
 
                           !! 2. Stem diameter from Aiba & Kohyama
                  !          Stem diameter is calculated by allometory... but no analytique solution for this equation:
                  !! volume(i) = pi/4 * height_presc(j) * pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**(pipe_tune_shrub3+2) &
                  !!               & / ( height_presc(j) + pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**pipe_tune_shrub3 )
 
-!                 !! On part de la hauteur corresonpodant au minheight... ==> min dia !! Peut être que ça marche "bien" du premier coup (on peut toujours réver...)
-!                 dia(i) = mindia(j)
                  !! On part de la hauteur initiale, et on essaye de trouver le bon diamètre...
                  IF ( height(i,j) .LT. height_presc(j) ) THEN  !! Arsene 11-08-2015 Garde fou
                      dia(i) = (height(i,j)*height_presc(j) / (pipe_tune_shrub2*(height_presc(j)-height(i,j))) ) &
@@ -771,9 +776,40 @@ CONTAINS
 
                  ENDDO  !! While loops!! Arsene 11-08-2015 Attention à tester l'itération, notemment pour ajuster the "accept_sigma"
 
+                          ELSE     !! Arsene 27-10-2015
+                          !! B. by Look-Up Table
 
+                            !! 2. Stem height from Aiba & Kohyama
+                            !!         Stem diameter is calculated by allometory... but no analytique solution for:
+                            !! volume = pi/4 * height_presc(j) * pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**(pipe_tune_shrub3+2) &
+                            !!               & / ( height_presc(j) + pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**pipe_tune_shrub3 )
 
-                           vn(i) = pipe_tune_shrub1 * ((ind(i,j)+d_ind(i,j))*pi/4* &
+                            !! Find the lines of the LUT, for each volume
+                            !! ==> Between the two int from ln(volume/volume_min)/ln(cst) +1
+                            IF (volume .LE. shrub_allom_array(j,1,1)) THEN
+                                height2 = (volume / shrub_allom_array(j,1,1))*shrub_allom_array(j,1,2)
+                            ELSEIF (volume .GE. shrub_allom_array(j,shrub_allom_lig,1)) THEN
+                                height2 = shrub_allom_array(j,shrub_allom_lig,2)
+                            ELSE
+                                line = FLOOR( LOG( volume / shrub_allom_array(j,1,1)) &
+                                   & / LOG(shrub_allom_array(j,shrub_allom_lig+1,1)) ) + 1.
+
+                                !! Identify the linear coefficient for extrapolation
+                                !! vol_fract = ( volume - shrub_allom_array(j,line,1) ) / (shrub_allom_array(j,line+1,1) - shrub_allom_array(j,line,1))
+                                !! Compute the linear interpolation for height
+                                !! height(i,j) = shrub_allom_array(j,line,2) + vol_fract * (shrub_allom_array(j,line+1,2)-shrub_allom_array(j,line,2))
+                                height2 = shrub_allom_array(j,line,2) + (shrub_allom_array(j,line+1,2)- &
+                                    & shrub_allom_array(j,line,2)) * ( (volume-shrub_allom_array(j,line,1)) &
+                                    &  / (shrub_allom_array(j,line+1,1) - shrub_allom_array(j,line,1)))
+                            ENDIF
+
+                            !! 3. Stem dia from Aiba & Kohyama
+                            dia(i) = (height2*height_presc(j) / & 
+                                   & (pipe_tune_shrub2*(height_presc(j)-height2)))**(1/pipe_tune_shrub3)/100.
+
+                          ENDIF    !! Arsene 27-10-2015
+
+                          vn(i) = pipe_tune_shrub1 * ((ind(i,j)+d_ind(i,j))*pi/4* &
                                    & MAX(MIN(dia(i),maxdia(j)),dia_cut(i,j))**2)**pipe_tune_shrub_exp_coeff   !! Arsene 01-09-2015 - Add dia_cut
 
                       ENDIF                !! Arsene 03-08-2015 - Add allometry for shrubs

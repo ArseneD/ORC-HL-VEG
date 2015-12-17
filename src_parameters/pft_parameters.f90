@@ -1636,6 +1636,16 @@ CONTAINS
       END IF
 !! Arsene 11-08-2015 - Add
 
+!! Arsene 16-10-2015 - ADD
+      ALLOCATE(shrub_allom_array(nvm,shrub_allom_lig+1,2),stat=ier)      
+      l_error = l_error .OR. (ier /= 0)
+      IF (l_error) THEN
+         WRITE(numout,*) ' Memory allocation error for shrub_allom_array. We stop. We need nvm* &
+                & shrub_allom_lig  words = ', nvm*(shrub_allom_lig+1)*2
+         STOP 'pft_parameters_alloc'
+      END IF 
+!! Arsene 16-10-2015 - ADD
+
       ALLOCATE(cn_sapl(nvm),stat=ier)
       l_error = l_error .OR. (ier /= 0)
       IF (l_error) THEN
@@ -3164,6 +3174,8 @@ CONTAINS
    IF (ALLOCATED(migrate)) DEALLOCATE(migrate)
    IF (ALLOCATED(maxdia)) DEALLOCATE(maxdia)
    IF (ALLOCATED(mindia)) DEALLOCATE(mindia)     !! Arsene 11-08-2015 - Add
+   IF (ALLOCATED(shrub_allom_array)) DEALLOCATE(shrub_allom_array) !! Arsene 16-10-2015 - Add
+
    IF (ALLOCATED(cn_sapl)) DEALLOCATE(cn_sapl)
    IF (ALLOCATED(leaf_timecst)) DEALLOCATE(leaf_timecst)
    

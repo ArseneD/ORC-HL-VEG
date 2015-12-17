@@ -809,11 +809,21 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(pipe_tune_exp_coeff)
 !! Arsene 03-08-2015 - New parametrisation for shrub... END
 !! Arsene 03-09-2015 - For iteration (new allomerty for shrubs)
+  LOGICAL, SAVE :: shrub_it_ok = .FALSE.              !! Active shrub iteration for allometry (with DGVM) - else Look-Up Table 
+!$OMP THREADPRIVATE(shrub_it_ok)
   REAL(r_std), SAVE :: accept_sigma_it = 0.01         !! Define the precision wanted for the iteration result 
 !$OMP THREADPRIVATE(accept_sigma_it)
   REAL(r_std), SAVE :: factor_div_it = 5.             !! Define the factor division bewtween iteration
 !$OMP THREADPRIVATE(factor_div_it)
 !! Arsene 03-09-2015 - For iteration (new allomerty for shrubs)
+
+!! Arsene 16-10-2015 - For shrub allometry array
+  INTEGER(i_std), SAVE :: shrub_allom_lig =1000        !! Define the number of line for shrub_allom_array
+!$OMP THREADPRIVATE(shrub_allom_lig)
+  REAL(r_std), SAVE :: shrub_lim_maxdia = 0.96        !! Define the proportion of real maxdia (= maxdia * shrub_lim_maxdia )
+!$OMP THREADPRIVATE(shrub_lim_maxdia)
+!! Arsene 16-10-2015 - For shrub allometry array
+
 
   ! 1.2 climatic parameters 
 
@@ -1125,6 +1135,10 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(vcmax_offset)               !! offset of vcmax reduce by humrel_month (unitless) [0-1]   !! Arsene 30-04-2015 Add 
   REAL(r_std), SAVE :: humrel_mmin = 0.8        !! Below this value, impact of humrel_month (unitless) [0-1] !! Arsene 30-04-2015 Add
 !$OMP THREADPRIVATE(humrel_mmin)                !! Below this value, impact of humrel_month (unitless) [0-1] !! Arsene 30-04-2015 Add 
+  REAL(r_std), SAVE :: vcmax_offset2 = 0.2      !! offset of vcmax reduce by humrel_month (unitless) [0-1]   !! Arsene 04-11-2015 Add
+!$OMP THREADPRIVATE(vcmax_offset2)              !! offset of vcmax reduce by humrel_month (unitless) [0-1]   !! Arsene 04-11-2015 Add 
+  REAL(r_std), SAVE :: humrel_mmax = 0.97       !! Below this value, impact of humrel_month (unitless) [0-1] !! Arsene 04-11-2015 Add
+!$OMP THREADPRIVATE(humrel_mmax)                !! Below this value, impact of humrel_month (unitless) [0-1] !! Arsene 04-11-2015 Add 
 
   !
   ! stomate_season.f90 

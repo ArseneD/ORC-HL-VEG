@@ -1421,6 +1421,14 @@ CONTAINS
        !
        !
 !! Arsene 03-09-2015 - For iteration (new allomerty for shrubs)
+       !Config Key   = SHRUB_IT_OK
+       !Config Desc  = Active shrub iteration for allometry (with DGVM) - else Look-Up Table
+       !Config If    = .NOT.SHRUBS_LIKE_TREES & DGVM_OK
+       !Config Def   = .FALSE.
+       !Config Help  = 
+       !Config Units = [-]    
+       CALL getin_p('SHRUB_IT_OK',shrub_it_ok)
+       !
        !Config Key   = ACCEPT_SIGMA_IT
        !Config Desc  = Define the precision wanted for the iteration result 
        !Config If    = .NOT.SHRUBS_LIKE_TREES
@@ -1437,6 +1445,24 @@ CONTAINS
        !Config Units = [-]    
        CALL getin_p('FACTOR_DIV_IT',factor_div_it)
 !! Arsene 03-09-2015 - For iteration (new allomerty for shrubs)
+       !
+!! Arsene 16-10-2015 - For shrub allometry array
+       !Config Key   = SHRUB_ALLOM_LIG
+       !Config Desc  = Define the number of line for shrub_allom_array
+       !Config If    = .NOT.SHRUBS_LIKE_TREES
+       !Config Def   = 1000
+       !Config Help  = 
+       !Config Units = [-]  
+       CALL getin_p('SHRUB_ALLOM_LIG', shrub_allom_lig)
+       !
+       !Config Key   = SHRUB_LIM_MAXDIA
+       !Config Desc  = Define the proportion of real maxdia (= maxdia * shrub_lim_maxdia ) for shrub
+       !Config If    = .NOT.SHRUBS_LIKE_TREES
+       !Config Def   = 0.97
+       !Config Help  = 
+       !Config Units = [-]  
+       CALL getin_p('SHRUB_LIM_MAXDIA', shrub_lim_maxdia)
+!! Arsene 16-10-2015 - For shrub allometry array
        !
        !
        !Config Key   = PRECIP_CRIT 
@@ -2239,14 +2265,31 @@ CONTAINS
        CALL getin_p('VCMAX_OFFSET',vcmax_offset)
        !
        !Config Key   = HUMREL_MMIN 
-       !Config Desc  = Below this value, impact of humrel_month (unitless) [0-1]
+       !Config Desc  = Below this value, impact of humrel_month on NVP (unitless) [0-1]
        !Config If    = OK_STOMATE
        !Config Def   = 0.8
-       !Config Help  = impact of humrel_mont on vcmax below this value
+       !Config Help  = impact of humrel_month on vcmax below this value (for NVP)
        !Config Units = [-]  
        CALL getin_p('HUMREL_MMIN',humrel_mmin)
 !! Arsene 30-04-2015 Add vcmax_offset & humrel_mmin
-
+       !
+!! Arsene 04-11-2015 Add vcmax_offset2 & humrel_mmax
+       !Config Key   = VCMAX_OFFSET2 
+       !Config Desc  = offset of vcmax reduce by humrel_month on grasses (unitless) [0-1]
+       !Config If    = OK_STOMATE
+       !Config Def   = 0.2
+       !Config Help  = impact of humrel_month can't be below
+       !Config Units = [-]  
+       CALL getin_p('VCMAX_OFFSET2',vcmax_offset2)
+       !
+       !Config Key   = HUMREL_MMAX 
+       !Config Desc  =  Above this value, impact of humrel_month on grasses (unitless) [0-1]
+       !Config If    = OK_STOMATE
+       !Config Def   = 0.97
+       !Config Help  = impact of humrel_month on vcmax above this value (for grasses)
+       !Config Units = [-]  
+       CALL getin_p('HUMREL_MMAX',humrel_mmax)
+!! Arsene 04-11-2015 Add vcmax_offset2 & humrel_mmax
 
 
        !-

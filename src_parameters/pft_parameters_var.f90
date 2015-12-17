@@ -613,6 +613,9 @@ MODULE pft_parameters_var
   REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: leaf_timecst  !! time constant for leaf age discretisation (days)
 !$OMP THREADPRIVATE(leaf_timecst)
 
+!! Arsene 16-10-2015 - ADD
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: shrub_allom_array !! array for each schrubs allometry (if not like trees)
+!$OMP THREADPRIVATE(shrub_allom_array)
 
 !
 ! WETLAND CH4 methane

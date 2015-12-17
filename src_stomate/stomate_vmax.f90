@@ -378,6 +378,16 @@ CONTAINS
 !! Arsene 24-06-2014 Dessication- END
 
 
+!! Arsene 04-11-2015 Add start
+!! Modification: add a constrain on grass vc_max if to much water
+       IF ( .NOT.is_tree(j) .AND. .NOT.is_shrub(j) .AND. vascular(j) .AND. natural(j)) THEN !! Note that is only for Natural grasses
+            WHERE ( humrel_month(:,j) .GT. humrel_mmax )
+               vcmax(:,j) = vcmax(:,j) * ((humrel_month(:,j)* (vcmax_offset2-1.) + (1.-vcmax_offset2*humrel_mmax)) &
+                       &  / (1. - humrel_mmax))
+            ENDWHERE
+       ENDIF
+!! Arsene 04-11-2015 Add end
+
     ENDDO       ! loop over PFTs
 
     IF (bavard.GE.4) WRITE(numout,*) 'Leaving vmax'

@@ -108,11 +108,12 @@ CONTAINS
     REAL(r_std),DIMENSION(npts)                       :: dia             !! Stem diameter (m)
     REAL(r_std),DIMENSION(nvm)                        :: height_presc_12 !! [DISPENSABLE] Prescribed height of each pfts (m)
 
+!! Arsene Add
     REAL(r_std)                                       :: pt1, pt2, pt3, ptcoeff, pdensity  !! Arsene 03-08-2015 - Change pipe_tune for shrubs
-    REAL(r_std),DIMENSION(npts)                       :: volume, woodmass_ind2     !! Arsene 11-08-2015 - New shrub allometry (from Aiba & Kohyama, 1996)
+    REAL(r_std),DIMENSION(npts)                       :: volume, woodmass_ind2             !! Arsene 11-08-2015 - New shrub allometry (from Aiba & Kohyama, 1996)
     REAL(r_std)                                       :: signe, factor, num_it, num_it2, volume1 !! Arsene 11-08-2015 - Add for iteration -, signe_presc
-    LOGICAL                                           :: dia_ok          !! Arsene 11-08-2015 - Add for iteration
-    INTEGER(i_std)                                    :: i               !! Arsene 11-08-2015 - Add for iteration - index (unitless)
+    LOGICAL                                           :: dia_ok                            !! Arsene 11-08-2015 - Add for iteration
+    INTEGER(i_std)                                    :: i, line                           !! Arsene 11-08-2015 - Add for iteration / for Look-Up Table - index (unitless)
 
 !_ ================================================================================================================================
     
@@ -209,25 +210,34 @@ CONTAINS
               ENDWHERE
 
              ELSE                                             !! Arsene 11-08-2015 - Change for shrub allometry
-             !! First, we start by first estimation ==> Ind number is good (normalement c'est bon !)
+
+              !! Two solutions: 1. by iteration or by 2. Look-Up Table
+
+              IF ( shrub_it_ok ) THEN !! Arsene 16-10-2015 : Allometry of shubs via iteration (or Look-Up Table)
+
+              !! 2.1.1.bis Natural shrubs (not like trees)
+              !! First, we start from only "know" value -> Ind number
+
                WHERE (PFTpresent(:,j) .AND.woodmass_ind(:,j).GT.min_stomate)
-               
-                 !! We start diffr-erently because is not easy to calculate Dia.
+             
+                 !! We start differently because is not easy to calculate Dia.
                  !! Input: woodmass_ind, ind (so woodmass), and biomass
 
-                 !! 2.1.1.1.bis. Calculate ind volume
+                 !! 2.1.1.1.bis. Calculate indvidual volume
                  volume(:) = woodmass_ind(:,j) / pdensity
                  
                  !! After we need to calculate the good diameter... by iteration...
                ENDWHERE
 
+               !! 2.1.1.2.bis. Stem diameter from Aiba & Kohyama
+               !!          Stem diameter is calculated by allometory... but no analytique solution for:
+               !! volume(i) = pi/4 * height_presc(j) * pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**(pipe_tune_shrub3+2) &
+               !!               & / ( height_presc(j) + pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**pipe_tune_shrub3 )
+
                DO i = 1, npts ! loop over grid points
                 IF (PFTpresent(i,j) .AND. woodmass_ind(i,j).GT.min_stomate) THEN
-                 !! 2.1.1.2.bis. Stem diameter from Aiba & Kohyama
-                 !          Stem diameter is calculated by allometory... but no analytique solution for:
-                 !! volume(i) = pi/4 * height_presc(j) * pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**(pipe_tune_shrub3+2) &
-                 !!               & / ( height_presc(j) + pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**pipe_tune_shrub3 )
-                 
+
+ 
                  !! On part de la hauteur initiale, et on essaye de trouver le bon diamètre...
                  IF ( height(i,j) .LT. height_presc(j) ) THEN  !! Arsene 11-08-2015 Garde fou
                      dia(i) = (height(i,j)*height_presc(j) / (pt2*(height_presc(j)-height(i,j))) ) &
@@ -341,6 +351,7 @@ CONTAINS
                  dia(i)=MIN(dia(i),maxdia(j))
 
                 ENDIF   !! if PFT present...
+
                ENDDO    !! Map loops
 
                WHERE (PFTpresent(:,j) .AND.woodmass_ind(:,j).GT.min_stomate)
@@ -373,6 +384,78 @@ CONTAINS
                   ! crown area cannot exceed a certain value, prescribed through maxdia
                   cn_ind(:,j) = pt1 * (ind(:,j)*pi/4*dia(:)**2)**ptcoeff / ind(:,j)
                ENDWHERE
+
+              ELSE !! Arsene 16-10-2015 If methode = Look-Up Table (LUT)
+
+                !! 2.1.1.ter Natural shrubs (not like trees)
+                !! First, we start from only "know" value -> Ind number
+
+                WHERE (PFTpresent(:,j) .AND.woodmass_ind(:,j).GT.min_stomate)
+
+                   !! Input: woodmass_ind, ind (so woodmass), and biomass
+
+                   !! 2.1.1.1.ter. Calculate indvidual volume
+                   volume(:) = woodmass_ind(:,j) / pdensity
+
+                ENDWHERE
+
+                DO i = 1, npts ! loop over grid points
+                  IF (PFTpresent(i,j) .AND. woodmass_ind(i,j).GT.min_stomate) THEN
+
+                    !! 2.1.1.2.ter. Stem height from Aiba & Kohyama
+                    !!          Stem diameter is calculated by allometory... but no analytique solution for:
+                    !! volume(i) = pi/4 * height_presc(j) * pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**(pipe_tune_shrub3+2) &
+                    !!               & / ( height_presc(j) + pipe_tune_shrub2 * 100**pipe_tune_shrub3 * dia(i)**pipe_tune_shrub3 )
+
+                    !! Find the lines of the LUT, for each volume
+                    !! ==> Between the two int from ln(volume/volume_min)/ln(cst) +1
+                    IF (volume(i) .LE. shrub_allom_array(j,1,1)) THEN 
+                        height(i,j) = (volume(i) / shrub_allom_array(j,1,1))*shrub_allom_array(j,1,2)
+                    ELSEIF (volume(i) .GE. shrub_allom_array(j,shrub_allom_lig,1)) THEN
+                        height(i,j) = shrub_allom_array(j,shrub_allom_lig,2)
+                    ELSE
+                        line = FLOOR( LOG( volume(i) / shrub_allom_array(j,1,1)) & 
+                               & / LOG(shrub_allom_array(j,shrub_allom_lig+1,1)) ) + 1.
+
+                        !! Identify the linear coefficient for extrapolation
+                        !! vol_fract = ( volume(i) - shrub_allom_array(j,line,1) ) / (shrub_allom_array(j,line+1,1) - shrub_allom_array(j,line,1))
+                        !! Compute the linear interpolation for height
+                        !! height(i,j) = shrub_allom_array(j,line,2) + vol_fract * (shrub_allom_array(j,line+1,2)-shrub_allom_array(j,line,2))
+                        height(i,j) = shrub_allom_array(j,line,2) + (shrub_allom_array(j,line+1,2)- &
+                                 & shrub_allom_array(j,line,2)) * ( (volume(i)-shrub_allom_array(j,line,1)) &
+                                 &  / (shrub_allom_array(j,line+1,1) - shrub_allom_array(j,line,1)))
+                    ENDIF
+
+                  ENDIF
+                ENDDO
+
+                WHERE (PFTpresent(:,j) .AND.woodmass_ind(:,j).GT.min_stomate)
+
+                   !! 2.1.1.3.ter. Stem dia from Aiba & Kohyama
+                   dia(:) = (height(:,j)*height_presc(j) / (pt2*(height_presc(j)-height(:,j))) )**(1/pt3) /100
+
+                   !! 2.1.1.4.ter Individual height if shrub is/was under snow... 
+                   !! On vérifie que le buisson n'a pas été coupé... Et s'il a été coupé on recalcul la hauteur... !! Arsene 01-09-2015
+                   WHERE ( dia(:).LE.dia_cut(:,j) .AND. is_shrub(j))
+                     !! On fix le diametre (identique à celui qu'il y avait lors de la coupe
+                     dia(:) = dia_cut(:,j)
+                     !! On a déjà le nombre d'individus fixé... ATTENTION QUE CELA SOIT BIEN COMPATIBLE ==> PAS D'augmentation de ind tant que dia<dia_cut
+                     !! On calcul la wodmass_ind "comme si on avait height correspondant à dia_cut
+                     woodmass_ind2(:) = pdensity * pi/4. * pt2 * dia(:)**(2+pt3)
+                     !! On peut donx comparer la woodmass réel par rapport à la woodmass attendu, et en déduire height !
+                     height(:,j)=woodmass_ind(:,j)/woodmass_ind2(:)* pt2 * dia(:)**pt3
+                   ELSEWHERE ( dia_cut(:,j).GT.min_stomate )
+                     dia_cut(:,j) = zero
+                   ENDWHERE
+
+                   !! 2.1.1.4 Crown area of individual tree
+                   !          Calculate crown area, truncate crown area for trunks with large diameters
+                   ! crown area cannot exceed a certain value, prescribed through maxdia
+                   cn_ind(:,j) = pt1 * (ind(:,j)*pi/4*dia(:)**2)**ptcoeff / ind(:,j)
+
+                ENDWHERE
+
+              ENDIF !! if methode = Look-Up Table or Iteration
 
              ENDIF                                            !! Arsene 11-08-2015 - Change for shrub allometry
 

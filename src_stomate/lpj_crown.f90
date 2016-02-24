@@ -465,6 +465,20 @@ CONTAINS
              !        To be developped if needed
              STOP 'crown: cannot treat agricultural trees.'
           ENDIF
+
+       !! Arsene 18-01-2016 - START - Add height compute for Non Vascular Plant (for soil thermal cpacity and conductivity)
+       ELSEIF ( .NOT.vascular(j) ) THEN
+
+          WHERE (PFTpresent(:,j))
+
+             !! Height for non-vascular plant, from biomass and density (rho_moss)
+             height(:,j) = SUM(biomass(:,j,:,icarbon),dim=2)/rho_moss
+
+             !! Like grasses
+             cn_ind(:,j) = un
+          ENDWHERE
+       !! Arsene 18-01-2016 - END - Add height compute for Non Vascular Plant (for soil thermal cpacity and conductivity)
+
        ELSE
           
        !! 2.2 Grasses

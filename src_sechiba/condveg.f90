@@ -179,7 +179,7 @@ CONTAINS
 
          ! Call subroutine 'condveg snow'
          CALL condveg_snow (ldrestart_read, kjpindex, veget, veget_max, frac_nobio, totfrac_nobio, &
-             snow, snow_age, snow_nobio, snow_nobio_age, albedo, albedo_snow, albedo_glob)
+             snowdz, snow_age, snow_nobio, snow_nobio_age, albedo, albedo_snow, albedo_glob, z0) !! Arsene 13-01-2016 - change snow for snowdz & add z0
 
         RETURN
 
@@ -193,7 +193,7 @@ CONTAINS
 
     ! Update snow parameters by calling subroutine 'condveg_snow'
     CALL condveg_snow (ldrestart_read, kjpindex, veget, veget_max, frac_nobio, totfrac_nobio, &
-         snow, snow_age, snow_nobio, snow_nobio_age, albedo, albedo_snow, albedo_glob)
+         snowdz, snow_age, snow_nobio, snow_nobio_age, albedo, albedo_snow, albedo_glob, z0) !! Arsene 13-01-2016 - change snow for snowdz & add z0
 
     !! 3. Call subroutines to write restart files and data
 
@@ -721,7 +721,8 @@ CONTAINS
 !_ ================================================================================================================================
 
   SUBROUTINE condveg_snow  (ldrestart_read, kjpindex, veget, veget_max, frac_nobio, totfrac_nobio, &
-                            snow, snow_age, snow_nobio, snow_nobio_age, albedo, albedo_snow, albedo_glob)
+                            snowdz, snow_age, snow_nobio, snow_nobio_age, albedo, albedo_snow, albedo_glob, z0) !! Arsene 13-01-2016 - change snow for snowdz & add z0
+
 
     !! 0. Variable and parameter declaration
 
@@ -736,7 +737,11 @@ CONTAINS
                                                                            !! continental ice, lakes, etc. (unitless)     
     REAL(r_std),DIMENSION (kjpindex), INTENT(in)        :: totfrac_nobio   !! Total fraction of non-vegetative surfaces, i.e. 
                                                                            !! continental ice, lakes, etc. (unitless)   
-    REAL(r_std),DIMENSION (kjpindex), INTENT(in)        :: snow            !! Snow mass in vegetation (kg m^{-2})           
+!    REAL(r_std),DIMENSION (kjpindex), INTENT(in)        :: snow            !! Snow mass in vegetation (kg m^{-2})           
+    REAL(r_std),DIMENSION (kjpindex,nsnow),INTENT(in)   :: snowdz          !! snow depth (m) !! Arsene 13-01-2016 - change snow for snowdz because is the original variable needed 
+    REAL(r_std),DIMENSION (kjpindex), INTENT (in)       :: z0              !! Roughness (m)
+
+
     REAL(r_std),DIMENSION (kjpindex,nnobio), INTENT(in) :: snow_nobio      !! Snow mass on continental ice, lakes, etc. (kg m^{-2})      
     REAL(r_std),DIMENSION (kjpindex), INTENT(in)        :: snow_age        !! Snow age (days)        
     REAL(r_std),DIMENSION (kjpindex,nnobio), INTENT(in) :: snow_nobio_age  !! Snow age on continental ice, lakes, etc. (days)    
@@ -843,7 +848,21 @@ CONTAINS
  
     !! 3. Calculate snow cover fraction for both total vegetated and total non-vegtative surfaces.\n
 
-    frac_snow_veg(:) = MIN(MAX(snow(:),zero)/(MAX(snow(:),zero)+snowcri_alb),un)
+    DO ji  = 1, kjpindex
+
+      IF ( .NOT.new_frac_snow_veg ) THEN
+        !! Arsene 13-01-2016 - remove old version to be more realistic (use snowdz) and take into account vegetation
+        ! original: frac_snow_veg(:) = MIN(MAX(snow(:),zero)/(MAX(snow(:),zero)+snowcri_alb),un) !! use snowdz... because use snow mass is stupid   
+        frac_snow_veg(ji) = MIN(MAX(SUM(snowdz(ji,:)),zero)/(MAX(SUM(snowdz(ji,:)),zero)+snowcri_alb),un)
+
+      ELSE
+        !! Arsene 13-01-2016 - New version of frac_snow_veg with real snow depth and vegetation impact
+        !! Chalita and Treut 1994 for initial principe, Douville and al, 1995 and Boone 2002 for vegetation (from Pitman et al, 1995)
+        frac_snow_veg(ji) = MIN(MAX(SUM(snowdz(ji,:)),zero)/(MAX(SUM(snowdz(ji,:)),zero)+z0(ji)*5),un)
+      
+      ENDIF
+    ENDDO
+
     DO jv = 1, nnobio
       frac_snow_nobio(:,jv) = MIN(MAX(snow_nobio(:,jv),zero)/(MAX(snow_nobio(:,jv),zero)+snowcri_alb),un)
     ENDDO
@@ -1231,22 +1250,27 @@ CONTAINS
     !! 0.4 Local variables
     
     INTEGER(i_std)                                      :: jv            !! Loop index over PFTs (unitless)
-    INTEGER(i_std)                                      :: ji            !! Loop index over map points (unitless)   !! Arsène 23-03-2015 add
-    REAL(r_std), DIMENSION(kjpindex)                    :: sumveg        !! Fraction of bare soil (unitless) 
+    INTEGER(i_std)                                      :: ji            !! Loop index over map points (unitless)   !! Arsene 23-03-2015 add
+    REAL(r_std), DIMENSION(kjpindex)                    :: sumveg        !! Fraction of bare soil (unitless)        !! Arsene 13-01-2016 No use in new version 
     REAL(r_std), DIMENSION(kjpindex)                    :: ave_height    !! Average vegetation height (m)
     REAL(r_std), DIMENSION(kjpindex)                    :: d_veg         !! PFT coverage of vegetative PFTs 
                                                                          !! (= ind*cn_ind) (m^2 m^{-2})
     REAL(r_std), DIMENSION(kjpindex)                    :: zhdispl       !! Zero plane displacement height (m)
     REAL(r_std)                                         :: z0_nobio      !! Roughness of non-vegetative fraction (m),  
                                                                          !! i.e. continental ice, lakes, etc. 
+
+    REAL(r_std), DIMENSION(kjpindex)                    :: height2       !! Arsene var --> heigth under snow
+    REAL(r_std), DIMENSION(kjpindex)                    :: snowdzsum     !! Arsene 12-01-2015
+
 !_ ================================================================================================================================
-    
+
+    IF (zero .EQ.un) then   !! Arsene 13-01-2016 - Old calculation... without snow take into account
     !! 1. Preliminary calculation
 
     ! Calculate the roughness (m) of bare soil, z0_bare
     ! taken from constantes_veg.f90    
     z0(:) = tot_bare_soil(:) * LOG(z0_bare)
-
+write(*,*) "zo", z0, "LOG(z0_bare)", LOG(z0_bare)
     ! Define fraction of bare soil
     sumveg(:) = tot_bare_soil(:)
 
@@ -1263,17 +1287,21 @@ CONTAINS
        ! tree trunks influence the roughness even when there are no leaves
        IF ( is_tree(jv) ) THEN !!.OR. is_shrub(jv) ) THEN                !! Arsene 31-07-2014 modifications   ... attention sous la neige peut être pas.
           d_veg(:) = veget_max(:,jv)
-
+          height2(:)=height(:,jv)
 !! Arsene 23-03-2015
        ELSEIF ( is_shrub(jv) ) THEN
            DO ji = 1, kjpindex
                IF ( ( height(ji,jv) .GE. ( SUM(snowdz(ji,:)) *1.3 ) ) .OR. ( SUM(snowdz(ji,:)) .LE. min_sechiba ) ) THEN !! Arsene 23-03-2015 1.3 ??  +30 %?
-                   d_veg(:) = veget_max(ji,jv)
+                   d_veg(ji) = veget_max(ji,jv)
+                   height2(ji)=height(ji,jv)
                ELSEIF ( height(ji,jv) .LE. ( SUM(snowdz(ji,:)) *0.7 ) ) THEN
-                   d_veg(:) = veget(ji,jv)
+                   d_veg(ji) = veget(ji,jv)
+                   height2(ji)= 0.  !! Arsene 24-03-2015 ==> quoi mettre comme minimum ?????? Comment se comporte les herbacées dans ce cas ? --> modifier les herbacées ?
                ELSE   !! Arsene 23-03-015  Equation de la droite y = ax + b ==> b = (y1-y2)/(x1-x2)  // a = x1y2-y1x2 / (x1-x2)
-                   d_veg(:) = ( (veget_max(ji,jv)-veget(ji,jv))*height(ji,jv) &
+                   d_veg(ji) = ( (veget_max(ji,jv)-veget(ji,jv))*height(ji,jv) &
                                  & + veget(ji,jv)*1.3*SUM(snowdz(ji,:)) - veget_max(ji,jv)*0.7*SUM(snowdz(ji,:)) ) &
+                                 & / ((1.3-0.7)*SUM(snowdz(ji,:)) )
+                   height2(ji) = ( height(ji,jv)**2 - height(ji,jv) * 0.7*SUM(snowdz(ji,:)) ) &     !! Arsene 25-03-2015 Ici on a pris comme valeur si 0.7 SUM ==> 0
                                  & / ((1.3-0.7)*SUM(snowdz(ji,:)) )
                ENDIF
           ENDDO
@@ -1283,7 +1311,17 @@ CONTAINS
 
           ! In the case of grass, use parameter veget because grasses 
           ! only influence the roughness during the growing season
+!! Arsene 12-01-2016
+          
+
           d_veg(:) = veget(:,jv)
+
+
+          height2(:)=height(:,jv)
+
+
+!! Arsene 12-01-2016
+
        ENDIF
        
        ! Calculate the average roughness over the grid cell:
@@ -1296,20 +1334,122 @@ CONTAINS
        ! logarithm of roughness length per grid cell for the vegetative
        ! PFTs.
        z0(:) = z0(:) + d_veg(:) * &
-            LOG( MAX(height(:,jv)*z0_over_height,z0_bare) )
+            LOG( MAX(height2(:)*z0_over_height,z0_bare) )
        ! Sum of bare soil and fraction vegetated fraction 
        sumveg(:) = sumveg(:) + d_veg(:)
 
        ! Weighted height of vegetation with maximal cover fraction
-       ave_height(:) = ave_height(:) + veget_max(:,jv)*height(:,jv)
+       ave_height(:) = ave_height(:) + veget_max(:,jv)*height2(:)
        
+write(*,*) "MAX", MAX(height(:,jv)*z0_over_height,z0_bare), "LOG", LOG( MAX(height(:,jv)*z0_over_height,z0_bare) )
+
     ENDDO !Loop over # vegetative PFTs
-    
+read(*,*)    
     !! 3. Calculate the mean roughness length of non-vegetative surfaces \n
 
     ! Search for pixels with vegetated part to normalise 
     ! roughness length
     WHERE ( sumveg(:) > zero ) z0(:) = z0(:) / sumveg(:)
+
+    ELSE   !! Arsene 12-01-2016 - NEW compute with snow - shrubs - mosses
+
+    !! 1. Preliminary calculation
+
+    ! Calculate the roughness (m) of non-vegetative surfaces, z0_bare: here bare soil, after non vegetative (veget_max - veget) for grasses+NVP
+    ! taken from constantes_veg.f90    
+    z0(:) = veget_max(:,1) * LOG(z0_bare)
+
+    ! Set average vegetation height to zero
+    ave_height(:) = zero
+
+    ! Compute snow height
+    DO ji = 1, kjpindex
+        snowdzsum(ji) = SUM(snowdz(ji,:))
+    ENDDO
+
+    !! 2. Calculate the mean roughness length 
+
+    ! Calculate the mean roughness height of
+    ! vegetative PFTs over the grid cell
+    DO jv = 2, nvm !Loop over # vegetative PFTs
+
+       ! In the case of forest, use parameter veget_max because 
+       ! tree trunks influence the roughness even when there are no leaves
+       IF ( is_tree(jv) ) THEN !!.OR. is_shrub(jv) ) THEN                !! Arsene 31-07-2014 modifications   ... attention sous la neige peut être pas.
+          d_veg(:) = veget_max(:,jv)
+
+          WHERE ( snowdzsum(:) .LE. min_sechiba )
+              height2(:) = MAX(height(:,jv) - snowdzsum(:),zero)
+          ELSEWHERE
+              height2(:) = height(:,jv)
+          ENDWHERE
+
+       ELSEIF ( is_shrub(jv) ) THEN
+          d_veg(:) = veget_max(:,jv)
+
+          WHERE ( (snowdzsum(:) .LE. min_sechiba ) )
+              height2(:) = height(:,jv)
+
+          ELSEWHERE ( height(:,jv) .GE. ( snowdzsum(:) * (1.+z0_sensib) ) ) 
+              height2(:) = height(:,jv) - snowdzsum(:)
+
+          ELSEWHERE ( height(:,jv) .LE. ( snowdzsum(:) * (1.-z0_sensib) ) ) 
+!          ELSEWHERE ( height(:,jv) .LE. ( snowdzsum(:) * 1. ) ) 
+              height2(:) = zero
+
+          ELSEWHERE
+              !! Equation de la droite y = ax + b ==> a = (y2-y1)/(x2-x1)  // b = y1x2-x1y2 / (x2-x1)
+              !! With x2 = 1,3snowdz ; x1 = 0,7snowdz or snowdz ; y1 = 0. ; y2 = 0,3 dz ; x = heigt
+              !! so, 
+              !! height2(:) = ( z0_sensib*snowdzsum(:) * height(:,jv) - (snowdzsum(:)*(1.-z0_sensib) * &
+              !!                & z0_sensib*snowdzsum(:) ) ) / ( 2*snowdzsum(:) )
+
+              height2(:) = ( z0_sensib * height(:,jv) - (snowdzsum(:)*(1.-z0_sensib) * z0_sensib ) ) / 2
+
+!              height2(:) = ( z0_sensib * height(:,jv) - (snowdzsum(:)* z0_sensib ) )                             
+
+          ENDWHERE
+
+       ELSE
+          ! In the case of grass, use parameter veget because grasses 
+          ! only influence the roughness during the growing season
+
+          d_veg(:) = veget(:,jv)
+
+          WHERE ( snowdzsum(:) .LE. min_sechiba )
+              height2(:) = MAX(height(:,jv) - snowdzsum(:),zero)
+          ELSEWHERE
+              height2(:) = height(:,jv)
+          ENDWHERE
+
+          ! where they are not really here, add "bare soil" roughness
+          WHERE ( (veget_max(:,jv) - veget(:,jv) ) .GT. min_sechiba )
+              z0(:) = z0(:) + (veget_max(:,jv)-veget(:,jv)) * LOG(z0_bare) 
+          ENDWHERE
+
+       ENDIF
+
+       ! Calculate the average roughness over the grid cell:
+       ! The roughness for vegetative PFTs is calculated by
+       ! the vegetation height per PFT multiplied by the roughness 
+       ! parameter 'z0_over_height= 1/16'. If this scaled value is 
+       ! lower than 0.01 than the value for the roughness length 
+       ! of bare soil (0.01) is used. The sum of the logarithm of 
+       ! the roughness times the fraction per grid cell gives the 
+       ! logarithm of roughness length per grid cell for the vegetative
+       ! PFTs.
+       z0(:) = z0(:) + d_veg(:) * &
+            LOG( MAX(height2(:)*z0_over_height,z0_bare) )
+
+       ! Weighted height of vegetation (above snow) with maximal cover fraction
+       ave_height(:) = ave_height(:) + veget_max(:,jv)*height2(:)
+
+    ENDDO !Loop over # vegetative PFTs
+
+    !! 3. Calculate the mean roughness length of non-vegetative surfaces 
+
+    ENDIF  !! Arsene 12-01-2016 - NEW compute with snow - shrubs - mosses
+
     
     ! Calculate fraction of roughness for vegetated part 
     z0(:) = (un - totfrac_nobio(:)) * z0(:)
@@ -1419,7 +1559,7 @@ CONTAINS
 
     INTEGER(i_std)                                      :: jv            !! Loop index over PFTs (unitless)
     INTEGER(i_std)                                      :: ji            !! Loop index over grill (unitless)  !! Arsene 24-03-2015 Add
-    REAL(r_std), DIMENSION(kjpindex)                    :: sumveg        !! Fraction of bare soil (unitless)
+    REAL(r_std), DIMENSION(kjpindex)                    :: sumveg        !! Fraction of bare soil (unitless)  !! Arsene 13-01-2016 No use in new version
     REAL(r_std), DIMENSION(kjpindex)                    :: ztmp          !! Max height of the atmospheric level (m)
     REAL(r_std), DIMENSION(kjpindex)                    :: ave_height    !! Average vegetation height (m)
     REAL(r_std), DIMENSION(kjpindex)                    :: d_veg         !! PFT coverage of vegetative PFTs 
@@ -1429,18 +1569,22 @@ CONTAINS
                                                                          !! i.e. continental ice, lakes, etc. 
 
     REAL(r_std), DIMENSION(kjpindex)                    :: height2       !! Arsene var --> heigth under snow
+    REAL(r_std), DIMENSION(kjpindex)                    :: snowdzsum     !! Arsene 12-01-2015
 
 !_ ================================================================================================================================
-    
+
+
+
+    IF (zero .EQ.un) then   !! Old calculation... without snow take into account
     !! 1. Preliminary calculation
 
     ! Set maximal height of first layer
-    ztmp(:) = MAX(10., zlev(:))
+    ztmp(:) = MAX(10., zlev(:)) 
 
     ! Calculate roughness for non-vegetative surfaces
     ! with the von Karman constant 
     z0(:) = tot_bare_soil(:) * (ct_karman/LOG(ztmp(:)/z0_bare))**2
-
+write(*,*) "z0", z0, "z0 bare", (ct_karman/LOG(ztmp(:)/z0_bare))**2, "ztmp", ztmp
     ! Fraction of bare soil
     sumveg(:) = tot_bare_soil(:)
 
@@ -1471,7 +1615,7 @@ CONTAINS
                    d_veg(ji) = veget(ji,jv)
                    height2(ji)= 0.  !! Arsene 24-03-2015 ==> quoi mettre comme minimum ?????? Comment se comporte les herbacées dans ce cas ? --> modifier les herbacées ?
                ELSE   !! Arsene 23-03-015  Equation de la droite y = ax + b ==> b = (y1-y2)/(x1-x2)  // a = x1y2-y1x2 / (x1-x2)
-                   d_veg(:) = ( (veget_max(ji,jv)-veget(ji,jv))*height(ji,jv) &
+                   d_veg(ji) = ( (veget_max(ji,jv)-veget(ji,jv))*height(ji,jv) &
                                  & + veget(ji,jv)*1.3*SUM(snowdz(ji,:)) - veget_max(ji,jv)*0.7*SUM(snowdz(ji,:)) ) &
                                  & / ((1.3-0.7)*SUM(snowdz(ji,:)) )
                    height2(ji) = ( height(ji,jv)**2 - height(ji,jv) * 0.7*SUM(snowdz(ji,:)) ) &     !! Arsene 25-03-2015 Ici on a pris comme valeur si 0.7 SUM ==> 0
@@ -1502,21 +1646,127 @@ CONTAINS
 
 !! Arsene 24-03-2015
 
-       z0(:) = z0(:) + d_veg(:) * (ct_karman/LOG(ztmp(:)/MAX(height(:,jv)*z0_over_height,z0_bare)))**2
+       z0(:) = z0(:) + d_veg(:) * (ct_karman/LOG(ztmp(:)/MAX(height2(:)*z0_over_height,z0_bare)))**2
 
        ! Sum of bare soil and fraction vegetated fraction
        sumveg(:) = sumveg(:) + d_veg(:)
        
        ! Weigh height of vegetation with maximal cover fraction
-       ave_height(:) = ave_height(:) + veget_max(:,jv)*height(:,jv)
+       ave_height(:) = ave_height(:) + veget_max(:,jv)*height2(:)
        
     ENDDO
-    
+
     !! 3. Calculate the mean roughness height of vegetative PFTs over the grid cell
     
     !  Search for pixels with vegetated part to normalise 
     !  roughness height
     WHERE ( sumveg(:) .GT. zero ) z0(:) = z0(:) / sumveg(:)
+
+!########################################################################################################################################
+    ELSE   !! 12-01-2016 - NEW compute with snow - shrubs - mosses
+
+    !! 1. Preliminary calculation
+
+    ! Set maximal height of first layer
+    ztmp(:) = MAX(10., zlev(:))   !! !! Arsene 12-01-2016 - Why fix ? What this variable ?
+
+    ! Calculate roughness for non-vegetative surfaces: here bare soil, after non vegetative (veget_max - veget) for grasses+NVP
+    ! with the von Karman constant 
+    z0(:) = veget_max(:,1) * (ct_karman/LOG(ztmp(:)/z0_bare))**2
+
+    ! Set average vegetation heighti (above snow) to zero
+    ave_height(:) = zero
+
+    ! Compute snow height
+    DO ji = 1, kjpindex
+        snowdzsum(ji) = SUM(snowdz(ji,:))
+    ENDDO
+
+    !! 2. Calculate the mean roughness height 
+
+    ! Calculate the mean roughness height of
+    ! vegetative PFTs over the grid cell
+    DO jv = 2, nvm
+
+       ! In the case of forest, use parameter veget_max because 
+       ! tree trunks influence the roughness even when there are no leaves
+       IF ( is_tree(jv) ) THEN
+          ! In the case of grass, use parameter veget because grasses 
+          ! only influence the roughness during the growing season
+          d_veg(:) = veget_max(:,jv)
+
+          WHERE ( snowdzsum(:) .LE. min_sechiba )
+              height2(:) = MAX(height(:,jv) - snowdzsum(:),zero)
+          ELSEWHERE
+              height2(:) = height(:,jv)
+          ENDWHERE
+      
+       ELSEIF ( is_shrub(jv) ) THEN
+          d_veg(:) = veget_max(:,jv)
+
+          WHERE ( (snowdzsum(:) .LE. min_sechiba ) )
+              height2(:) = height(:,jv)
+
+          ELSEWHERE ( height(:,jv) .GE. ( snowdzsum(:) * (1.+z0_sensib) ) ) 
+              height2(:) = height(:,jv) - snowdzsum(:)
+
+          ELSEWHERE ( height(:,jv) .LE. ( snowdzsum(:) * (1.-z0_sensib) ) ) 
+!          ELSEWHERE ( height(:,jv) .LE. ( snowdzsum(:) * 1. ) ) 
+              height2(:) = zero
+
+          ELSEWHERE
+              !! Equation de la droite y = ax + b ==> a = (y2-y1)/(x2-x1)  // b = y1x2-x1y2 / (x2-x1)
+              !! With x2 = 1,3snowdz ; x1 = 0,7snowdz or snowdz ; y1 = 0. ; y2 = 0,3 dz ; x = heigt
+              !! so, 
+              !! height2(:) = ( z0_sensib*snowdzsum(:) * height(:,jv) - (snowdzsum(:)*(1.-z0_sensib) * &
+              !!                & z0_sensib*snowdzsum(:) ) ) / ( 2*snowdzsum(:) )
+
+              height2(:) = ( z0_sensib * height(:,jv) - (snowdzsum(:)*(1.-z0_sensib) * z0_sensib ) ) / 2
+
+!              height2(:) = ( z0_sensib * height(:,jv) - (snowdzsum(:)* z0_sensib ) )                             
+
+          ENDWHERE
+
+
+       ELSE
+          ! grasses (and Non-Vascular Plant) only have an influence if they are really there!
+          d_veg(:) = veget(:,jv)
+
+          WHERE ( snowdzsum(:) .LE. min_sechiba )
+              height2(:) = MAX(height(:,jv) - snowdzsum(:),zero)
+          ELSEWHERE
+              height2(:) = height(:,jv)
+          ENDWHERE
+
+          ! where they are not really here, add "bare soil" roughness
+          WHERE ( (veget_max(:,jv) - veget(:,jv) ) .GT. min_sechiba )
+              z0(:) = z0(:) + (veget_max(:,jv)-veget(:,jv)) * (ct_karman/LOG(ztmp(:)/z0_bare))**2
+          ENDWHERE
+
+       ENDIF
+
+
+       ! Calculate the average roughness over the grid cell:
+       ! The unitless drag coefficient is per vegetative PFT
+       ! calculated by use of the von Karman constant, the height 
+       ! of the first layer and the roughness. The roughness
+       ! is calculated as the vegetation height  per PFT 
+       ! multiplied by the roughness  parameter 'z0_over_height= 1/16'. 
+       ! If this scaled value is lower than 0.01 then the value for 
+       ! the roughness of bare soil (0.01) is used. 
+       ! The sum over all PFTs gives the average roughness 
+       ! per grid cell for the vegetative PFTs.
+
+       z0(:) = z0(:) + d_veg(:) * (ct_karman/LOG(ztmp(:)/MAX(height2(:)*z0_over_height,z0_bare)))**2
+
+       ! Weigh height of vegetation (above snow) with maximal cover fraction
+       ave_height(:) = ave_height(:) + veget_max(:,jv)*height2(:)
+
+    ENDDO
+
+    !! 3. Calculate the mean roughness height of vegetative PFTs over the grid cell
+
+    ENDIF  !! 12-01-2016 - NEW compute with snow - shrubs - mosses
 
     ! Calculate fraction of roughness for vegetated part 
     z0(:) = (un - totfrac_nobio(:)) * z0(:)

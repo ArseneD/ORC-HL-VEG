@@ -303,8 +303,16 @@ CONTAINS
           CALL slowproc_derivvar (kjpindex, veget, lai, &
                qsintmax, deadleaf_cover, assim_param, height, temp_growth, humrel)    !! Arsene 28-05-2014 Add humrel
        ELSE
-          qsintmax(:,:) = qsintcst * veget(:,:) * lai(:,:)
+!! 20-01-2016 Arsene - Add for moss, interception and water2infilt (hydrol). NB: Consequences in diffuco - START
           qsintmax(:,1) = zero
+          DO jv= 2, nvm
+            IF (vascular(jv) .OR. .NOT.moss_water_leack_ok) THEN
+              qsintmax(:,jv) = qsintcst * veget(:,jv) * lai(:,jv)
+            ELSE
+              qsintmax(:,jv) = qsintcst_moss_coef * qsintcst * veget(:,jv) * lai(:,jv)
+            ENDIF
+          ENDDO
+!! 20-01-2016 Arsene - Add for moss, interception and water2infilt (hydrol). NB: Consequences in diffuco - END
        ENDIF
 
        RETURN
@@ -599,8 +607,16 @@ CONTAINS
           CALL slowproc_derivvar (kjpindex, veget, lai, &
                qsintmax, deadleaf_cover, assim_param, height, temp_growth, humrel)    !! Arsene 28-05-2014 Add humrel
        ELSE
-          qsintmax(:,:) = qsintcst * veget(:,:) * lai(:,:)
+!! 20-01-2016 Arsene - Add for moss, interception and water2infilt (hydrol). NB: Consequences in diffuco - START
           qsintmax(:,1) = zero
+          DO jv= 2, nvm
+            IF (vascular(jv) .OR. .NOT.moss_water_leack_ok ) THEN
+              qsintmax(:,jv) = qsintcst * veget(:,jv) * lai(:,jv)
+            ELSE
+              qsintmax(:,jv) = qsintcst_moss_coef * qsintcst * veget(:,jv) * lai(:,jv)
+            ENDIF
+          ENDDO
+!! 20-01-2016 Arsene - Add for moss, interception and water2infilt (hydrol). NB: Consequences in diffuco - END
        ENDIF
        !
     END IF
@@ -1512,11 +1528,17 @@ SUBROUTINE slowproc_init (kjit, ldrestart_read, dtradia, date0, kjpindex, IndexL
     !
     ! 4. Initialize the maximum water on vegetation for interception
     !
-    qsintmax(:,:) = qsintcst * veget(:,:) * lai(:,:)
-
-    ! Added by Nathalie - July 2006
-    !  Initialize the case of the PFT no.1 to zero 
+!! 20-01-2016 Arsene - Add for moss, interception and water2infilt (hydrol). NB: Consequences in diffuco - START
+    !  Initialize the case of the PFT no.1 to zero (Added by Nathalie - July 2006)
     qsintmax(:,1) = zero
+    DO jv= 2, nvm
+      IF (vascular(jv) .OR. .NOT.moss_water_leack_ok) THEN
+        qsintmax(:,jv) = qsintcst * veget(:,jv) * lai(:,jv)
+      ELSE
+        qsintmax(:,jv) = qsintcst_moss_coef * qsintcst * veget(:,jv) * lai(:,jv)
+      ENDIF
+    ENDDO
+!! 20-01-2016 Arsene - Add for moss, interception and water2infilt (hydrol). NB: Consequences in diffuco - END
 
     temp_growth(:)=25.
 

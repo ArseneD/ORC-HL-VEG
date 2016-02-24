@@ -399,7 +399,7 @@ CONTAINS
        & snowrho,snowtemp,soiltemp,snowgrain,snowdz,snowheat,snowliq,&
        & grndflux,gtemp,gthick,gpkappa,zdz1_soil,zdz2_soil,cgrnd_soil,dgrnd_soil, &
        & soilflxresid,snowflx,snowcap,pkappa_snow,lambda_snow,cgrnd_snow,dgrnd_snow,temp_sol_add, & !pss:+
-       & drunoff_tot, fwet_out) !pss-
+       & fwet_out) !pss- !! Arsene 28-01-2016 - REMOVE drunoff_tot because never user and bug in sechiba_output.f90
 
 !!!pss---note:here, 
 ! lalo and resolution are needed to extra_cti 
@@ -479,7 +479,7 @@ CONTAINS
     REAL(r_std),DIMENSION (kjpindex), INTENT(out)      :: evap_bare_lim    !! Limitation factor for bare soil evaporation
     
 !pss:+
-    REAL(r_std),DIMENSION (kjpindex), INTENT (inout)     :: drunoff_tot    !! Dunne runoff 
+!!    REAL(r_std),DIMENSION (kjpindex), INTENT (inout)     :: drunoff_tot    !! Dunne runoff  !! Arsene 28-01-2016 - REMOVE because never user and bug in sechiba_output.f90
     REAL(r_std),DIMENSION (kjpindex), INTENT (out)     :: fwet_out   !! fwet: to change the balance of energy according to wetland fraction
 !pss:-
 
@@ -956,7 +956,7 @@ CONTAINS
          tot_melt,evap_bare_lim, shumdiag, shumdiag_perma, &
          k_litt, litterhumdiag, humrel, vegstress, drysoil_frac,&
          stempdiag,snow,snowdz, & !pss:+
-         drunoff_tot, fsat) !pss-
+         fsat) !pss- !! Arsene 28-01-2016 - REMOVE drunoff_tot because never user and bug in sechiba_output.f90
 
     ! If we check the water balance we end with the comparison of total water change and fluxes
     !! X if check_waterbal ==> hydrol_waterbal
@@ -1087,7 +1087,7 @@ CONTAINS
 !       CALL histwrite_p(hist_id, 'ZWFC', kjit, ZWFC, kjpindex, index) 
 !       CALL histwrite_p(hist_id, 'RU', kjit, ruu_ch, kjpindex, index) 
 !       CALL histwrite_p(hist_id, 'mx_eau_var', kjit, mx_eau_var, kjpindex, index)
-       CALL histwrite_p(hist_id, 'drunoff_tot', kjit, drunoff_tot, kjpindex, index)
+!       CALL histwrite_p(hist_id, 'drunoff_tot', kjit, drunoff_tot, kjpindex, index) !! Arsene 28-01-2016 - REMOVE because never user and bug in sechiba_output.f90
 !pss:-
 
        IF ( control_in%do_floodplains ) THEN
@@ -3372,6 +3372,7 @@ CONTAINS
        ENDDO
     ENDDO
 
+
        ! An additional exponential factor for ks depending on the amount of roots in the soil 
        ! through a geometric average over the vegets
        !!??Aurelien: Pkoi utiliser ks_usda?
@@ -4074,7 +4075,7 @@ CONTAINS
     !! 0.4 Local variables
 
     INTEGER(i_std)                                           :: ji, jv
-    REAL(r_std), DIMENSION (kjpindex,nvm)                    :: zqsintvegnew
+    REAL(r_std), DIMENSION (kjpindex,nvm)                    :: zqsintvegnew, water_leack !! 20-01-2016 Arsene - ADD water_leack
 
 !_ ================================================================================================================================
 
@@ -4095,9 +4096,30 @@ CONTAINS
     !! 1 evaporation off the continents
     !
     !! 1.1 The interception loss is take off the canopy. 
-    DO jv=2,nvm
+    DO jv=2,nvm                                        !! 20-01-2016 Arsene - BE CAREFUL: the result can be negative (qsintveg = 0 and vevapwet >0 )
        qsintveg(:,jv) = qsintveg(:,jv) - vevapwet(:,jv)
     END DO
+
+
+    !! 20-01-2016 Arsene - Add - START
+    !! 1.1.bis. For moss interception is greather, but some water is loss infilt at each time step
+    !!          Before new rain ? 
+    !!          The part of water loss (leak/fuite) have to be dependent of time step
+    !!          int = (1 - gamma) x int , with gamma = min(dt / time, 1.) to lost all water. Time: 2 week ? 
+
+    water_leack(:,:)=zero !! 20-01-2016 Arsene - ADD
+
+    IF ( moss_water_leack_ok .AND. ANY(.NOT.vascular(:)) ) THEN
+      DO jv=2,nvm
+        IF (.NOT.vascular(jv)) THEN
+         WHERE ( qsintveg(:,jv).GT.min_sechiba)    !! 22-01-2016 - Arsene - Yes..q the qsintveg can be negative...
+           qsintveg(:,jv) = (1. - (dt_sechiba / (moss_water_leack * one_day))) * qsintveg(:,jv)     !! 20-01-2016 Arsene - dt_sechiba = dtradia... Why ? 
+           water_leack(:,jv) = dt_sechiba / (moss_water_leack * one_day) * qsintveg(:,jv)           !! 20-01-2016 Arsene - ADD
+         ENDWHERE
+        ENDIF
+      ENDDO
+    ENDIF
+    !! 20-01-2016 Arsene - Add - END
 
     !     It is raining :
     !! 1.2 precip_rain is shared for each vegetation type
@@ -4109,11 +4131,12 @@ CONTAINS
        IF ( ok_throughfall_by_pft ) THEN
           ! Correction Nathalie - Juin 2006 - une partie de la pluie arrivera toujours sur le sol
           ! sorte de throughfall supplementaire
-          qsintveg(:,jv) = qsintveg(:,jv) + veget(:,jv) * ((1-throughfall_by_pft(jv))*precip_rain(:))
+          qsintveg(:,jv) = qsintveg(:,jv) + veget(:,jv) * ((1-throughfall_by_pft(jv))*precip_rain(:)) !! 20-01-2016 Arsene - change throughfall_by_pft for moss: 30% to 15%
        ELSE
           qsintveg(:,jv) = qsintveg(:,jv) + veget(:,jv) * precip_rain(:)
        ENDIF
     END DO
+
 
     !
     !! 1.3 Limits the effect and sum what receives soil
@@ -4121,15 +4144,15 @@ CONTAINS
     precisol(:,1)=veget_max(:,1)*precip_rain(:)
     DO jv=2,nvm
        DO ji = 1, kjpindex
-          zqsintvegnew(ji,jv) = MIN (qsintveg(ji,jv),qsintmax(ji,jv)) 
-          IF ( ok_throughfall_by_pft ) THEN
+          zqsintvegnew(ji,jv) = MIN (qsintveg(ji,jv),qsintmax(ji,jv))                                 !! 20-01-2016 Arsene - NB: qsintmax is increase qsintmax 
+          IF ( ok_throughfall_by_pft .AND. vascular(jv)) THEN
              ! correction throughfall Nathalie - Juin 2006
              precisol(ji,jv) = (veget(ji,jv)*throughfall_by_pft(jv)*precip_rain(ji)) + &
                   qsintveg(ji,jv) - zqsintvegnew (ji,jv) + &
-                  (veget_max(ji,jv) - veget(ji,jv))*precip_rain(ji)
+                  (veget_max(ji,jv) - veget(ji,jv))*precip_rain(ji) + water_leack(ji,jv)              !! 20-01-2016 Arsene - ADD the part of water leak (fuite) have to be but in precisol (not lost) to be infilt
           ELSE
              precisol(ji,jv) = qsintveg(ji,jv) - zqsintvegnew (ji,jv) + &
-                  (veget_max(ji,jv) - veget(ji,jv))*precip_rain(ji)
+                  (veget_max(ji,jv) - veget(ji,jv))*precip_rain(ji) + water_leack(ji,jv)              !! 20-01-2016 Arsene - ADD the part of water leak (fuite) have to be but in precisol (not lost) to be infilt
           ENDIF
        ENDDO
     END DO
@@ -4141,13 +4164,14 @@ CONTAINS
           ENDIF
        ENDDO
     END DO
-    !   
+    !  
     !
     !! 1.4 swap qsintveg to the new value
     !
     DO jv=2,nvm
        qsintveg(:,jv) = zqsintvegnew (:,jv)
     END DO
+
 
     IF (long_print) WRITE (numout,*) ' hydrol_canop done '
 
@@ -4369,13 +4393,13 @@ CONTAINS
     !-
     DO jv=1, nvm
        DO ji = 1,kjpindex
-          precisol(ji,jv) = precisol(ji,jv) * (1 - flood_frac(ji))
-       ENDDO
-    ENDDO 
+  precisol(ji,jv) = precisol(ji,jv) * (1 - flood_frac(ji))
+ENDDO
+ENDDO 
 
-    IF (long_print) WRITE (numout,*) ' hydrol_flood done'
+IF (long_print) WRITE (numout,*) ' hydrol_flood done'
 
-  END SUBROUTINE hydrol_flood
+END SUBROUTINE hydrol_flood
 
 
 !! ================================================================================================================================
@@ -4427,220 +4451,223 @@ CONTAINS
 !_ ================================================================================================================================
 !_ hydrol_soil
 
-  SUBROUTINE hydrol_soil (kjpindex, dtradia, veget_max, soiltile, njsc, reinf_slope, &
-       & transpir, vevapnu, evapot, evapot_penm, runoff, drainage, &
-       & returnflow, reinfiltration, irrigation, &
-       & tot_melt, evap_bare_lim, shumdiag, shumdiag_perma,&
-       & k_litt, litterhumdiag, humrel,vegstress, drysoil_frac, &
-       & stempdiag,snow, &
-       & snowdz, & !pss:+
-       & drunoff_tot, fsat) !pss:-
-    ! 
-    ! interface description
+SUBROUTINE hydrol_soil (kjpindex, dtradia, veget_max, soiltile, njsc, reinf_slope, &
+& transpir, vevapnu, evapot, evapot_penm, runoff, drainage, &
+& returnflow, reinfiltration, irrigation, &
+& tot_melt, evap_bare_lim, shumdiag, shumdiag_perma,&
+& k_litt, litterhumdiag, humrel,vegstress, drysoil_frac, &
+& stempdiag,snow, &
+& snowdz, & !pss:+
+& fsat) !pss:-  !! Arsene 28-01-2016 - REMOVE drunoff_tot because never user and bug in sechiba_output.f90
+! 
+! interface description
 
-    !! 0. Variable and parameter declaration
+!! 0. Variable and parameter declaration
 
-    !! 0.1 Input variables
+!! 0.1 Input variables
 
-    ! input scalar 
-    INTEGER(i_std), INTENT(in)                               :: kjpindex 
-    ! input fields
-    REAL(r_std), INTENT (in)                                 :: dtradia          !! Time step [s]
-    REAL(r_std), DIMENSION (kjpindex,nvm), INTENT (in)       :: veget_max        !! Map of max vegetation types [-]
-    INTEGER(i_std),DIMENSION (kjpindex), INTENT (in)         :: njsc             !! Index of the dominant soil textural class in the grid cell (1-nscm, unitless)
-    REAL(r_std), DIMENSION (kjpindex,nstm), INTENT (in)      :: soiltile         !! Fraction of each soil tile (0-1, unitless)
-    REAL(r_std), DIMENSION (kjpindex,nvm), INTENT(in)        :: transpir         !! Transpiration [mm]
-    REAL(r_std), DIMENSION (kjpindex), INTENT (in)           :: reinf_slope      !! Slope coef
-    REAL(r_std), DIMENSION (kjpindex), INTENT(in)            :: returnflow       !! Water returning to the deep reservoir [mm]
-    REAL(r_std), DIMENSION (kjpindex), INTENT(in)            :: reinfiltration   !! Water returning to the top of the soil [mm]
-    REAL(r_std), DIMENSION (kjpindex), INTENT(in)            :: irrigation       !! Irrigation [mm]
-    REAL(r_std), DIMENSION (kjpindex), INTENT(in)            :: evapot           !! Potential evaporation [mm]
-    REAL(r_std), DIMENSION (kjpindex), INTENT(in)            :: evapot_penm      !! Potential evaporation Penman [mm] 
-    REAL(r_std), DIMENSION (kjpindex), INTENT(in)            :: tot_melt         !! Total melt from snow and ice [mm]
-    REAL(r_std),DIMENSION (kjpindex,nbdl), INTENT (in)       :: stempdiag        !! Diagnostic temp profile from thermosoil
-    REAL(r_std), DIMENSION (kjpindex), INTENT(in)            :: snow             !! Snow mass [Kg/m^2]
-    REAL(r_std), DIMENSION (kjpindex,nsnow),INTENT(in)       :: snowdz           !! Snow depth [m]
+! input scalar 
+INTEGER(i_std), INTENT(in)                               :: kjpindex 
+! input fields
+REAL(r_std), INTENT (in)                                 :: dtradia          !! Time step [s]
+REAL(r_std), DIMENSION (kjpindex,nvm), INTENT (in)       :: veget_max        !! Map of max vegetation types [-]
+INTEGER(i_std),DIMENSION (kjpindex), INTENT (in)         :: njsc             !! Index of the dominant soil textural class in the grid cell (1-nscm, unitless)
+REAL(r_std), DIMENSION (kjpindex,nstm), INTENT (in)      :: soiltile         !! Fraction of each soil tile (0-1, unitless)
+REAL(r_std), DIMENSION (kjpindex,nvm), INTENT(in)        :: transpir         !! Transpiration [mm]
+REAL(r_std), DIMENSION (kjpindex), INTENT (in)           :: reinf_slope      !! Slope coef
+REAL(r_std), DIMENSION (kjpindex), INTENT(in)            :: returnflow       !! Water returning to the deep reservoir [mm]
+REAL(r_std), DIMENSION (kjpindex), INTENT(in)            :: reinfiltration   !! Water returning to the top of the soil [mm]
+REAL(r_std), DIMENSION (kjpindex), INTENT(in)            :: irrigation       !! Irrigation [mm]
+REAL(r_std), DIMENSION (kjpindex), INTENT(in)            :: evapot           !! Potential evaporation [mm]
+REAL(r_std), DIMENSION (kjpindex), INTENT(in)            :: evapot_penm      !! Potential evaporation Penman [mm] 
+REAL(r_std), DIMENSION (kjpindex), INTENT(in)            :: tot_melt         !! Total melt from snow and ice [mm]
+REAL(r_std),DIMENSION (kjpindex,nbdl), INTENT (in)       :: stempdiag        !! Diagnostic temp profile from thermosoil
+REAL(r_std), DIMENSION (kjpindex), INTENT(in)            :: snow             !! Snow mass [Kg/m^2]
+REAL(r_std), DIMENSION (kjpindex,nsnow),INTENT(in)       :: snowdz           !! Snow depth [m]
 !pss:+
-    REAL(r_std), DIMENSION (kjpindex), INTENT(in)            :: fsat             !! fraction of saturation soil 
+REAL(r_std), DIMENSION (kjpindex), INTENT(in)            :: fsat             !! fraction of saturation soil 
 !pss:-
 
-    !! 0.2 Output variables
+!! 0.2 Output variables
 
-    REAL(r_std), DIMENSION (kjpindex), INTENT(out)           :: runoff           !! complete runoff [mm]
-    REAL(r_std), DIMENSION (kjpindex), INTENT(out)           :: drainage         !! complete drainage [mm]
-    REAL(r_std), DIMENSION (kjpindex), INTENT(out)           :: evap_bare_lim    !! limitation of bare soil evaporation on each 
-                                                                                 !! soil column [mm] 
-    REAL(r_std), DIMENSION (kjpindex,nbdl), INTENT (out)     :: shumdiag         !! Relative soil moisture
-    REAL(r_std), DIMENSION (kjpindex,nbdl), INTENT (out)     :: shumdiag_perma   !! Percent of porosity filled with water (mc/mcs) used for the thermal computations
-    REAL(r_std), DIMENSION (kjpindex), INTENT (out)          :: k_litt           !! Litter cond.
-    REAL(r_std), DIMENSION (kjpindex), INTENT (out)          :: litterhumdiag    !! Litter humidity
-    REAL(r_std), DIMENSION (kjpindex, nvm), INTENT(out)      :: vegstress        !! Veg. moisture stress (only for vegetation 
-                                                                                 !! growth) 
-    REAL(r_std), DIMENSION (kjpindex), INTENT (out)          :: drysoil_frac     !! Function of the litter humidity, that will be 
+REAL(r_std), DIMENSION (kjpindex), INTENT(out)           :: runoff           !! complete runoff [mm]
+REAL(r_std), DIMENSION (kjpindex), INTENT(out)           :: drainage         !! complete drainage [mm]
+REAL(r_std), DIMENSION (kjpindex), INTENT(out)           :: evap_bare_lim    !! limitation of bare soil evaporation on each 
+									 !! soil column [mm] 
+REAL(r_std), DIMENSION (kjpindex,nbdl), INTENT (out)     :: shumdiag         !! Relative soil moisture
+REAL(r_std), DIMENSION (kjpindex,nbdl), INTENT (out)     :: shumdiag_perma   !! Percent of porosity filled with water (mc/mcs) used for the thermal computations
+REAL(r_std), DIMENSION (kjpindex), INTENT (out)          :: k_litt           !! Litter cond.
+REAL(r_std), DIMENSION (kjpindex), INTENT (out)          :: litterhumdiag    !! Litter humidity
+REAL(r_std), DIMENSION (kjpindex, nvm), INTENT(out)      :: vegstress        !! Veg. moisture stress (only for vegetation 
+									 !! growth) 
+REAL(r_std), DIMENSION (kjpindex), INTENT (out)          :: drysoil_frac     !! Function of the litter humidity, that will be 
 !pss:+
-    REAL(r_std), DIMENSION (kjpindex), INTENT(out)           :: drunoff_tot      !! Dunne runoff
+!REAL(r_std), DIMENSION (kjpindex), INTENT(out)           :: drunoff_tot      !! Dunne runoff !! Arsene 28-01-2016 - REMOVE because never user and bug in sechiba_output.f90
 !pss:-
 
-    !! 0.3 Modified variables
+!! 0.3 Modified variables
 
-    REAL(r_std), DIMENSION (kjpindex), INTENT(inout)         :: vevapnu          !! 
-    REAL(r_std), DIMENSION (kjpindex,nvm), INTENT (inout)    :: humrel           !! Relative humidity [0-1, dimensionless]
+REAL(r_std), DIMENSION (kjpindex), INTENT(inout)         :: vevapnu          !! 
+REAL(r_std), DIMENSION (kjpindex,nvm), INTENT (inout)    :: humrel           !! Relative humidity [0-1, dimensionless]
 
-    !! 0.4 Local variables
+!! 0.4 Local variables
 
-    INTEGER(i_std)                                 :: ji, jv, jsl, jst           !! indices
-    REAL(r_std), PARAMETER                         :: frac_mcs = 0.66            !! temporary depth
-    !!??Aurelien: frac_ms inutile?
-    REAL(r_std)                                    :: us_tmp                     !! temporary stress
-    REAL(r_std), DIMENSION(kjpindex)               :: temp                       !! temporary value for fluxes
-    REAL(r_std), DIMENSION(kjpindex)               :: tmcold, tmcint             !!
-    REAL(r_std), DIMENSION(kjpindex,nslm,nstm)     :: moderwilt                  !!
-    REAL(r_std), DIMENSION(kjpindex,nslm)          :: mcint                      !! To save mc values for future use
-    LOGICAL, DIMENSION(kjpindex)                   :: is_under_mcr               !! Allows under residual soil moisture due to evap 
-    LOGICAL, DIMENSION(kjpindex)                   :: is_over_mcs                !! Allows over saturated soil moisture due to 
-                                                                                 !! returnflow 
-    REAL(r_std), DIMENSION(kjpindex)               :: sum_rootsink               !! Sum of the root sink
-    REAL(r_std), DIMENSION(kjpindex)               :: deltahum,diff              !!
-    LOGICAL(r_std), DIMENSION(kjpindex)            :: test                       !!
-    REAL(r_std), DIMENSION(kjpindex)               :: tsink                      !!
-    REAL(r_std), DIMENSION(kjpindex)               :: water2extract              !! Temporary variable [mm]
-    REAL(r_std), DIMENSION(kjpindex)               :: returnflow_soil            !! Water from the routing back to the bottom of 
-                                                                                 !! the soil [mm] 
-    REAL(r_std), DIMENSION(kjpindex)               :: reinfiltration_soil        !! Water from the routing back to the top of the 
-                                                                                 !! soil [mm] 
-    REAL(r_std), DIMENSION(kjpindex)               :: irrigation_soil            !! Water from irrigation returning to soil 
-                                                                                 !! moisture for each soil type [mm] 
-    REAL(r_std), DIMENSION(kjpindex)               :: flux_infilt                !!
-    REAL(r_std), DIMENSION(kjpindex)               :: flux_bottom                !! Flux at bottom of the soil column
-    REAL(r_std), DIMENSION(kjpindex)               :: flux_top                   !! Flux at top of the soil column
-    LOGICAL                                        :: error=.FALSE.              !! If true, exit in the end of subroutine
+INTEGER(i_std)                                 :: ji, jv, jsl, jst           !! indices
+REAL(r_std), PARAMETER                         :: frac_mcs = 0.66            !! temporary depth
+!!??Aurelien: frac_ms inutile?
+REAL(r_std)                                    :: us_tmp                     !! temporary stress
+REAL(r_std), DIMENSION(kjpindex)               :: temp                       !! temporary value for fluxes
+REAL(r_std), DIMENSION(kjpindex)               :: tmcold, tmcint             !!
+REAL(r_std), DIMENSION(kjpindex,nslm,nstm)     :: moderwilt                  !!
+REAL(r_std), DIMENSION(kjpindex,nslm)          :: mcint                      !! To save mc values for future use
+LOGICAL, DIMENSION(kjpindex)                   :: is_under_mcr               !! Allows under residual soil moisture due to evap 
+LOGICAL, DIMENSION(kjpindex)                   :: is_over_mcs                !! Allows over saturated soil moisture due to 
+									 !! returnflow 
+REAL(r_std), DIMENSION(kjpindex)               :: sum_rootsink               !! Sum of the root sink
+REAL(r_std), DIMENSION(kjpindex)               :: deltahum,diff              !!
+LOGICAL(r_std), DIMENSION(kjpindex)            :: test                       !!
+REAL(r_std), DIMENSION(kjpindex)               :: tsink                      !!
+REAL(r_std), DIMENSION(kjpindex)               :: water2extract              !! Temporary variable [mm]
+REAL(r_std), DIMENSION(kjpindex)               :: returnflow_soil            !! Water from the routing back to the bottom of 
+									 !! the soil [mm] 
+REAL(r_std), DIMENSION(kjpindex)               :: reinfiltration_soil        !! Water from the routing back to the top of the 
+									 !! soil [mm] 
+REAL(r_std), DIMENSION(kjpindex)               :: irrigation_soil            !! Water from irrigation returning to soil 
+									 !! moisture for each soil type [mm] 
+REAL(r_std), DIMENSION(kjpindex)               :: flux_infilt                !!
+REAL(r_std), DIMENSION(kjpindex)               :: flux_bottom                !! Flux at bottom of the soil column
+REAL(r_std), DIMENSION(kjpindex)               :: flux_top                   !! Flux at top of the soil column
+LOGICAL                                        :: error=.FALSE.              !! If true, exit in the end of subroutine
+
+REAL(r_std)                                    :: x_moss, x_tot               ! Fraction of moss / total veget fract in a soil tile  !! 20-01-2016 Arsene - Add
 
 !_ ================================================================================================================================
 
-    !! 0 Arrays initialisation
+!! 0 Arrays initialisation
 
-    returnflow_soil(:) = zero
-    reinfiltration_soil(:) = zero
-    irrigation_soil(:) = zero
-    qflux(:,:,:) = zero
-    is_under_mcr(:) = .FALSE.
-    is_over_mcs(:) = .FALSE.
-    flux_infilt(:) = zero
-    IF (ok_freeze_cwrr) THEN
-       kk(:,:,:)=zero
-       kk_moy(:,:)=zero
-    ENDIF
+returnflow_soil(:) = zero
+reinfiltration_soil(:) = zero
+irrigation_soil(:) = zero
+qflux(:,:,:) = zero
+is_under_mcr(:) = .FALSE.
+is_over_mcs(:) = .FALSE.
+flux_infilt(:) = zero
+IF (ok_freeze_cwrr) THEN
+kk(:,:,:)=zero
+kk_moy(:,:)=zero
+ENDIF
 
-    IF (ok_freeze_cwrr) THEN
-       !
-       ! 1.1 Calculate the temperature at hydrological levels
-       !
-       CALL hydrol_calculate_temp_hydro(kjpindex, stempdiag, snow,snowdz)
-    ENDIF
-    !
-    ! split 2d variables to 3d variables, per soil tile
-    !
-    CALL hydrol_split_soil (kjpindex, veget_max, soiltile, vevapnu, transpir, humrel, evap_bare_lim)
-    !
-    ! Common variables
-    !
-    DO ji=1,kjpindex
-       IF(vegtot(ji).GT.min_sechiba) THEN
-          returnflow_soil(ji) = zero
-          reinfiltration_soil(ji) = (returnflow(ji) + reinfiltration(ji))/vegtot(ji)
-          irrigation_soil(ji) = irrigation(ji)/vegtot(ji)
-       ELSE
-          returnflow_soil(ji) = zero
-          reinfiltration_soil(ji) = zero
-          irrigation_soil(ji) = zero
-       ENDIF
-    ENDDO
-       
-    !
-    !!_  for each soil tile
-    !
-    DO jst = 1,nstm
-       !
-       !- Compute the sum of the sinks for future check-up
-       sum_rootsink(:)=SUM(rootsink(:,:,jst),dim=2)
-       DO ji=1,kjpindex
-          tsink(ji) = sum_rootsink(ji)+MAX(ae_ns(ji,jst),zero)+subsinksoil(ji)
-       ENDDO
-       !
-       ! The total moisture content (including water2infilt) is saved for balance checks at the end
-       tmcold(:) = tmc(:,jst)
+IF (ok_freeze_cwrr) THEN
+!
+! 1.1 Calculate the temperature at hydrological levels
+!
+CALL hydrol_calculate_temp_hydro(kjpindex, stempdiag, snow,snowdz)
+ENDIF
+!
+! split 2d variables to 3d variables, per soil tile
+!
+CALL hydrol_split_soil (kjpindex, veget_max, soiltile, vevapnu, transpir, humrel, evap_bare_lim)
+!
+! Common variables
+!
+DO ji=1,kjpindex
+IF(vegtot(ji).GT.min_sechiba) THEN
+  returnflow_soil(ji) = zero
+  reinfiltration_soil(ji) = (returnflow(ji) + reinfiltration(ji))/vegtot(ji)
+  irrigation_soil(ji) = irrigation(ji)/vegtot(ji)
+ELSE
+  returnflow_soil(ji) = zero
+  reinfiltration_soil(ji) = zero
+  irrigation_soil(ji) = zero
+ENDIF
+ENDDO
 
-       !- The value of mc is kept in mcint, used in the flux computation after diffusion:
-       DO jsl = 1, nslm
-          DO ji = 1, kjpindex
-             mcint(ji,jsl) = mask_soiltile(ji,jst) * mc(ji,jsl,jst)
-          ENDDO
-       ENDDO
+!
+!!_  for each soil tile
+!
+DO jst = 1,nstm
+!
+!- Compute the sum of the sinks for future check-up
+sum_rootsink(:)=SUM(rootsink(:,:,jst),dim=2)
+DO ji=1,kjpindex
+  tsink(ji) = sum_rootsink(ji)+MAX(ae_ns(ji,jst),zero)+subsinksoil(ji)
+ENDDO
+!
+! The total moisture content (including water2infilt) is saved for balance checks at the end
+tmcold(:) = tmc(:,jst)
 
-       DO ji = 1, kjpindex
-          tmcint(ji) = dz(2,jst) * ( trois*mcint(ji,1) + mcint(ji,2) )/huit 
-       ENDDO
+!- The value of mc is kept in mcint, used in the flux computation after diffusion:
+DO jsl = 1, nslm
+  DO ji = 1, kjpindex
+     mcint(ji,jsl) = mask_soiltile(ji,jst) * mc(ji,jsl,jst)
+  ENDDO
+ENDDO
 
-       DO jsl = 2,nslm-1
-          DO ji = 1, kjpindex
-             tmcint(ji) = tmcint(ji) + dz(jsl,jst) &
-                  & * (trois*mcint(ji,jsl)+mcint(ji,jsl-1))/huit &
-                  & + dz(jsl+1,jst) * (trois*mcint(ji,jsl)+mcint(ji,jsl+1))/huit
-          ENDDO
-       ENDDO
+DO ji = 1, kjpindex
+  tmcint(ji) = dz(2,jst) * ( trois*mcint(ji,1) + mcint(ji,2) )/huit 
+ENDDO
 
-       DO ji = 1, kjpindex
-          tmcint(ji) = tmcint(ji) + dz(nslm,jst) &
-               & * (trois * mcint(ji,nslm) + mcint(ji,nslm-1))/huit
-       ENDDO
-    !! 1 Compare water2infilt and water2extract to keep only difference
+DO jsl = 2,nslm-1
+  DO ji = 1, kjpindex
+     tmcint(ji) = tmcint(ji) + dz(jsl,jst) &
+	  & * (trois*mcint(ji,jsl)+mcint(ji,jsl-1))/huit &
+	  & + dz(jsl+1,jst) * (trois*mcint(ji,jsl)+mcint(ji,jsl+1))/huit
+  ENDDO
+ENDDO
 
-       ! The bare soil evaporation is substracted to the soil moisture profile and first to the water available:  
-       DO ji = 1, kjpindex
-          water2extract(ji) = MIN(water2infilt(ji,jst) + irrigation_soil(ji) + reinfiltration_soil(ji), &
-               & MAX(ae_ns(ji,jst),zero) + subsinksoil(ji))
-       ENDDO
+DO ji = 1, kjpindex
+  tmcint(ji) = tmcint(ji) + dz(nslm,jst) &
+       & * (trois * mcint(ji,nslm) + mcint(ji,nslm-1))/huit
+ENDDO
+!! 1 Compare water2infilt and water2extract to keep only difference
 
-       ! First we substract from the surface
-       DO ji = 1, kjpindex
-          water2infilt(ji,jst) = water2infilt(ji,jst) + irrigation_soil(ji) + reinfiltration_soil(ji) - water2extract(ji)
-       ENDDO       
-             
-       ! Then we update the water to extract from the soil
-       DO ji = 1, kjpindex
-          water2extract(ji) =  MAX(ae_ns(ji,jst),zero) + subsinksoil(ji) - water2extract(ji)
-       ENDDO
+! The bare soil evaporation is substracted to the soil moisture profile and first to the water available:  
+DO ji = 1, kjpindex
+  water2extract(ji) = MIN(water2infilt(ji,jst) + irrigation_soil(ji) + reinfiltration_soil(ji), &
+       & MAX(ae_ns(ji,jst),zero) + subsinksoil(ji))
+ENDDO
 
-       !! We add and substract components to the soil
-       !! by filling the layers from top to bottom (same for reinfiltration) - this is done by smooth below
-       !! 1.1 add to the first layer
-       DO ji = 1, kjpindex
-          mc(ji,1,jst) = mc(ji,1,jst) - water2extract(ji) * deux / dz(2,jst)
-       ENDDO
+! First we substract from the surface
+DO ji = 1, kjpindex
+  water2infilt(ji,jst) = water2infilt(ji,jst) + irrigation_soil(ji) + reinfiltration_soil(ji) - water2extract(ji)
+ENDDO       
+     
+! Then we update the water to extract from the soil
+DO ji = 1, kjpindex
+  water2extract(ji) =  MAX(ae_ns(ji,jst),zero) + subsinksoil(ji) - water2extract(ji)
+ENDDO
 
-       !!??Aurelien: here, the first layer can be oversaturated, thats why we need hydrol_soil_smooth
-    !! 1.2 filling layers
-       CALL hydrol_soil_smooth(kjpindex,jst, njsc, is_under_mcr, is_over_mcs)
+!! We add and substract components to the soil
+!! by filling the layers from top to bottom (same for reinfiltration) - this is done by smooth below
+!! 1.1 add to the first layer
+DO ji = 1, kjpindex
+  mc(ji,1,jst) = mc(ji,1,jst) - water2extract(ji) * deux / dz(2,jst)
+ENDDO
 
-   
-    !! 2 Before diffusion scheme
-   
-    !! 2.1 Some initialisation necessary for the diffusion scheme to work
+!!??Aurelien: here, the first layer can be oversaturated, thats why we need hydrol_soil_smooth
+!! 1.2 filling layers
+CALL hydrol_soil_smooth(kjpindex,jst, njsc, is_under_mcr, is_over_mcs)
 
-       DO ji = 1, kjpindex
-          !- We correct rootsink for first two layers so that it is not too low in the first layer
-          v1(ji,jst) = dz(2,jst)/huit * (trois * mc(ji,1,jst)+ mc(ji,2,jst))
-          rootsink(ji,2,jst) = rootsink(ji,2,jst) + MAX(rootsink(ji,1,jst)-v1(ji,jst), zero) 
-          rootsink(ji,1,jst) = MIN(rootsink(ji,1,jst),v1(ji,jst))
-       ENDDO
-       !- Flux at top of the soil column is zero
-       flux_top(:) = zero
 
-       DO ji = 1, kjpindex
-          ! Initialise the flux to be infiltrated 
-          flux_infilt(ji) = water2infilt(ji,jst) + precisol_ns(ji,jst) 
+!! 2 Before diffusion scheme
+
+!! 2.1 Some initialisation necessary for the diffusion scheme to work
+
+DO ji = 1, kjpindex
+  !- We correct rootsink for first two layers so that it is not too low in the first layer
+  v1(ji,jst) = dz(2,jst)/huit * (trois * mc(ji,1,jst)+ mc(ji,2,jst))
+  rootsink(ji,2,jst) = rootsink(ji,2,jst) + MAX(rootsink(ji,1,jst)-v1(ji,jst), zero) 
+  rootsink(ji,1,jst) = MIN(rootsink(ji,1,jst),v1(ji,jst))
+ENDDO
+!- Flux at top of the soil column is zero
+flux_top(:) = zero
+
+DO ji = 1, kjpindex
+  ! Initialise the flux to be infiltrated 
+  flux_infilt(ji) = water2infilt(ji,jst) + precisol_ns(ji,jst) 
           !- The incoming flux is also first dedicated to fill the soil up to mcr (in case needed)
-       ENDDO
+ENDDO
+
 
      !! 2.1.2 Treat problem with to low soil moisture content in soil column : is_under_mcr
        DO ji = 1, kjpindex
@@ -4831,6 +4858,7 @@ CONTAINS
           ru_ns(ji,jst) = (precisol_ns(ji,jst)  &
               & +water2infilt(ji,jst)-water2extract(ji)-qflux00(ji,jst)) * mask_soiltile(ji,jst)
           ae_ns(ji,jst) =ae_ns(ji,jst) + subsinksoil(ji)
+!! Arsene 14-01-2016 - here the potentital runoff is comput. But one part can be conserve in water2infilt (with rein_slope)...
 
        ENDDO
 
@@ -4920,18 +4948,61 @@ CONTAINS
        ENDDO
 
     !! 9 Compute temporary surface water and extract from runoff
-       IF ( .NOT. doponds ) THEN
-          DO ji = 1, kjpindex
-             water2infilt(ji,jst) = reinf_slope(ji) * ru_ns(ji,jst)
-          ENDDO
+       IF ( .NOT. doponds ) THEN 
+
+         DO ji = 1, kjpindex
+
+           IF ( reinf_slope_moss_ok .AND. ANY(.NOT.vascular(:)) ) THEN !! Arsene 23-02-2016 - change runoff is moss
+
+             !! 9.1 Compute fraction of moss in each tile soil  !! Arsene 20-01-2016 - Add for moss: lower runoff
+             x_moss = zero
+             x_tot = zero
+             DO jv = 1,nvm
+               IF ( pref_soil_veg(jv).EQ.jst ) THEN
+                 x_tot = veget_max(ji,jv) + x_tot
+                 IF ( .NOT.vascular(jv) .AND. jv.NE.1 ) THEN 
+                   x_moss = veget_max(ji,jv) + x_moss
+                 ENDIF
+               ENDIF
+             ENDDO
+             IF (x_tot .LT. min_sechiba ) THEN
+               x_moss = zero
+             ELSE
+               x_moss = x_moss / x_tot
+             ENDIF
+
+             !! 9.2 Limit the runoff. reinf_slope topography dependent (if less land slope, less runof)
+             !!     Take care: the water in modified for moss and grasses. Maybe a new tile soil is needed ?
+             !!     More land slope -> less reinf_slope. For mosses: increase reinf_slope to decrease runoff
+
+! Fisrt test:
+!             water2infilt(ji,jst) = MIN(1.,(reinf_slope(ji) * (1. + x_moss*reinf_slope_moss_coef))) * ru_ns(ji,jst)
+
+!Second test :
+!             water2infilt(ji,jst) = MIN(50., ( 1. - (1.-MIN(0.99,(1-x_moss)*reinf_slope(ji)+x_moss*reinf_slope_moss)) &  ! With max limit for water2infilt
+!                                         * dt_sechiba / (moss_water_runoff * one_day)) * ru_ns(ji,jst))                  ! ==> arround 0 runoff
+
+             water2infilt(ji,jst) = ( 1. - (1.-((1-x_moss)*reinf_slope(ji)+x_moss*reinf_slope_moss)) & !! We need the (1 - (1 - x) * dt/dt ) to be adaptable to timestep changes
+                                         * (dtradia / (one_day/48.))) * ru_ns(ji,jst)
+
+
+           ELSE    !! Arsene 23-02-2016 - if reinf_slope_moss_ok --> original
+
+!             water2infilt(ji,jst) = reinf_slope(ji) * ru_ns(ji,jst)  !! Arsene 23-02-2016 : need to change to be adaptable to timestep changes
+             water2infilt(ji,jst) = ( 1. - (1. - reinf_slope(ji)) * (dtradia / (one_day/48.)) ) * ru_ns(ji,jst)
+
+           ENDIF   !! Arsene 23-02-2016 - if reinf_slope_moss_ok  
+         ENDDO
+
        ELSE
           DO ji = 1, kjpindex           
              water2infilt(ji,jst) = zero
           ENDDO
        ENDIF
-       !
+
+      !
        DO ji = 1, kjpindex           
-          ru_ns(ji,jst) = ru_ns(ji,jst) - water2infilt(ji,jst)
+          ru_ns(ji,jst) = MAX(0., ru_ns(ji,jst) - water2infilt(ji,jst)) !! Arsene 09-02-2016 - Secure runoff to don't be negative (with new add)
        END DO
 
     !! 10 Smooth again
@@ -5211,8 +5282,8 @@ CONTAINS
     !
     CALL hydrol_diag_soil (kjpindex, veget_max, soiltile, njsc, runoff, drainage, &
          & evapot, vevapnu, returnflow, reinfiltration, irrigation, &
-         & shumdiag,shumdiag_perma, k_litt, litterhumdiag, humrel, vegstress, drysoil_frac,tot_melt, & !pss:+
-         & drunoff_tot) !pss:-
+         & shumdiag,shumdiag_perma, k_litt, litterhumdiag, humrel, vegstress, drysoil_frac,tot_melt) !! Arsene 28-01-2016 - REMOVE drunoff_tot because never user and bug in sechiba_output.f90
+ !pss:+       !pss:-
 
     !
     !! 15 Calculation of evap_bare_limit : limitation factor for bare soil evaporation
@@ -5534,6 +5605,7 @@ CONTAINS
        !
     ENDDO
 
+
     !-
     !! 2 Infiltration layer by layer 
     !! 2.1 Initialisation
@@ -5586,6 +5658,7 @@ CONTAINS
        ENDDO
 
     ENDDO
+
 
     !! 3 Verification
     DO ji = 1, kjpindex
@@ -6539,8 +6612,8 @@ CONTAINS
 
   SUBROUTINE hydrol_diag_soil (kjpindex, veget_max, soiltile, njsc, runoff, drainage, &
        & evapot, vevapnu, returnflow, reinfiltration, irrigation, &
-       & shumdiag,shumdiag_perma, k_litt, litterhumdiag, humrel, vegstress, drysoil_frac, tot_melt, & !pss:+
-       & drunoff_tot) !pss:-
+       & shumdiag,shumdiag_perma, k_litt, litterhumdiag, humrel, vegstress, drysoil_frac, tot_melt) !! Arsene 28-01-2016 - REMOVE drunoff_tot because never user and bug in sechiba_output.f90
+ !pss:+ !pss:-
 
     ! 
     ! interface description
@@ -6573,7 +6646,7 @@ CONTAINS
     REAL(r_std), DIMENSION (kjpindex, nvm), INTENT(out)      :: vegstress       !! Veg. moisture stress (only for vegetation growth)
 
 !pss:+
-    REAL(r_std), DIMENSION (kjpindex), INTENT(inout)           :: drunoff_tot          !! Dunne runoff
+!    REAL(r_std), DIMENSION (kjpindex), INTENT(inout)           :: drunoff_tot          !! Dunne runoff !! Arsene 28-01-2016 - REMOVE because never user and bug in sechiba_output.f90
 !pss:-
 
     !! 0.3 Modified variables 

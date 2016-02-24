@@ -2451,6 +2451,7 @@ SUBROUTINE diffuco_trans_co2 (kjpindex, dtradia, swdown, pb, qsurf, q2m, t2m, te
     vbeta3pot(:,:) = zero
     gsmean(:,:) = zero
     gpp(:,:) = zero
+    gs_pft(:,:)=zero     !! Arsene 29-01-2016 - Add to initialise (for PFT 1 = bare soil)
     !
     cimean(:,1) = Ca(:)
     !
@@ -2520,10 +2521,11 @@ SUBROUTINE diffuco_trans_co2 (kjpindex, dtradia, swdown, pb, qsurf, q2m, t2m, te
       ENDDO
       !
 
-      gstot(:) = zero
       assimtot(:) = zero
       Rdtot(:)=zero
       leaf_gs_top(:) = zero
+      gs(:) = zero    !! Arsene 29-01-2016 - Add défault value....
+      gstot(:) = zero !! Arsene 29-01-2016 - Add défault value....
       !
       zqsvegrap(:) = zero
       WHERE (qsintmax(:,jv) .GT. min_sechiba)
@@ -2681,6 +2683,7 @@ SUBROUTINE diffuco_trans_co2 (kjpindex, dtradia, swdown, pb, qsurf, q2m, t2m, te
               / ( 2 * theta(jv))
 
          !
+
          IF ( is_c4(jv) )  THEN
             !
             ! @addtogroup Photosynthesis
@@ -2900,6 +2903,7 @@ SUBROUTINE diffuco_trans_co2 (kjpindex, dtradia, swdown, pb, qsurf, q2m, t2m, te
          ENDIF
          !
          gs_pft(:,jv)=gs(:)   !!Arsene 10-05-2014    ==> Save on sechiba_history.nc file
+
          !
          IF (nic .GT. 0) THEN
             !
@@ -2963,6 +2967,38 @@ SUBROUTINE diffuco_trans_co2 (kjpindex, dtradia, swdown, pb, qsurf, q2m, t2m, te
             cimean(iainia,jv) = (gsmean(iainia,jv)-g0(jv)) &
                  / (fvpd(iainia)*(assimtot(iainia)+Rdtot(iainia))) &
                  + gamma_star(iainia) 
+
+IF ( cimean(iainia,jv) .GT. 10000000. ) THEN
+write(*,*) "In diffuco, for PFT n°", jv, "cimean is wrong (too hight). Please tcheck."
+cimean(iainia,jv) = 1000.
+ENDIF
+
+IF ( cimean(iainia,jv) .LT. -10000000. ) THEN
+write(*,*) "In diffuco, for PFT n°", jv, "cimean is wrong (too low). Please tcheck."
+write(*,*) "###################################################################################"
+cimean(iainia,jv) = -1000.
+ENDIF
+!write(*,*) "cimean for iainia", iainia, "and the PFT", jv, " ==>", cimean(iainia,jv)
+!write(*,*) "1", gsmean(iainia,jv)-g0(jv), "gsmean", gsmean(iainia,jv), "g0", g0(jv)
+!write(*,*) "2", fvpd(iainia)*(assimtot(iainia)+Rdtot(iainia)), fvpd(iainia), (assimtot(iainia)+Rdtot(iainia))
+!write(*,*) "2bis", assimtot(iainia), Rdtot(iainia)
+!write(*,*) "3", gamma_star(iainia)
+
+
+
+!if ( vascular(jv) .and. (gsmean(iainia,jv)-g0(jv)) .LT.zero ) THEN
+!write(*,*) ".NOT.vascular(jv) .and. (gsmean(iainia,jv)-g0(jv)) .GT.zero"
+!read(*,*) 
+!endif
+
+!if ( cimean(iainia,jv) .GT. 1000000000. .and. .NOT.vascular(jv) .and. fvpd(iainia).GT.zero ) THEN
+!write(*,*) "case 21"
+!read(*,*)
+!endif
+
+!if ( cimean(iainia,jv) .GT. 1000000000. .and. vascular(jv)) THEN
+!read(*,*)
+!endif
                  
             ! conversion from umol m-2 (PFT) s-1 to gC m-2 (mesh area) tstep-1
             gpp(iainia,jv) = assimtot(iainia)*12e-6*veget_max(iainia,jv)*dtradia

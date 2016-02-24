@@ -335,6 +335,10 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(veget_reinit)
   LOGICAL, SAVE :: shrubs_like_trees = .FALSE.  !! Arsene 03-08-2015 - Add shrubs_like_trees !! Flag to use equation closer trees for shrubs  
 !$OMP THREADPRIVATE(shrubs_like_trees)          !! Arsene 03-08-2015 - Add shrubs_like_trees
+  LOGICAL, SAVE :: new_moist_func = .TRUE.  !! Arsene 29-12-2015 - ADD for LUT: new litter and soil_carbon moist dependence decomposition 
+!$OMP THREADPRIVATE(new_moist_func)         !! Arsene 29-12-2015
+  LOGICAL, SAVE :: new_litter_discret = .TRUE.     !! Arsene 29-12-2015 - ADD for new soil discretisation for stomate_litter  
+!$OMP THREADPRIVATE(new_litter_discret)            !! Arsene 29-12-2015
 
   !
   ! PARAMETERS USED BY BOTH HYDROLOGY MODELS
@@ -539,6 +543,9 @@ MODULE constantes_var
                                                                 !! Averaged of wet and dry soil albedo values
                                                                 !! in visible and near-infrared range
 !$OMP THREADPRIVATE(albsoil_nir)
+
+  LOGICAL, SAVE :: new_frac_snow_veg = .TRUE.     !! Arsene 29-12-2015 - Change the calculation of frac_snow_veg (conveg)  
+!$OMP THREADPRIVATE(new_frac_snow_veg)            
 
   !
   ! diffuco.f90
@@ -818,11 +825,16 @@ MODULE constantes_var
 !! Arsene 03-09-2015 - For iteration (new allomerty for shrubs)
 
 !! Arsene 16-10-2015 - For shrub allometry array
-  INTEGER(i_std), SAVE :: shrub_allom_lig =1000        !! Define the number of line for shrub_allom_array
+  INTEGER(i_std), SAVE :: shrub_allom_lig =200       !! Define the number of line for shrub_allom_array
 !$OMP THREADPRIVATE(shrub_allom_lig)
   REAL(r_std), SAVE :: shrub_lim_maxdia = 0.96        !! Define the proportion of real maxdia (= maxdia * shrub_lim_maxdia )
 !$OMP THREADPRIVATE(shrub_lim_maxdia)
 !! Arsene 16-10-2015 - For shrub allometry array
+
+!! Arsene 13-01-2015 - Roughness for shrubs and snow
+  REAL(r_std), SAVE :: z0_sensib = 0.3                !! Define the variation of rougness sensibity for shrub at snow depth limit
+!$OMP THREADPRIVATE(z0_sensib)
+!! Arsene 13-01-2015 - Roughness for shrubs and snow
 
 
   ! 1.2 climatic parameters 
@@ -971,7 +983,12 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(moist_coeff)
   REAL(r_std), SAVE :: moistcont_min = 0.25  !! minimum soil wetness to limit the heterotrophic respiration
 !$OMP THREADPRIVATE(moistcont_min)
-
+!! Arsene 29-12-2015 - START - ADD for LUT: new litter moist dependence. IF new_moist_func
+  REAL(r_std), SAVE, DIMENSION(4) :: moist_coeff_new = (/ -1.4,  2.22,  -1.12, 1.178 /) !!
+!$OMP THREADPRIVATE(moist_coeff_new)
+  REAL(r_std), SAVE :: moist_interval = 0.01  !! Interval for Array. Take care: 1./moist_interval have to be an interger !
+!$OMP THREADPRIVATE(moist_interval)           !! TAKE CARE: on stomate litter, valid only if = 0.01
+!! Arsene 29-12-2015 - END - ADD for LUT: new litter moist dependence
 
   !
   ! stomate_lpj.f90
@@ -1193,9 +1210,9 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(CH4_surf)
   REAL, SAVE               :: tetasat =  .5                       !! volumetric water content at saturation (porosity)
 !$OMP THREADPRIVATE(tetasat)
-  REAL, SAVE               :: tetamoss =  0.92                    !! porosity of moss
+  REAL, SAVE               :: tetamoss =  0.98                    !! porosity of moss !! Arsene 14-01-2016 - New value (don't use before), from O'donnell et al, 2009
 !$OMP THREADPRIVATE(tetamoss)
-  REAL, SAVE               :: rho_moss                            !! density of moss
+  REAL, SAVE               :: rho_moss = 0.5E4                    !! density of moss (gC/m**3) !! Arsene 14-01-2016 - Add new value for depth (use in thermosoil)  
 !$OMP THREADPRIVATE(rho_moss)
   REAL, PARAMETER          :: zmoss = 0.2                         !! thickness of moss layer (in permafrost regions,m) 0. ! 0.001 DKtest for compar w/WH
 !$OMP THREADPRIVATE(zmoss)

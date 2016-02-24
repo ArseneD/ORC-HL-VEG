@@ -590,6 +590,16 @@ CONTAINS
         !Config Units = [FLAG]
         CALL getin_p('Z0CDRAG_AVE',z0cdrag_ave)
         !
+!! Arsene 24-02-2016 - Change the calculation of frac_snow_veg (condveg)
+        !Config Key   = NEW_FRAC_SNOW_VEG
+        !Config Desc  = new calculation of frac_snow_veg (condveg)
+        !Config If    = OK_SECHIBA
+        !Config Def   = TRUE
+        !Config Help  = 
+        !Config Units = [FLAG]
+        CALL getin_p('NEW_LITTER_DISCRET', new_frac_snow_veg)
+!! Arsene 29-12-2015 - Change the calculation of frac_snow_veg (condveg)
+        !
         !Config Key   = IMPOSE_AZE
         !Config Desc  = Should the surface parameters be prescribed
         !Config Def   = n
@@ -1265,6 +1275,27 @@ CONTAINS
        !Config Units = [FLAG]
        CALL getin_p('SHRUBS_LIKE_TREES', shrubs_like_trees)
 !! Arsene 03-08-2015 - Add shrubs_like_trees 
+       !
+!! Arsene 29-12-2015 - ADD for LUT: new litter moist dependence
+       !Config Key   = NEW_LITTER_MOIST_FUNC
+       !Config Desc  = new litter ans soil_carbon moist dependence decomposition: LUT and no linear
+       !Config If    = OK_STOMATE
+       !Config Def   = TRUE
+       !Config Help  = New litter decomposition
+       !Config Units = [FLAG]
+       CALL getin_p('NEW_MOIST_FUNC', new_moist_func)
+!! Arsene 29-12-2015 - ADD for LUT: new litter moist dependence
+       !
+!! Arsene 29-12-2015 - ADD for new soil discretisation for stomate_litter
+       !Config Key   = NEW_LITTER_DISCRET
+       !Config Desc  = new litter discretisation in the soil
+       !Config If    = OK_STOMATE
+       !Config Def   = TRUE
+       !Config Help  = New litter discretisation for soil decomposition
+       !Config Units = [FLAG]
+       CALL getin_p('NEW_LITTER_DISCRET', new_litter_discret)
+!! Arsene 29-12-2015 - ADD for new soil discretisation for stomate_litter
+
   
        !-
        ! data parameters
@@ -1431,7 +1462,7 @@ CONTAINS
        !
        !Config Key   = ACCEPT_SIGMA_IT
        !Config Desc  = Define the precision wanted for the iteration result 
-       !Config If    = .NOT.SHRUBS_LIKE_TREES
+       !Config If    = .NOT.SHRUBS_LIKE_TREES & SHRUB_IT_OK
        !Config Def   = 0.01
        !Config Help  = 
        !Config Units = [-]    
@@ -1439,7 +1470,7 @@ CONTAINS
        !
        !Config Key   = FACTOR_DIV_IT
        !Config Desc  = Define the factor division bewtween iteration 
-       !Config If    = .NOT.SHRUBS_LIKE_TREES
+       !Config If    = .NOT.SHRUBS_LIKE_TREES & SHRUB_IT_OK
        !Config Def   = 5.
        !Config Help  = 
        !Config Units = [-]    
@@ -1449,8 +1480,8 @@ CONTAINS
 !! Arsene 16-10-2015 - For shrub allometry array
        !Config Key   = SHRUB_ALLOM_LIG
        !Config Desc  = Define the number of line for shrub_allom_array
-       !Config If    = .NOT.SHRUBS_LIKE_TREES
-       !Config Def   = 1000
+       !Config If    = .NOT.SHRUBS_LIKE_TREES & .NOT. SHRUB_IT_OK
+       !Config Def   = 200
        !Config Help  = 
        !Config Units = [-]  
        CALL getin_p('SHRUB_ALLOM_LIG', shrub_allom_lig)
@@ -1458,11 +1489,31 @@ CONTAINS
        !Config Key   = SHRUB_LIM_MAXDIA
        !Config Desc  = Define the proportion of real maxdia (= maxdia * shrub_lim_maxdia ) for shrub
        !Config If    = .NOT.SHRUBS_LIKE_TREES
-       !Config Def   = 0.97
+       !Config Def   = 0.96
        !Config Help  = 
        !Config Units = [-]  
        CALL getin_p('SHRUB_LIM_MAXDIA', shrub_lim_maxdia)
 !! Arsene 16-10-2015 - For shrub allometry array
+       !
+!! Arsene 13-01-2015 - Roughness for shrubs and snow
+       !Config Key   = Z0_SENSIB
+       !Config Desc  = Define the variation of rougness sensibity for shrub at snow depth limit
+       !Config If    = ANY SHRUB
+       !Config Def   = 0.3
+       !Config Help  = 
+       !Config Units = [-]  
+       CALL getin_p('Z0_SENSIB', z0_sensib)
+!! Arsene 13-01-2015 - Roughness for shrubs and snow
+       !
+!! Arsene 14-01-2015 - Moss density for thermosoil
+       !Config Key   = RHO_MOSS
+       !Config Desc  = Define the moss (and Non vascular plant) density
+       !Config If    = 
+       !Config Def   = 0.5.E4
+       !Config Help  = 
+       !Config Units = [-]  
+       CALL getin_p('RHO_MOSS', rho_moss)
+!! Arsene 14-01-2015 - Moss density for thermosoil
        !
        !
        !Config Key   = PRECIP_CRIT 
@@ -1933,6 +1984,25 @@ CONTAINS
        !Config Help  = 
        !Config Units = [-]
        CALL getin_p('MOISTCONT_MIN',moistcont_min)
+       !
+!! Arsene 29-12-2015 - START - ADD for LUT: new litter moist dependence
+       !Config Key   = MOIST_COEFF_NEW
+       !Config Desc  = 
+       !Config If    = OK_STOMATE & new_moist_func
+       !Config Def   = -1.4,  2.22,  -1.12, 1.178
+       !Config Help  = 
+       !Config Units = [-]   
+       CALL getin_p('MOIST_COEFF_NEW',moist_coeff_new)
+       !
+       !Config Key   = MOIST_INTERVAL
+       !Config Desc  = 
+       !Config If    = OK_STOMATE & new_moist_func
+       !Config Def   = 0.01 !! TAKE CARE: on stomate litter, valid only if = 0.01
+       !Config Help  = 
+       !Config Units = [-]   
+       CALL getin_p('MOIST_INTERVAL',moist_interval)
+!! Arsene 29-12-2015 - END - ADD for LUT: new litter moist dependence
+
 
        !-
        ! lpj parameters

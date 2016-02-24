@@ -322,8 +322,8 @@ MODULE sechiba
 !$OMP THREADPRIVATE(soilc_total)
 
 !pss:+
-  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION (:)    :: drunoff_tot         !! Surface runoff generated Dune process
-!$OMP THREADPRIVATE(drunoff_tot)
+!  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION (:)    :: drunoff_tot         !! Surface runoff generated Dune process !! Arsene 28-01-2016 - REMOVE because never user and bug in sechiba_output.f90
+!!$OMP THREADPRIVATE(drunoff_tot)
   REAL(r_std), ALLOCATABLE, SAVE, DIMENSION (:)    :: fwet_out      !! wetland fraction
 !$OMP THREADPRIVATE(fwet_out)
 
@@ -704,7 +704,7 @@ CONTAINS
                & snowrho,snowtemp,soiltemp,snowgrain,snowdz,snowheat,snowliq,&
                & grndflux,gtemp,gthick,gpkappa,zdz1_soil,zdz2_soil,cgrnd_soil,dgrnd_soil, &
                & soilflxresid,snowflx,snowcap,pkappa_snow,lambda_snow,cgrnd_snow,dgrnd_snow,temp_sol_add, & !pss:+
-               & drunoff_tot, fwet_out) !pss:-
+               & fwet_out) !pss:-  !! Arsene 28-01-2016 - REMOVE because never user and bug in sechiba_output.f90
           !WRITE(numout,*) 'zd hydrol_main 2 ','snowtemp(1,:)',snowtemp(1,:)
 
        ENDIF
@@ -758,7 +758,7 @@ CONTAINS
             & soiltemp,pb,grndflux,snowrho,snowdz,snowtemp,gthick,gtemp,gpkappa,&
             & pkappa_snow,cgrnd_snow,dgrnd_snow,zdz1_soil,zdz2_soil,cgrnd_soil,dgrnd_soil,&
             & thawed_humidity, depth_organic_soil, heat_Zimov, tdeep, hsdeep,&
-            & soilc_total, veget_max)
+            & soilc_total, veget_max, height) !! 18-01-2016 Arsene - add height for moss depth
        !WRITE(numout,*) 'zd thermosoil_main 2 ','snowtemp(1,:)',snowtemp(1,:)
 
        !! 1.11 Initialize some soil thermodynamics from restart file
@@ -871,7 +871,7 @@ CONTAINS
             & snowrho,snowtemp,soiltemp,snowgrain,snowdz,snowheat,snowliq,&
             & grndflux,gtemp,gthick,gpkappa,zdz1_soil,zdz2_soil,cgrnd_soil,dgrnd_soil, &
             & soilflxresid,snowflx,snowcap,pkappa_snow,lambda_snow,cgrnd_snow,dgrnd_snow,temp_sol_add, & !pss:+
-            & drunoff_tot, fwet_out) !pss:-
+            & fwet_out) !pss:-   !! Arsene 28-01-2016 - REMOVE because never user and bug in sechiba_output.f90
        !WRITE(numout,*) 'zd hydrol_main 4 ','snowtemp(1,:)',snowtemp(1,:)
 
        rsol(:) = -un
@@ -897,7 +897,7 @@ CONTAINS
          & soiltemp,pb,grndflux,snowrho,snowdz,snowtemp,gthick,gtemp,gpkappa,&
          & pkappa_snow,cgrnd_snow,dgrnd_snow,zdz1_soil,zdz2_soil,cgrnd_soil,dgrnd_soil,&
          & thawed_humidity, depth_organic_soil, heat_Zimov, tdeep, hsdeep,&
-         & soilc_total, veget_max)
+         & soilc_total, veget_max, height) !! 18-01-2016 Arsene - add height for moss depth
     !WRITE(numout,*) 'zd thermosoil_main 4 ','snowtemp(1,:)',snowtemp(1,:)
 
 
@@ -959,13 +959,14 @@ CONTAINS
     sum_treefrac(:) = zero
     sum_grassfrac(:) = zero
     sum_cropfrac(:) = zero
+    sum_shrubfrac(:) = zero    !! Arsene 31-07-2014 modifications
     DO jv = 2, nvm 
        IF (is_tree(jv) .AND. natural(jv) ) THEN
           sum_treefrac(:) = sum_treefrac(:) + veget_max(:,jv)
        ELSE IF (is_shrub(jv) .AND. natural(jv)) THEN                                    !! Arsene 31-07-2014 modifications
           sum_shrubfrac(:) = sum_shrubfrac(:) + veget_max(:,jv)                         !! Arsene 31-07-2014 modifications
        ELSE IF ((.NOT. is_tree(jv)) .AND. (.NOT. is_shrub(jv)) .AND. natural(jv)) THEN  !! Arsene 31-07-2014 modifications
-       ELSE IF ((.NOT. is_tree(jv))  .AND. natural(jv)) THEN
+!       ELSE IF ((.NOT. is_tree(jv))  .AND. natural(jv)) THEN
           sum_grassfrac(:) = sum_grassfrac(:) + veget_max(:,jv)
        ELSE 
           sum_cropfrac = sum_cropfrac(:) + veget_max(:,jv)
@@ -1318,7 +1319,7 @@ CONTAINS
                & snowrho,snowtemp,soiltemp,snowgrain,snowdz,snowheat,snowliq,&
                & grndflux,gtemp,gthick,gpkappa,zdz1_soil,zdz2_soil,cgrnd_soil,dgrnd_soil, &
                & soilflxresid,snowflx,snowcap,pkappa_snow,lambda_snow,cgrnd_snow,dgrnd_snow,temp_sol_add, & !pss:+
-               & drunoff_tot, fwet_out) !pss:-
+               & fwet_out) !pss:-  !! Arsene 28-01-2016 - REMOVE drunoff_tot because never user and bug in sechiba_output.f90
           !WRITE(numout,*) 'zd hydrol_main 6 ','snowtemp(1,:)',snowtemp(1,:)
 
           rsol(:) = -un
@@ -1339,7 +1340,7 @@ CONTAINS
             & soiltemp,pb,grndflux,snowrho,snowdz,snowtemp,gthick,gtemp,gpkappa,&
             & pkappa_snow,cgrnd_snow,dgrnd_snow,zdz1_soil,zdz2_soil,cgrnd_soil,dgrnd_soil,&
             & thawed_humidity, depth_organic_soil, heat_Zimov, tdeep, hsdeep,&
-            & soilc_total, veget_max)
+            & soilc_total, veget_max, height) !! 18-01-2016 Arsene - add height for moss depth
        !WRITE(numout,*) 'zd thermosoil_main 6 ','snowtemp(1,:)',snowtemp(1,:)
 
        !! 3.6 Add river routing to restart files  
@@ -1814,11 +1815,13 @@ CONTAINS
     fwet_out(:) = undef_sechiba
 !pss:-
 !pss:+
-    ALLOCATE (drunoff_tot(kjpindex),stat=ier)
-    IF (ier.NE.0) THEN
-       WRITE (numout,*) ' error in drunoff_tot allocation. We stop. We need kjpindex words = ',kjpindex
-       STOP 'sechiba_init'
-    END IF
+!! Arsene 28-01-2016 - REMOVE because never user and bug in sechiba_output.f90
+!    ALLOCATE (drunoff_tot(kjpindex),stat=ier)
+!    IF (ier.NE.0) THEN
+!       WRITE (numout,*) ' error in drunoff_tot allocation. We stop. We need kjpindex words = ',kjpindex
+!       STOP 'sechiba_init'
+!    END IF
+!! Arsene 28-01-2016 - REMOVE because never user and bug in sechiba_output.f90
 !pss:-
 
     ALLOCATE (vevapflo(kjpindex),stat=ier)
@@ -2492,7 +2495,7 @@ CONTAINS
 
 !pss:+
     IF ( ALLOCATED (fwet_out)) DEALLOCATE (fwet_out)
-    IF ( ALLOCATED (drunoff_tot)) DEALLOCATE (drunoff_tot)
+!    IF ( ALLOCATED (drunoff_tot)) DEALLOCATE (drunoff_tot) !! Arsene 28-01-2016 - REMOVE because never user and bug in sechiba_output.f90
 !pss:-
 
 !! 3. Clear all allocated memory

@@ -617,6 +617,10 @@ MODULE pft_parameters_var
   REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: shrub_allom_array !! array for each schrubs allometry (if not like trees)
 !$OMP THREADPRIVATE(shrub_allom_array)
 
+!! Arsene 29-12-2015 - ADD for LUT: new litter moist dependence 
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: litter_moist_array    !! array for litter function of decomposition with moisture
+!$OMP THREADPRIVATE(litter_mois_array)
+
 !
 ! WETLAND CH4 methane
 !

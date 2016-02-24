@@ -938,15 +938,19 @@ CONTAINS
 
                     !! ## On simule l'effet d'accumulation préférentiel de la neige sur les buissons via différence de dépôt de masse / pixel
                     !! ##    --> un facteur à z est ajouter afin de simuler le transfert de masse de neige au niveau des buissons (entre 0 et 0.5)
-                    IF ( za.GT.min_stomate .AND. veget_layer(ji,2).GT.min_stomate .AND. veget_layer(ji,2).LE.0.5 ) THEN
+                    IF ( za.GT.min_stomate .AND. (veget_layer(ji,2)+veget_layer(ji,3)).GT.min_stomate & 
+                                         & .AND. (veget_layer(ji,2)+veget_layer(ji,3)).LE.0.5 ) THEN
                         za = za * (1 + veget_layer(ji,2) + veget_layer(ji,3))!! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
-                    ELSEIF ( za.GT.min_stomate .AND. veget_layer(ji,2).GT.0.5 .AND. veget_layer(ji,2).LT.1 ) THEN
+                    ELSEIF ( za.GT.min_stomate .AND. (veget_layer(ji,2)+veget_layer(ji,3)).GT.0.5 & 
+                                         & .AND. (veget_layer(ji,2)+veget_layer(ji,3)).LT.1 ) THEN
                         za = za * (2 - veget_layer(ji,2) - veget_layer(ji,3))!! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
                     ENDIF
 
-                    IF ( zb.GT.min_stomate .AND. veget_layer(ji,2).GT.min_stomate .AND. veget_layer(ji,2).LE.0.5 ) THEN
+                    IF ( zb.GT.min_stomate .AND. (veget_layer(ji,2)+veget_layer(ji,3)).GT.min_stomate &
+                                         & .AND. (veget_layer(ji,2)+veget_layer(ji,3)).LE.0.5 ) THEN
                         zb = zb * (1 + veget_layer(ji,2) + veget_layer(ji,3))!! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
-                    ELSEIF ( zb.GT.min_stomate .AND. veget_layer(ji,2).GT.0.5 .AND. veget_layer(ji,2).LT.1 ) THEN
+                    ELSEIF ( zb.GT.min_stomate .AND. (veget_layer(ji,2)+veget_layer(ji,3)).GT.0.5 & 
+                                         & .AND. (veget_layer(ji,2)+veget_layer(ji,3)).LT.1 ) THEN
                         zb = zb * (2 - veget_layer(ji,2) - veget_layer(ji,3))!! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
                     ENDIF
 

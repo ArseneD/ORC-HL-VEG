@@ -307,6 +307,8 @@ CONTAINS
     INTEGER(i_std), SAVE                                        :: frozen_respiration_func = 0
     LOGICAL, SAVE                                               :: use_snowinsul_litter_resp = .FALSE.
 
+    REAL(r_std), DIMENSION(nbdl)                                :: nroott             !! Arsene 29-12-2015 - ADD - LUT for new litter moist dependence
+
 !_ ================================================================================================================================
 
     IF (bavard.GE.3) WRITE(numout,*) 'Entering littercalc'
@@ -460,7 +462,10 @@ CONTAINS
           !! 2.2.2 calculate litter increase (per m^2 of ground).
           !       Only a given fracion of fruit turnover is directly coverted into litter.
           !       Litter increase for each PFT, structural and metabolic, above/below
-          litter_inc_PFT(:,j,k,iabove,icarbon) = &
+
+          !! Arsene 17-12-2015 - for moss ==> only below
+          IF ( vascular(j) ) THEN
+            litter_inc_PFT(:,j,k,iabove,icarbon) = &
                litterfrac(ileaf,k) * bm_to_litter(:,j,ileaf,icarbon) + &
                litterfrac(isapabove,k) * bm_to_litter(:,j,isapabove,icarbon) + &
                litterfrac(iheartabove,k) * bm_to_litter(:,j,iheartabove,icarbon) + &
@@ -472,13 +477,37 @@ CONTAINS
                litterfrac(ifruit,k) * turnover(:,j,ifruit,icarbon) + &
                litterfrac(icarbres,k) * turnover(:,j,icarbres,icarbon)
 
-          litter_inc_PFT(:,j,k,ibelow,icarbon) = &
+            litter_inc_PFT(:,j,k,ibelow,icarbon) = &
                litterfrac(isapbelow,k) * bm_to_litter(:,j,isapbelow,icarbon) + &
                litterfrac(iheartbelow,k) * bm_to_litter(:,j,iheartbelow,icarbon) + &
                litterfrac(iroot,k) * bm_to_litter(:,j,iroot,icarbon) + &
                litterfrac(isapbelow,k) * turnover(:,j,isapbelow,icarbon) + &
                litterfrac(iheartbelow,k) * turnover(:,j,iheartbelow,icarbon) + &
                litterfrac(iroot,k) * turnover(:,j,iroot,icarbon)
+          
+          ELSE !! Arsene 17-12-2015 - Add - START
+            !! The non vascular plants (mosses and lichens) are one soil, and the bottom part died directly on soil.
+            !! TAKE CARE: that mean that the grazing on moss litter  is not possible 
+            litter_inc_PFT(:,j,k,iabove,icarbon) = zero
+
+            litter_inc_PFT(:,j,k,ibelow,icarbon) = &
+               litterfrac(ileaf,k) * bm_to_litter(:,j,ileaf,icarbon) + &
+               litterfrac(isapabove,k) * bm_to_litter(:,j,isapabove,icarbon) + &
+               litterfrac(iheartabove,k) * bm_to_litter(:,j,iheartabove,icarbon) + &
+               litterfrac(ifruit,k) * bm_to_litter(:,j,ifruit,icarbon) + &
+               litterfrac(icarbres,k) * bm_to_litter(:,j,icarbres,icarbon) + &
+               litterfrac(ileaf,k) * turnover(:,j,ileaf,icarbon) + &
+               litterfrac(isapabove,k) * turnover(:,j,isapabove,icarbon) + &
+               litterfrac(iheartabove,k) * turnover(:,j,iheartabove,icarbon) + &
+               litterfrac(ifruit,k) * turnover(:,j,ifruit,icarbon) + &
+               litterfrac(icarbres,k) * turnover(:,j,icarbres,icarbon) + &
+               litterfrac(isapbelow,k) * bm_to_litter(:,j,isapbelow,icarbon) + &
+               litterfrac(iheartbelow,k) * bm_to_litter(:,j,iheartbelow,icarbon) + &
+               litterfrac(iroot,k) * bm_to_litter(:,j,iroot,icarbon) + &
+               litterfrac(isapbelow,k) * turnover(:,j,isapbelow,icarbon) + &
+               litterfrac(iheartbelow,k) * turnover(:,j,iheartbelow,icarbon) + &
+               litterfrac(iroot,k) * turnover(:,j,iroot,icarbon)
+          ENDIF !! Arsene 17-12-2015 - Add - END
 
           ! litter increase, met/struct, above/below
           litter_inc(:,k,j,iabove,icarbon) = litter_inc(:,k,j,iabove,icarbon) + litter_inc_PFT(:,j,k,iabove,icarbon)
@@ -490,9 +519,13 @@ CONTAINS
                litterfrac(ileaf,k) * ( bm_to_litter(:,j,ileaf,icarbon) + turnover(:,j,ileaf,icarbon) )
 
           !! 2.2.4 lignin increase in structural litter
+
           IF ( k .EQ. istructural ) THEN
 
-             lignin_struc_inc(:,j,iabove) = &
+            !! Arsene 17-12-2015 - for moss ==> only below
+            IF ( vascular(j) ) THEN
+
+              lignin_struc_inc(:,j,iabove) = &
                   lignin_struc_inc(:,j,iabove) + &
                   LC(ileaf) * bm_to_litter(:,j,ileaf,icarbon) + &
                   LC(isapabove) * bm_to_litter(:,j,isapabove,icarbon) + &
@@ -505,7 +538,7 @@ CONTAINS
                   LC(ifruit) * turnover(:,j,ifruit,icarbon) + &
                   LC(icarbres) * turnover(:,j,icarbres,icarbon)
 
-             lignin_struc_inc(:,j,ibelow) = &
+               lignin_struc_inc(:,j,ibelow) = &
                   lignin_struc_inc(:,j,ibelow) + &
                   LC(isapbelow) * bm_to_litter(:,j,isapbelow,icarbon) + &
                   LC(iheartbelow) * bm_to_litter(:,j,iheartbelow,icarbon) + &
@@ -513,6 +546,31 @@ CONTAINS
                   LC(isapbelow)*turnover(:,j,isapbelow,icarbon) + &
                   LC(iheartbelow)*turnover(:,j,iheartbelow,icarbon) + &
                   LC(iroot)*turnover(:,j,iroot,icarbon)
+            ELSE !! Arsene 17-12-2015 - Add - START
+              !! The non vascular plants (mosses and lichens) are one soil, and the bottom part died directly on soil.
+
+               lignin_struc_inc(:,j,iabove) = lignin_struc_inc(:,j,iabove) 
+
+               lignin_struc_inc(:,j,ibelow) = &
+                  lignin_struc_inc(:,j,ibelow) + &
+                  LC(ileaf) * bm_to_litter(:,j,ileaf,icarbon) + &
+                  LC(isapabove) * bm_to_litter(:,j,isapabove,icarbon) + &
+                  LC(iheartabove) * bm_to_litter(:,j,iheartabove,icarbon) + &
+                  LC(ifruit) * bm_to_litter(:,j,ifruit,icarbon) + &
+                  LC(icarbres) * bm_to_litter(:,j,icarbres,icarbon) + &
+                  LC(ileaf) * turnover(:,j,ileaf,icarbon) + &
+                  LC(isapabove) * turnover(:,j,isapabove,icarbon) + &
+                  LC(iheartabove) * turnover(:,j,iheartabove,icarbon) + &
+                  LC(ifruit) * turnover(:,j,ifruit,icarbon) + &
+                  LC(icarbres) * turnover(:,j,icarbres,icarbon) + &
+                  LC(isapbelow) * bm_to_litter(:,j,isapbelow,icarbon) + &
+                  LC(iheartbelow) * bm_to_litter(:,j,iheartbelow,icarbon) + &
+                  LC(iroot) * bm_to_litter(:,j,iroot,icarbon) + &
+                  LC(isapbelow)*turnover(:,j,isapbelow,icarbon) + &
+                  LC(iheartbelow)*turnover(:,j,iheartbelow,icarbon) + &
+                  LC(iroot)*turnover(:,j,iroot,icarbon)
+
+            ENDIF !! Arsene 17-12-2015 - Add - END
 
           ENDIF
 
@@ -601,22 +659,23 @@ CONTAINS
     
     !! 3.2 below: convolution of temperature and decomposer profiles
     !!            (exponential decomposer profile supposed)
-   
-    !! 3.2.1 rpc is an integration constant such that the integral of the root profile is 1.
-    rpc(:) = un / ( un - EXP( -z_soil(nbdl) / z_decomp ) )
 
-    !! 3.2.2 integrate over the nbdl levels
-    tsoil_decomp(:) = zero
+    IF ( .NOT.new_litter_discret .OR. spinup_analytic) THEN
+        !! 3.2.1 rpc is an integration constant such that the integral of the root profile is 1.
+        rpc(:) = un / ( un - EXP( -z_soil(nbdl) / z_decomp ) )
 
-    DO l = 1, nbdl
+        !! 3.2.2 integrate over the nbdl levels
+        tsoil_decomp(:) = zero
+        DO l = 1, nbdl
 
-       tsoil_decomp(:) = &
-            tsoil_decomp(:) + tsoil(:,l) * rpc(:) * &
-            ( EXP( -z_soil(l-1)/z_decomp ) - EXP( -z_soil(l)/z_decomp ) )
+           tsoil_decomp(:) = &
+                tsoil_decomp(:) + tsoil(:,l) * rpc(:) * &
+                ( EXP( -z_soil(l-1)/z_decomp ) - EXP( -z_soil(l)/z_decomp ) )
+        ENDDO
 
-    ENDDO
+        control_temp(:,ibelow) = control_temp_func (npts,tsoil_decomp,frozen_respiration_func)
 
-    control_temp(:,ibelow) = control_temp_func (npts,tsoil_decomp,frozen_respiration_func)
+    ENDIF
 
   !! 4. Moisture control. Factor between 0 and 1
     
@@ -627,21 +686,25 @@ CONTAINS
     !! 4.2 below: convolution of humidity and decomposer profiles
     !            (exponential decomposer profile supposed)
 
+    IF ( .NOT.new_litter_discret .OR. spinup_analytic) THEN
+
     !! 4.2.1 rpc is an integration constant such that the integral of the root profile is 1.
-    rpc(:) = un / ( un - EXP( -z_soil(nbdl) / z_decomp ) )
+        rpc(:) = un / ( un - EXP( -z_soil(nbdl) / z_decomp ) )
 
-    !! 4.2.2 integrate over the nbdl levels
-    soilhum_decomp(:) = zero
+        !! 4.2.2 integrate over the nbdl levels
+        soilhum_decomp(:) = zero
 
-    DO l = 1, nbdl !Loop over soil levels
+        DO l = 1, nbdl !Loop over soil levels
 
-       soilhum_decomp(:) = &
-            soilhum_decomp(:) + soilhum(:,l) * rpc(:) * &
-            ( EXP( -z_soil(l-1)/z_decomp ) - EXP( -z_soil(l)/z_decomp ) )
+           soilhum_decomp(:) = &
+                soilhum_decomp(:) + soilhum(:,l) * rpc(:) * &
+                ( EXP( -z_soil(l-1)/z_decomp ) - EXP( -z_soil(l)/z_decomp ) )
 
-    ENDDO
+        ENDDO
 
-    control_moist(:,ibelow) = control_moist_func (npts, soilhum_decomp)
+        control_moist(:,ibelow) = control_moist_func (npts, soilhum_decomp)
+
+    ENDIF
 
   !! 5. fluxes from litter to carbon pools and respiration
 
@@ -651,8 +714,35 @@ CONTAINS
           !! 5.1 structural litter: goes into active and slow carbon pools + respiration
 
           !! 5.1.1 total quantity of structural litter which is decomposed
-          fd(:) = dt/litter_tau(istructural) * &
-               control_temp(:,l) * control_moist(:,l) * exp( -litter_struct_coef * lignin_struc(:,m,l) )
+
+          IF ( .NOT.new_litter_discret .OR. l.EQ.iabove .OR. spinup_analytic) THEN
+              fd(:) = dt/litter_tau(istructural) * &
+                 control_temp(:,l) * control_moist(:,l) * exp( -litter_struct_coef * lignin_struc(:,m,l) )
+          ELSE   !! Arsene 29-12-2015 - ADD - START - LUT for new litter moist dependence
+              !! Idea: use nroot discretisation to define where are the new litter
+
+              !! Compute the nroot for the PFT
+              DO k = 1, nbdl-1
+                  nroott(k) = (EXP(-humcste(m)*z_soil(k))) * &
+                     & (EXP(humcste(m)*(z_soil(k)-z_soil(k-1))/deux) - &
+                     & EXP(-humcste(m)*(z_soil(k+1)-z_soil(k))/deux))/ &
+                     & (EXP(-humcste(m)*(z_soil(2)-z_soil(1))/deux) &
+                     & -EXP(-humcste(m)*z_soil(nbdl))) 
+              ENDDO
+              nroott(nbdl) = (EXP(humcste(m)*(z_soil(nbdl)-z_soil(nbdl-1))/deux) -un) * &
+                  & EXP(-humcste(m)*z_soil(nbdl)) / &
+                  & (EXP(-humcste(m)*(z_soil(2)-z_soil(1))/deux) &
+                  & -EXP(-humcste(m)*z_soil(nbdl)))
+
+              !! Compute fd
+              fd(:)=zero
+              DO k = 1, nbdl
+                  control_moist(:,l) = control_moist_func (npts, soilhum(:,k))
+                  control_temp(:,l) = control_temp_func (npts,tsoil(:,k),frozen_respiration_func)
+                  fd(:) = fd(:) + nroott(k) * dt/litter_tau(istructural) * &
+                      control_temp(:,l) * control_moist(:,l) * exp( -litter_struct_coef * lignin_struc(:,m,l)) 
+             ENDDO
+          ENDIF  !! Arsene 29-12-2015 - ADD - END - LUT for new litter moist dependence
 
           DO k = 1,nelements
              
@@ -697,7 +787,20 @@ CONTAINS
           !! 5.2 metabolic litter goes into active carbon pool + respiration
          
           !! 5.2.1 total quantity of metabolic litter that is decomposed
-          fd(:) = dt/litter_tau(imetabolic) * control_temp(:,l) * control_moist(:,l)
+
+          IF ( .NOT.new_litter_discret .OR. l.EQ.iabove .OR. spinup_analytic) THEN
+              fd(:) = dt/litter_tau(imetabolic) * control_temp(:,l) * control_moist(:,l)
+          ELSE   !! Arsene 29-12-2015 - ADD - START - LUT for new litter moist dependence
+
+              fd(:)=zero
+              DO k = 1, nbdl
+                  control_moist(:,l) = control_moist_func (npts, soilhum(:,k))
+                  control_temp(:,l) = control_temp_func (npts,tsoil(:,k),frozen_respiration_func)
+                  fd(:) = fd(:) + nroott(k) * dt/litter_tau(imetabolic) * control_temp(:,l) * control_moist(:,l)
+             ENDDO
+
+          ENDIF  !! Arsene 29-12-2015 - ADD - END - LUT for new litter moist dependence
+
 
           DO k = 1,nelements
           
@@ -941,11 +1044,45 @@ CONTAINS
     !! 0.3 Modified variables
 
     !! 0.4 Local variables
+    INTEGER(i_std)                           :: i                   !! Indices (unitless) !! Arsene 29-12-2015 - ADD
+
 
 !_ ================================================================================================================================
 
-    moistfunc_result(:) = -moist_coeff(1) * moist_in(:) * moist_in(:) + moist_coeff(2)* moist_in(:) - moist_coeff(3)
-    moistfunc_result(:) = MAX( moistcont_min, MIN( un, moistfunc_result(:) ) )
+    IF ( .NOT. new_moist_func ) THEN
+        moistfunc_result(:) = -moist_coeff(1) * moist_in(:) * moist_in(:) + moist_coeff(2)* moist_in(:) - moist_coeff(3)
+        moistfunc_result(:) = MAX( moistcont_min, MIN( un, moistfunc_result(:) ) )
+
+    ELSEIF ( new_moist_func .AND. moist_interval.EQ.0.01) THEN  !! Arsene 29-12-2015 - ADD - START -  LUT for new litter moist dependencei for decomposition
+
+       !! Take care. Valid only moist_interval = 0.01
+
+        DO i= 1,npts
+            IF (moist_in(i) .GE. 1. ) THEN
+                moistfunc_result(i) = litter_moist_array(int(101))
+            ELSE
+                moistfunc_result(i) = litter_moist_array(int(moist_in(i)*100.+1.)) &
+                         & + (moist_in(i)*100.-int(moist_in(i)*100.)) * & 
+                         & (litter_moist_array(int(moist_in(i)*100.+2.))-litter_moist_array(int(moist_in(i)*100.+1.)))
+            ENDIF                         
+        ENDDO
+    
+    ELSE 
+        
+         DO i= 1,npts
+            IF (moist_in(i) .GE. 1. ) THEN
+                moistfunc_result(i) = litter_moist_array(int(1./moist_interval+1.))
+            ELSE
+                
+                moistfunc_result(i) = litter_moist_array(int(moist_in(i)/moist_interval+1.)) &
+                         & + (moist_in(i)/moist_interval-int(moist_in(i)/moist_interval)) * &
+                         & (litter_moist_array(int(moist_in(i)/moist_interval+2.))- &
+                         &              litter_moist_array(int(moist_in(i)/moist_interval+1.)))
+            ENDIF
+        ENDDO
+ 
+       write(*,*) "Take care in stomate_litter: check if is running with moist_interval != 0.01"
+    ENDIF !! Arsene 29-12-2015 - ADD - END -  LUT for new litter moist dependence
 
   END FUNCTION control_moist_func
 

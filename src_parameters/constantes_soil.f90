@@ -228,6 +228,72 @@ CONTAINS
                 &     "Please, check parameter value in run.def. ")
         END IF
 
+!! 20-01-2016 Arsene - Add - START
+        !Config Key   = MOSS_WATER_LEACK_OK
+        !Config Desc  = Activate or not the leave interception increase and leak for mosses
+        !Config If    = OK_SECHIBA 
+        !Config Def   = .false.
+        !Config Help  = 
+        !Config Units = [-]
+        CALL getin_p('MOSS_WATER_LEACK_OK',moss_water_leack_ok)
+
+        !Config Key   = SECHIBA_QSINT_MOSS_COEF
+        !Config Desc  = Coefficient to compute value of qsintcst for moss: qsintcst_moss = qsintcst_moss_coef * qsintcst
+        !Config If    = OK_SECHIBA & MOSS_WATER_LEACK_OK
+        !Config Def   = 5.
+        !Config Help  = Transforms leaf area index into size of interception reservoir
+        !Config Units = [-]
+        CALL getin_p('SECHIBA_QSINT_MOSS_COEF',qsintcst_moss_coef)
+
+        !Config Key   = MOSS_WATER_LEACK
+        !Config Desc  = Number of day to loss the leave interception water by leack to the soil (via precisol), for moss
+        !Config If    = OK_SECHIBA & MOSS_WATER_LEACK_OK
+        !Config Def   = 14.
+        !Config Help  = 
+        !Config Units = [day]
+        CALL getin_p('MOSS_WATER_LEACK',moss_water_leack)
+
+        !Config Key   = reinf_slope_moss_ok
+        !Config Desc  = Activate or not the different reinf_slope for moss (impact the runoff)
+        !Config If    = OK_SECHIBA 
+        !Config Def   = .true.
+        !Config Help  = 
+        !Config Units = [-]
+        CALL getin_p('REINF_SLOPE_MOSS_OK',reinf_slope_moss_ok)
+
+        !Config Key   = reinf_slope_moss
+        !Config Desc  = Value for reinf_slope (not topography dependent)
+        !Config If    = OK_SECHIBA & REINF_SLOPE_MOSS_OK
+        !Config Def   = 0.6
+        !Config Help  = 
+        !Config Units = [-]
+        CALL getin_p('REINF_SLOPE_MOSS',reinf_slope_moss)
+
+        !Config Key   = thermal_property_moss_ok
+        !Config Desc  = Activate or not the specific thermosoil properties for mosses (from Soudzilovskaia et al., 2013)
+        !Config If    = OK_SECHIBA 
+        !Config Def   = .true.
+        !Config Help  = 
+        !Config Units = [-]
+        CALL getin_p('THERMAL_PROPERTY_MOSS_OK',thermal_property_moss_ok)
+
+
+!        !Config Key   = reinf_slope_moss_coef
+!        !Config Desc  = Coeficient to increase reinf_slope. 0 --> no impact. 1 --> slope x2. +1 --> slope +100%
+!        !Config If    = OK_SECHIBA 
+!        !Config Def   = 2
+!        !Config Help  = 
+!        !Config Units = [-]
+!        CALL getin_p('REINF_SLOPE_MOSS_COEF',reinf_slope_moss_coef)
+!
+!        !Config Key   = moss_water_runoff
+!        !Config Desc  = Number of day to loss the water from water2infil. Original=1/48. Default =1
+!        !Config If    = OK_SECHIBA 
+!        !Config Def   = 1.
+!        !Config Help  = 
+!        !Config Units = [-]
+!        CALL getin_p('MOSS_WATER_RUNOFF',moss_water_runoff)
+!! 20-01-2016 Arsene - Add - END
 
         IF ( .NOT.(active_flags%hydrol_cwrr) ) THEN
            

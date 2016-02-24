@@ -1646,6 +1646,17 @@ CONTAINS
       END IF 
 !! Arsene 16-10-2015 - ADD
 
+!! Arsene 29-12-2015 - ADD for LUT: new litter moist dependence 
+      ALLOCATE(litter_moist_array(int(1./moist_interval+1.)),stat=ier)
+      l_error = l_error .OR. (ier /= 0)
+      IF (l_error) THEN
+         WRITE(numout,*) ' Memory allocation error for litter_moist_array. We stop. We need line  &
+                number int(1./moist_interval+1) = ', int(1./moist_interval+1.)
+         STOP 'pft_parameters_alloc'
+      END IF
+!! Arsene 29-12-2015 - ADD for LUT: new litter moist dependence 
+
+
       ALLOCATE(cn_sapl(nvm),stat=ier)
       l_error = l_error .OR. (ier /= 0)
       IF (l_error) THEN

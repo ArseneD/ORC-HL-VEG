@@ -2454,8 +2454,49 @@ END SUBROUTINE get_gasdiff
     !-----------------------------------!
     IF ( limit_decomp_moisture ) THEN
        ! stomate moisture control function
-       moistfunc_result(:,:,:) = -1.1 * moist_in(:,:,:) * moist_in(:,:,:) + 2.4 * moist_in(:,:,:) - 0.29
-       moistfunc_result(:,:,:) = max( 0.25_r_std, min( 1._r_std, moistfunc_result(:,:,:) ) )
+       IF ( .NOT. new_moist_func ) THEN
+           moistfunc_result(:,:,:) = -1.1 * moist_in(:,:,:) * moist_in(:,:,:) + 2.4 * moist_in(:,:,:) - 0.29
+           moistfunc_result(:,:,:) = max( 0.25_r_std, min( 1._r_std, moistfunc_result(:,:,:) ) )
+
+       ELSEIF ( new_moist_func .AND. moist_interval.EQ.0.01) THEN  !! Arsene 29-12-2015 - ADD - START -  LUT for new moist dependence for decomposition
+
+       !! Take care. Valid only moist_interval = 0.01
+
+          DO ii= 1,i_ind
+            DO ij= 1, j_ind
+              DO ik = 1, k_ind
+                IF (moist_in(ii,ij,ik) .GE. 1. ) THEN
+                    moistfunc_result(ii,ij,ik) = litter_moist_array(int(101))
+                ELSE
+                    moistfunc_result(ii,ij,ik) = litter_moist_array(int(moist_in(ii,ij,ik)*100.+1.)) &
+                         & + (moist_in(ii,ij,ik)*100.-int(moist_in(ii,ij,ik)*100.)) * &
+                         & (litter_moist_array(int(moist_in(ii,ij,ik)*100.+2.)) &
+                                & -litter_moist_array(int(moist_in(ii,ij,ik)*100.+1.)))
+                ENDIF
+              ENDDO
+            ENDDO
+          ENDDO
+
+        ELSE
+
+          DO ii= 1,i_ind
+            DO ij= 1, j_ind
+              DO ik = 1, k_ind
+                IF (moist_in(ii,ij,ik) .GE. 1. ) THEN
+                    moistfunc_result(ii,ij,ik) = litter_moist_array(int(1./moist_interval+1.))
+                ELSE
+                    moistfunc_result(ii,ij,ik) = litter_moist_array(int(moist_in(ii,ij,ik)/moist_interval+1.)) &
+                         & + (moist_in(ii,ij,ik)/moist_interval-int(moist_in(ii,ij,ik)/moist_interval)) * &
+                         & (litter_moist_array(int(moist_in(ii,ij,ik)/moist_interval+2.))- &
+                         &              litter_moist_array(int(moist_in(ii,ij,ik)/moist_interval+1.)))
+                ENDIF
+              ENDDO
+            ENDDO
+          ENDDO
+
+          write(*,*) "Take care in stomate_permafrost_soilcarbon: check if is running with moist_interval != 0.01"
+        ENDIF !! Arsene 29-12-2015 - ADD - END -  LUT for new litter moist dependence
+
     ELSE
        moistfunc_result(:,:,:) = 1._r_std
     ENDIF

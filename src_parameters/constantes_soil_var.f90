@@ -108,6 +108,27 @@ MODULE constantes_soil_var
   REAL(r_std), PARAMETER :: so_cond_dry_org = 0.25          !! W/m/K from Farouki via Lawrence and Slater
   REAL(r_std), PARAMETER :: so_capa_dry_org = 2.5e6         !! J/K/m^3 from Farouki via Lawrence and Slater
 
+!! Arsene 18-01-2016 - START - Add new thermal capacity and conductivity for mosses
+  REAL(r_std), SAVE :: so_capa_dry_moss = 0.29e+6       !! Dry Moss Heat capacity From Soudzilovskaia et al., 2013
+                                                        !! @tex $(J.m^{-3}.K^{-1})$ @endtex 
+!$OMP THREADPRIVATE(so_capa_dry_moss)
+  REAL(r_std), SAVE :: so_capa_wet_moss = 4.29e+6       !! Wet moss Heat capacity From Soudzilovskaia et al., 2013
+                                                        !! @tex $(J.m^{-3}.K^{-1})$ @endtex
+!$OMP THREADPRIVATE(so_capa_wet_moss)
+  REAL(r_std), SAVE :: so_capa_ice_moss = 3.26e+6       !! Ice moss Heat capacity Deduce from wet and ice ratio (without moss)
+                                                        !! @tex $(J.m^{-3}.K^{-1})$ @endtex
+!$OMP THREADPRIVATE(so_capa_ice_moss)
+  REAL(r_std), SAVE :: so_cond_dry_moss = 0.092         !! Dry moss Thermal Conductivity of soils From Soudzilovskaia et al., 2013
+                                                        !! @tex $(W.m^{-2}.K^{-1})$ @endtex
+!$OMP THREADPRIVATE(so_cond_dry_moss)
+  REAL(r_std), SAVE :: cond_solid_moss = 0.754          !! Wet moss Thermal Conductivity From Soudzilovskaia et al., 2013
+                                                        !! @tex $(W.m^{-2}.K^{-1})$ @endtex
+!$OMP THREADPRIVATE(cond_solid_moss)
+  REAL(r_std), SAVE :: cond_ice_moss = 0.715            !! Ice moss Thermal Conductivity from wet and ice ratio (without moss)
+                                                        !! @tex $(W.m^{-2}.K^{-1})$ @endtex
+!$OMP THREADPRIVATE(cond_ice_moss)
+!! Arsene 18-01-2016 - END - Add new thermal capacity and conductivity for mosses
+
   !REAL(r_std),PARAMETER :: sn_capa = 2100.0_r_std*sn_dens   !! Heat capacity
   !for snow @tex $(J.m^{-3}.K^{-1})$ @endtex
   REAL(r_std), PARAMETER   :: soilc_max =  130000.          !! g/m^3 from lawrence and slater
@@ -128,6 +149,9 @@ MODULE constantes_soil_var
   REAL(r_std), SAVE :: qsintcst = 0.1                   !! Transforms leaf area index into size of interception reservoir
                                                         !! (unitless)
 !$OMP THREADPRIVATE(qsintcst)
+  REAL(r_std), SAVE :: qsintcst_moss_coef = 5.          !! Coefficient to compute value of qsintcst for moss: qsintcst_moss = qsintcst_moss_coef * qsintcst !! Arsene 20-01-2016 - Add
+                                                        !! (unitless)
+!$OMP THREADPRIVATE(qsintcst_moss_coef)
   REAL(r_std), SAVE :: mx_eau_nobio = 150.              !! Volumetric available soil water capacity in nobio fractions
                                                         !! @tex $(kg.m^{-3} of soil)$ @endtex
 !$OMP THREADPRIVATE(mx_eau_nobio)
@@ -136,6 +160,23 @@ MODULE constantes_soil_var
 !$OMP THREADPRIVATE(rsol_cste)
   REAL(r_std), SAVE :: hcrit_litter=0.08_r_std          !! Scaling depth for litter humidity (m)
 !$OMP THREADPRIVATE(hcrit_litter)
+
+  LOGICAL, SAVE :: moss_water_leack_ok = .false.         ! Activate or not the leave interception increase and leak for mosses     !! Arsene 23-02-2016 - Add
+!$OMP THREADPRIVATE(reinf_slope_moss_ok)
+  REAL(r_std), SAVE :: moss_water_leack = 14.           !! Number of day to loss the leave interception water by leack to the soil (via precisol), for moss (day) !! Arsene 20-01-2016 - Add
+!$OMP THREADPRIVATE(moss_water_leack)
+  LOGICAL, SAVE :: reinf_slope_moss_ok = .true.         !! Activate or not the different reinf_slope for moss (impact the runoff)  !! Arsene 23-02-2016 - Add
+!$OMP THREADPRIVATE(reinf_slope_moss_ok)
+  REAL(r_std), SAVE :: reinf_slope_moss = 0.6          !! Value for reinf_slope (not topography dependent), [0-1] (unitless)       !! Arsene 09-02-2016 - Add
+!$OMP THREADPRIVATE(reinf_slope_moss)
+
+!  REAL(r_std), SAVE :: reinf_slope_moss_coef = 2.       !! Coeficient to increase reinf_slope. 0 --> no impact. 1 --> slope x2. +1 --> slope +100% (unitless) !! Arsene 20-01-2016 - Add
+!!$OMP THREADPRIVATE(reinf_slope_moss_coef)
+!  REAL(r_std), SAVE :: moss_water_runoff = 1.           !! Number of day to loss the water from water2infil (day)             !! Arsene 09-02-2016 - Add
+!!$OMP THREADPRIVATE(moss_water_runoff)
+
+  LOGICAL, SAVE :: thermal_property_moss_ok = .true.     !! Activate or not the specific thermosoil properties for mosses (from Soudzilovskaia et al., 2013) !! Arsene 24-02-2016 - Add
+!$OMP THREADPRIVATE(thermal_property_moss_ok)
 
 
   !! Parameters specific for the CWRR hydrology.

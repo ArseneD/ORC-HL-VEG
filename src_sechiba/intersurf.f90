@@ -3560,8 +3560,8 @@ CONTAINS
              CALL histdef(hist_id, 'ZSKEW', 'SKEWNESS INDICE TOPO', '-', &
                   & iim,jjm, hori_id, 1, 1, 1, -99, 32, avescatter(3), dt,dw)      
 
-             CALL histdef(hist_id, 'drunoff_tot', 'Surface drunoff', 'mm/d', &
-                  & iim,jjm, hori_id, 1,1,1, -99, 32, fluxop(2), dt,dw) 
+!             CALL histdef(hist_id, 'drunoff_tot', 'Surface drunoff', 'mm/d', & !! Arsene 28-01-2016 - REMOVE because never user and bug in sechiba_output.f90
+!                  & iim,jjm, hori_id, 1,1,1, -99, 32, fluxop(2), dt,dw)        !! Arsene 28-01-2016 - REMOVE because never user and bug in sechiba_output.f90
  !         ENDIF
 !pss:-
           ENDIF

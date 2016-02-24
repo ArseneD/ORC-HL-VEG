@@ -151,6 +151,8 @@ CONTAINS
     REAL(r_std)                                  :: shrub_min_h, shrub_max_h, shrub_h_x, shrub_h_cst
     REAL(r_std)                                  :: vol_min, vol_max, shrub_vol_cst
     REAL(r_std)                                  :: vol_last, vol_next, height_last, height_next
+!! Arsene 29-12-2015 - ADD - LUT for new litter moist dependence
+    REAL(r_std)                                  :: moist_func, moist_max
 
 !    REAL(r_std)                                  :: ind_frac!! fraction of real individu by ind (special for shrub) !! 22-05-2015 Arsene
 
@@ -312,7 +314,7 @@ CONTAINS
        IF ( bavard .GE. 1 ) WRITE(numout,*) '       critical stem diameter (m): (::mindia(j))', mindia(j)
 
 
-!!! Arsene 16-10-2015 - ADD - START
+!!! Arsene 16-10-2015 - ADD - START Look Up Table (LUT)
        !
        ! 4.bis - For shrubs (.NOT.shrubsliketrees): Calcul of array
        ! This part is use only in lpj_crown.f90 and lpj_establish.f90 (not in stomate_prescribe) ==> only if DGVM or not lpj_cst
@@ -378,6 +380,29 @@ CONTAINS
        ENDIF
 
 !!! Arsene 16-10-2015 - ADD - END       
+
+!!! Arsene 29-12-2015 - ADD - START LUT for new litter and soil-carbon moist decomposition dependence
+
+       IF ( new_moist_func ) THEN
+
+           !! We calculate each value, to 0. until 1. with moist_inerval, from Moyano et al., 2012.
+           moist_func = 0.           
+
+           litter_moist_array(1) = moist_coeff_new(4)
+           moist_max = litter_moist_array(1)
+           DO ii = 2, int(1./moist_interval+1.)
+               moist_func = moist_func + moist_interval
+               litter_moist_array(ii) = (moist_coeff_new(1)*moist_func**3 + moist_coeff_new(2)*moist_func**2 + &
+                                  &     moist_coeff_new(3)*moist_func + moist_coeff_new(4)) * litter_moist_array(ii-1)
+               moist_max = MAX(moist_max,litter_moist_array(ii))
+           ENDDO
+
+           litter_moist_array(:) = litter_moist_array(:) / moist_max 
+
+       ENDIF
+
+!!! Arsene 29-12-2015 - ADD - END LUT
+
 
        !
        ! 5 sapling characteristics

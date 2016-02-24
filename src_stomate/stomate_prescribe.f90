@@ -528,6 +528,20 @@ CONTAINS
 
           ENDDO      ! loop over grid points
 
+
+        !! Arsene 18-01-2016 - START - Add height compute for Non Vascular Plant (for soil thermal cpacity and conductivity)
+        ELSEIF ( .NOT.vascular(j) ) THEN
+
+          WHERE ( veget_max(:,j) .GT. zero  )
+
+             !! Height for non-vascular plant, from biomass and density (rho_moss)
+             height(:,j) = MIN(height_presc(j),MAX(SUM(biomass(:,j,:,icarbon),dim=2)/rho_moss,height_presc(j)/fact_min_height))
+
+             !! Like grasses
+             cn_ind(:,j) = un
+          ENDWHERE
+        !! Arsene 18-01-2016 - END - Add height compute for Non Vascular Plant (for soil thermal cpacity and conductivity)
+
         ELSE !grass
 
           !

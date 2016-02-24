@@ -378,7 +378,7 @@ CONTAINS
        & soiltemp,pb,grndflux,snowrho,snowdz,snowtemp,gthick,gtemp,gpkappa,&
        & pkappa_snow,cgrnd_snow,dgrnd_snow,zdz1_soil,zdz2_soil,cgrnd_soil,dgrnd_soil,&
        & thawed_humidity, organic_layer_thick, heat_Zimov, deeptemp_prof, deephum_prof,&
-       & soilc_total, veget_max)
+       & soilc_total, veget_max, height) !! 18-01-2016 Arsene - add height for moss depth
 
   !! 0. Variable and parameter declaration
 
@@ -462,6 +462,8 @@ CONTAINS
     REAL(r_std),DIMENSION (kjpindex,nsnow), INTENT(in)    :: cgrnd_snow
     REAL(r_std),DIMENSION (kjpindex,nsnow), INTENT(in)    :: dgrnd_snow
 
+    REAL(r_std), DIMENSION (kjpindex,nvm), INTENT(in)     :: height           !! Height of vegetation type !! 18-01-2016 Arsene - add height for moss depth
+
     !! 0.3 Modified variables
 
     !! 0.4 Local variables
@@ -517,7 +519,7 @@ CONTAINS
         &        shumdiag_perma, stempdiag, snow, &
 !Isa
         & profil_froz,pb,snowtemp,snowrho,snowdz,&
-        & thawed_humidity,organic_layer_thick, soilc_total, veget_max_bg)
+        & thawed_humidity,organic_layer_thick, soilc_total, veget_max_bg, height) !! 18-01-2016 Arsene - add height for moss depth
         !
         !! 1.3. Computes cgrd, dgrd, soilflx and soilcap coefficients from restart values or initialisation values.
         ! computes cgrd and dgrd coefficient from previous time step (restart)
@@ -528,7 +530,7 @@ CONTAINS
            & zdz2, cgrnd, dgrnd, zdz1_soil, zdz2_soil, cgrnd_soil, dgrnd_soil, pcapa, pcapa_en, pkappa,&
 !Isa
            & profil_froz, pcappa_supp, stempdiag, &
-           & organic_layer_thick, soilc_total,veget_max_bg,snowdz)
+           & organic_layer_thick, soilc_total,veget_max_bg,snowdz, height) !! 18-01-2016 Arsene - add height for moss depth
         !WRITE(numout,*) 'zd _coef IF(l_first_) 2 ','ptn(1,:,10)',ptn(1,:,10)
         
         
@@ -928,7 +930,7 @@ CONTAINS
     CALL thermosoil_coef (kjpindex, dtradia, temp_sol_new, snow, ptn,soilcap, soilflx, zz,&
     & dz1, dz2, z1, zdz1,zdz2, cgrnd, dgrnd, zdz1_soil, zdz2_soil, cgrnd_soil, dgrnd_soil,&
     & pcapa, pcapa_en, pkappa, profil_froz, pcappa_supp, stempdiag,&
-    & organic_layer_thick, soilc_total,veget_max_bg,snowdz)
+    & organic_layer_thick, soilc_total,veget_max_bg,snowdz, height) !! 18-01-2016 Arsene - add height for moss depth
     !WRITE(numout,*) 'zd _coef 2 ','ptn(1,:,10)',ptn(1,:,10)
 
     !save some useful variables for new snow model
@@ -1507,7 +1509,7 @@ CONTAINS
   &     shumdiag_perma, stempdiag,&
  !Isa
   & snow, profil_froz,pb,snowtemp,snowrho,snowdz, &
-  & thawed_humidity,organic_layer_thick, soilc_total, veget_max)
+  & thawed_humidity,organic_layer_thick, soilc_total, veget_max, height) !! 18-01-2016 Arsene - add height for moss depth
 
   !! 0. Variables and parameter declaration
 
@@ -1518,6 +1520,7 @@ CONTAINS
                                                                                   !! (unitless), [0,1]. (see description of the 
                                                                                   !! variables of thermosoil_main for more 
                                                                                   !! explanations) 
+    REAL(r_std), DIMENSION (kjpindex,nvm), INTENT(in)        :: height            !! Height of vegetation type !! 18-01-2016 Arsene - add height for moss depth
     
     !! 0.2 Output variables
 
@@ -1572,6 +1575,7 @@ CONTAINS
     !! adimentional variable z' = z/lskin*cstgrnd (with z in m)
     
     !! 2.1 adimensional thicknesses of the layers
+
     DO jg=1,ngrnd
 
     !!?? code simplification hopefully possible here with up-to-date compilers !
@@ -1582,6 +1586,7 @@ CONTAINS
     !!!#else
     !!!      dz2(jg) = fz(REAL(jg,r_std)) - fz(REAL(jg-1,r_std))
     !!!#endif
+
     ENDDO
     
     !! 2.2 adimentional depth of the numerical nodes and layers' boudaries
@@ -1595,6 +1600,11 @@ CONTAINS
       zz(jg)      = zz(jg) /  cstgrnd * lskin
       zz_coef(jg) = zz_coef(jg) / cstgrnd * lskin 
       dz2(jg)     = dz2(jg) /  cstgrnd * lskin
+    ENDDO
+    DO jg=1,ngrnd
+    ENDDO
+
+    DO jg=1,ngrnd
     ENDDO
 
     !! 2.4 Computing some usefull constants for the numerical scheme
@@ -1621,9 +1631,10 @@ CONTAINS
     !! 2.7 Thermal conductivity at all levels
     if (ok_explicitsnow) then
        CALL thermosoil_getdiff( kjpindex, ptn, wetdiaglong, pkappa, pcapa,&
-                pcapa_en,profil_froz, pcappa_supp, organic_layer_thick, soilc_total)
+                pcapa_en,profil_froz, pcappa_supp, organic_layer_thick, soilc_total, height) !! 18-01-2016 Arsene - add height for moss depth
        ! this is for the thin snow in order to prevent the warm surface
-       CALL thermosoil_getdiff_thinsnow (kjpindex, ptn, wetdiaglong, snowdz, pkappa, pcapa, pcapa_en,profil_froz)
+       CALL thermosoil_getdiff_thinsnow (kjpindex, wetdiaglong, snowdz, pkappa, pcapa, pcapa_en) !! 20-01-2016 - Arsene - Remove ptn and profil_froz
+!       CALL thermosoil_getdiff_thinsnow (kjpindex, ptn, wetdiaglong, snowdz, pkappa, pcapa, pcapa_en,profil_froz)
     else
        !if (ok_thermix_trunc) then
        !    ! pour convergence avec le trunc
@@ -1701,7 +1712,7 @@ CONTAINS
            & zdz2, cgrnd, dgrnd, zdz1_soil, zdz2_soil, cgrnd_soil, dgrnd_soil, pcapa, pcapa_en, pkappa, &
 !Isa
 	& profil_froz, pcappa_supp, stempdiag, &
-        & organic_layer_thick, soilc_total,veget_max,snowdz)
+        & organic_layer_thick, soilc_total,veget_max,snowdz, height) !! 18-01-2016 Arsene - add height for moss depth
 
   !! 0. Variables and parameter declaration
 
@@ -1723,7 +1734,9 @@ CONTAINS
     REAL(r_std), DIMENSION (kjpindex,nvm), INTENT (in)            :: veget_max         !!Fraction of vegetation type
     REAL(r_std), DIMENSION(kjpindex),   INTENT (in)               :: organic_layer_thick !! how deep is the organic soil?
     REAL(r_std), DIMENSION(kjpindex,ndeep,nvm),   INTENT (in)     :: soilc_total !! total soil carbon for use in thermal calcs
-    REAL(r_std), DIMENSION(kjpindex,nsnow),   INTENT (in)     :: snowdz !! snow depth
+    REAL(r_std), DIMENSION(kjpindex,nsnow),   INTENT (in)         :: snowdz!! snow depth
+    REAL(r_std), DIMENSION (kjpindex,nvm), INTENT(in)      :: height       !! Height of vegetation type !! 18-01-2016 Arsene - add height for moss depth
+
     !! 0.2 Output variables
 
     REAL(r_std), DIMENSION (kjpindex), INTENT (out)        :: soilcap      !! surface heat capacity
@@ -1780,7 +1793,7 @@ CONTAINS
     ! Isa
     if (ok_explicitsnow) then
        CALL thermosoil_getdiff( kjpindex, ptn, wetdiaglong, pkappa, pcapa,&
-                pcapa_en,profil_froz, pcappa_supp, organic_layer_thick, soilc_total)
+                pcapa_en,profil_froz, pcappa_supp, organic_layer_thick, soilc_total, height) !! 18-01-2016 Arsene - add height for moss depth
     else
        !if (ok_thermix_trunc) then
        !    ! pour convergence avec le trunc
@@ -2465,36 +2478,38 @@ endif
 
 !Isa ajout from thermosoil_bruno
   SUBROUTINE thermosoil_getdiff( kjpindex, ptn, wetdiaglong, pkappa, pcapa, pcapa_en,&
-                      & profil_froz, pcappa_supp, organic_layer_thick, soilc_total)
+                      & profil_froz, pcappa_supp, organic_layer_thick, soilc_total, height) !! 18-01-2016 Arsene - add height for moss depth
    !
    ! Computes soil heat capacity and conductivity   
    !
-    INTEGER(i_std),INTENT(in)				:: kjpindex
+    INTEGER(i_std),INTENT(in)                                :: kjpindex
 !Isa E_corr : in -> inout
-    REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(inout)	:: ptn
-    REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(in)   	:: wetdiaglong
-    REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(out)  	:: pcapa   
+    REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(in)     :: ptn            !! Arsene 14-01-2016 - Change inout for in because is not output...
+    REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(in)     :: wetdiaglong
+    REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(out)    :: pcapa   
     REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(out)    :: pcapa_en
     REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(out)    :: pkappa
 !Isa
-     REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(out)    :: pcappa_supp
+     REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(out)   :: pcappa_supp
 !Isa modif bruno
-    REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(out)    :: profil_froz
+    REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(out)    :: profil_froz    !! 20-01-2016 - Arsene - NOT USE ?????
     !    
-    REAL						:: x, p, E_supp, Epaiss !Isa
-    REAL(r_std), DIMENSION(kjpindex,ngrnd,nvm) 		:: zx1, zx2    
+    REAL                                                     :: x, p, E_supp, Epaiss !Isa
+    REAL(r_std), DIMENSION(kjpindex,ngrnd,nvm)               :: zx1, zx2    
     ! Heat capacity of ice/water mixture
-    REAL			   			:: cap_iw
+    REAL                                                     :: cap_iw
     ! Thermal conductivity for saturated soil
-    REAL						:: csat
-    REAL(r_std)                               :: so_capa_dry_net
-    REAL(r_std), DIMENSION(kjpindex,ngrnd,nvm):: poros_net
-    REAL(r_std)                               :: cond_solid_net
-    REAL(r_std)                               :: so_cond_dry_net
-    INTEGER						:: ji,jg,jv
-    REAL(r_std), DIMENSION(kjpindex), INTENT (in)           :: organic_layer_thick ! how deep is the organic soil?
-    REAL(r_std), DIMENSION(kjpindex,ndeep,nvm), INTENT (in) :: soilc_total !! total soil carbon for use in thermal calcs
+    REAL                                                     :: csat
+    REAL(r_std)                                              :: so_capa_dry_net
+    REAL(r_std), DIMENSION(kjpindex,ngrnd,nvm)               :: poros_net
+    REAL(r_std)                                              :: cond_solid_net
+    REAL(r_std)                                              :: so_cond_dry_net
+    INTEGER                                                  :: ji,jg,jv
+    REAL(r_std), DIMENSION(kjpindex), INTENT (in)            :: organic_layer_thick ! how deep is the organic soil?
+    REAL(r_std), DIMENSION(kjpindex,ndeep,nvm), INTENT (in)  :: soilc_total !! total soil carbon for use in thermal calcs
+    REAL(r_std), DIMENSION (kjpindex,nvm), INTENT(in)        :: height           !! Height of vegetation type !! 18-01-2016 Arsene - add height for moss depth
 
+    REAL(r_std)                :: x_moss, pkappa1, pkappa2, pcapa1, pcapa2, pcappa_supp1, pcappa_supp2, profil_froz1, profil_froz2 !! Arsene 18-01-2016 Add for cas when moss are not totaly in a layer
      ! Organic and anorgaic layer fraction
      !
      ! Default: organic layer not taken into account
@@ -2559,103 +2574,201 @@ endif
        DO jg = 1, ngrnd
          DO ji = 1,kjpindex
            IF (veget_mask_2d(ji,jv)) THEN
-             !
-             ! 1. Calculate dry heat capacity and conductivity, taking
-             ! into account the organic and mineral fractions in the layer
-             !
-             so_capa_dry_net = zx1(ji,jg,jv) * so_capa_dry_org + zx2(ji,jg,jv) * so_capa_dry
-             cond_solid_net  = un / ( zx1(ji,jg,jv) / cond_solid_org  + zx2(ji,jg,jv) / cond_solid  )
-             poros_net(ji,jg,jv) = zx1(ji,jg,jv) * poros_org + zx2(ji,jg,jv) * poros
-             !
-             so_cond_dry_net = un / ( zx1(ji,jg,jv) / so_cond_dry_org + zx2(ji,jg,jv) / so_cond_dry )
-             !
-             ! 2. Calculate heat capacity with allowance for permafrost
-             !    For the moment we don't take into account porosity changes related
-             !    mx_eau_eau changes
-             !    which would be reflected in so_capa_wet. 
-             !    so_capa_ice implies porosity of 0.15 (mx_eau_eau=150) -> not
-             !    anymore :
-             !    Isa : changed to account for poros = 0.4
-             !    Isa : changed wetdiag to have the real fraction of porosity filled
-             !    with water
 
-             IF (ok_freeze_thermix) THEN
-                ! 2.1. soil heat capacity depending on temperature and humidity
-                IF (ptn(ji,jg,jv) .LT. ZeroCelsius-fr_dT/2.) THEN
-                  ! frozen soil
-                  !! this is from Koven's version: pcapa(ji,jg,jv) = so_capa_dry_net + wetdiaglong(ji,jg,jv)*poros_net(ji,jg,jv)*capa_ice*rho_ice
-                  pcapa(ji,jg,jv) = so_capa_dry_net + wetdiaglong(ji,jg,jv)*(so_capa_ice - so_capa_dry_net)!Isa : old version, proved to be correct
-                  pcappa_supp(ji,jg, jv)= 0.
-                  profil_froz(ji,jg,jv) = 1.
-                ELSEIF (ptn(ji,jg,jv) .GT. ZeroCelsius+fr_dT/2.) THEN
-                  ! unfrozen soil         
-                  !! this is from Koven's version: pcapa(ji,jg,jv) =  so_capa_dry_net + wetdiaglong(ji,jg,jv)*poros_net(ji,jg,jv)*capa_water*rho_water
-                  pcapa(ji,jg,jv) = so_capa_dry_net + wetdiaglong(ji,jg,jv)*(so_capa_wet - so_capa_dry_net) 
-                  pcappa_supp(ji,jg,jv)= 0.
-                  profil_froz(ji,jg,jv) = 0.
-                ELSE
-   
-                ! x is the unfrozen fraction of soil water              
-                x = (ptn(ji,jg,jv)-(ZeroCelsius-fr_dT/2.)) / fr_dT
-                profil_froz(ji,jg,jv) = (1. - x)
-                ! net heat capacity of the ice/water mixture
-                cap_iw = x * so_capa_wet + (1.-x) * so_capa_ice
-                ! cap_iw = x * 4.E6 + (1.-x) * 2.E6 !DKtest - compar. w/ theor. sol. 
-                pcapa(ji,jg,jv) = so_capa_dry_net + wetdiaglong(ji,jg,jv)*(cap_iw-so_capa_dry_net) + &
-                                  wetdiaglong(ji,jg,jv)*poros_net(ji,jg,jv)*lhf*rho_water/fr_dT
-                pcappa_supp(ji,jg,jv)= wetdiaglong(ji,jg,jv)*poros_net(ji,jg,jv)*lhf*rho_water/fr_dT*dz2(jg)
+             IF (.NOT.vascular(jv) .AND. height(ji,jv).GT.zz_coef(jg) .AND. thermal_property_moss_ok ) THEN
+                 x_moss = 1.
+ 
+             ELSEIF (vascular(jv) .OR. height(ji,jv).LE.min_sechiba .OR. .NOT.thermal_property_moss_ok ) THEN
+                 x_moss = 0.
 
-                ENDIF
-             ELSE !++cdk this is physically wrong and only to be used to test the influence of latent heat
-                pcapa(ji,jg,jv) = so_capa_dry_net + wetdiag(ji,jg,jv)*(so_capa_wet - so_capa_dry_net)
-                profil_froz(ji,jg,jv) = 0.
+             ELSEIF ( jg.EQ.1. ) THEN
+                 x_moss = height(ji,jv) / zz_coef(jg)
+
+             ELSEIF (height(ji,jv) .GT. zz_coef(jg-1)) THEN
+                 x_moss = (height(ji,jv) - zz_coef(jg-1)) /  dz2(jg) 
+
+             ELSE
+                 x_moss = 0
+
              ENDIF
-             !
-             ! 3. Calculate the heat conductivity with allowance for permafrost (Farouki,
-             ! 1981, Cold Reg. Sci. Technol.)
-             !
-             ! 3.1. unfrozen fraction
-             p = poros_net(ji,jg,jv)
-             x = (ptn(ji,jg,jv)-(ZeroCelsius-fr_dT/2.)) / fr_dT * p
-             x = MIN( p, MAX( 0., x ) )
-             !++cdk: DKorig: x = (ptn(ji,jg)-(ZeroCelsius-fr_dT/2.)) / fr_dT * poros
-             !++cdk: DKorig: x = MIN( poros, MAX( 0., x ) )
 
-             ! 3.2. saturated conductivity
-             csat = cond_solid_net**(1.-p) * cond_ice**(p-x) * cond_water**x
-             !++cdk: DKorig: csat = cond_solid**(1.-poros) * cond_ice**(poros-x)
-             !* cond_water**x
+             IF ( x_moss.LT.0. .OR. x_moss.GT.1. ) THEN
+                 write(*,*) "ERROR IN THERMOSOIL. PLEAZE CHECK"
+                 x_moss = MIN(1., MAX(0., x_moss))
+             ENDIF
 
-             ! 3.3. unsaturated conductivity
-             pkappa(ji,jg,jv) = (csat - so_cond_dry_net)*wetdiaglong(ji,jg,jv) + so_cond_dry_net
-             !++cdk: DKorig: pkappa(ji,jg) = (csat - so_cond_dry)*humdiag(ji,jg)
-             !+ so_cond_dry
-             !
-           ENDIF
+             IF ( x_moss .GT. min_sechiba ) THEN !! There is moss
+               !! Arsene 18-01-2016 - START - Add new thermal capacity and conductivity on moss layer ( values from Soudzilovskaia et al., 2013)
+               !
+               ! 1. Calculate dry heat capacity and conductivity, without organic or mineral fraction (is a moss layer)
+
+               !
+               ! 2. Calculate heat capacity with allowance for permafrost
+               !    From "original part", next "ELSEIF"
+
+               IF (ok_freeze_thermix) THEN
+                  ! 2.1. soil heat capacity depending on temperature and humidity
+                  IF (ptn(ji,jg,jv) .LT. ZeroCelsius-fr_dT/2.) THEN
+                    ! frozen soil
+                    pcapa1 = so_capa_dry_moss + wetdiaglong(ji,jg,jv)*(so_capa_ice_moss - so_capa_dry_moss)
+                    pcappa_supp1= 0.
+                    profil_froz1 = 1.
+
+                  ELSEIF (ptn(ji,jg,jv) .GT. ZeroCelsius+fr_dT/2.) THEN
+                    ! unfrozen soil         
+                    pcapa1 = so_capa_dry_moss + wetdiaglong(ji,jg,jv)*(so_capa_wet_moss - so_capa_dry_moss)
+                    pcappa_supp1= 0.
+                    profil_froz1 = 0.
+
+                  ELSE
+                    ! x is the unfrozen fraction of soil water              
+                    x = (ptn(ji,jg,jv)-(ZeroCelsius-fr_dT/2.)) / fr_dT
+                    profil_froz = (1. - x)
+                    ! net heat capacity of the ice/water mixture
+                    cap_iw = x * so_capa_wet_moss + (1.-x) * so_capa_ice_moss
+                    ! cap_iw = x * 4.E6 + (1.-x) * 2.E6 !DKtest - compar. w/ theor. sol. 
+                    pcapa1 = so_capa_dry_moss + wetdiaglong(ji,jg,jv)*(cap_iw-so_capa_dry_moss) + &
+                                  wetdiaglong(ji,jg,jv)*tetamoss*lhf*rho_water/fr_dT
+                    pcappa_supp1= wetdiaglong(ji,jg,jv)*tetamoss*lhf*rho_water/fr_dT*dz2(jg)
+
+                  ENDIF
+               ELSE 
+                  pcapa1 = so_capa_dry_moss + wetdiaglong(ji,jg,jv)*(so_capa_wet_moss - so_capa_dry_moss)
+                  profil_froz1 = 0.
+               ENDIF
+               !
+               ! 3. Calculate the heat conductivity with allowance for permafrost (Farouki, 1981, Cold Reg. Sci. Technol.)
+               !
+               ! 3.1. unfrozen fraction
+               x = (ptn(ji,jg,jv)-(ZeroCelsius-fr_dT/2.)) / fr_dT
+               x = MIN( 1., MAX( 0., x ) )
+
+               ! 3.2. saturated conductivity
+               csat = cond_ice_moss**(1.-x) * cond_solid_moss**x
+
+               ! 3.3. unsaturated conductivity
+               pkappa1 = (csat - so_cond_dry_moss)*wetdiaglong(ji,jg,jv) + so_cond_dry_moss
+
+             ENDIF !! There is mosses
+
+             IF ( x_moss .LT. (1. - min_sechiba) ) THEN !! There is part without mosses
+               !! Arsene 18-01-2016 - If not moss layer (not PFT or out depth of moss). = Original
+               !
+               ! 1. Calculate dry heat capacity and conductivity, taking
+               ! into account the organic and mineral fractions in the layer
+               !
+               so_capa_dry_net = zx1(ji,jg,jv) * so_capa_dry_org + zx2(ji,jg,jv) * so_capa_dry
+               cond_solid_net  = un / ( zx1(ji,jg,jv) / cond_solid_org  + zx2(ji,jg,jv) / cond_solid  )
+               poros_net(ji,jg,jv) = zx1(ji,jg,jv) * poros_org + zx2(ji,jg,jv) * poros
+               !
+               so_cond_dry_net = un / ( zx1(ji,jg,jv) / so_cond_dry_org + zx2(ji,jg,jv) / so_cond_dry )
+               !
+               ! 2. Calculate heat capacity with allowance for permafrost
+               !    For the moment we don't take into account porosity changes related
+               !    mx_eau_eau changes
+               !    which would be reflected in so_capa_wet. 
+               !    so_capa_ice implies porosity of 0.15 (mx_eau_eau=150) -> not
+               !    anymore :
+               !    Isa : changed to account for poros = 0.4
+               !    Isa : changed wetdiag to have the real fraction of porosity filled
+               !    with water
+
+               IF (ok_freeze_thermix) THEN
+                  ! 2.1. soil heat capacity depending on temperature and humidity
+                  IF (ptn(ji,jg,jv) .LT. ZeroCelsius-fr_dT/2.) THEN
+                    ! frozen soil
+                    !! this is from Koven's version: pcapa(ji,jg,jv) = so_capa_dry_net + wetdiaglong(ji,jg,jv)*poros_net(ji,jg,jv)*capa_ice*rho_ice
+                    pcapa2 = so_capa_dry_net + wetdiaglong(ji,jg,jv)*(so_capa_ice - so_capa_dry_net)!Isa : old version, proved to be correct
+                    pcappa_supp2= 0.
+                    profil_froz2 = 1.
+                  ELSEIF (ptn(ji,jg,jv) .GT. ZeroCelsius+fr_dT/2.) THEN
+                    ! unfrozen soil         
+                    !! this is from Koven's version: pcapa(ji,jg,jv) =  so_capa_dry_net + wetdiaglong(ji,jg,jv)*poros_net(ji,jg,jv)*capa_water*rho_water
+                    pcapa2 = so_capa_dry_net + wetdiaglong(ji,jg,jv)*(so_capa_wet - so_capa_dry_net) 
+                    pcappa_supp2= 0.
+                    profil_froz2 = 0.
+                  ELSE
+
+                    ! x is the unfrozen fraction of soil water              
+                    x = (ptn(ji,jg,jv)-(ZeroCelsius-fr_dT/2.)) / fr_dT
+                    profil_froz2 = (1. - x)
+                    ! net heat capacity of the ice/water mixture
+                    cap_iw = x * so_capa_wet + (1.-x) * so_capa_ice
+                    ! cap_iw = x * 4.E6 + (1.-x) * 2.E6 !DKtest - compar. w/ theor. sol. 
+                    pcapa2 = so_capa_dry_net + wetdiaglong(ji,jg,jv)*(cap_iw-so_capa_dry_net) + &
+                                  wetdiaglong(ji,jg,jv)*poros_net(ji,jg,jv)*lhf*rho_water/fr_dT
+                    pcappa_supp2= wetdiaglong(ji,jg,jv)*poros_net(ji,jg,jv)*lhf*rho_water/fr_dT*dz2(jg)
+
+                  ENDIF
+
+               ELSE !++cdk this is physically wrong and only to be used to test the influence of latent heat
+                  pcapa2 = so_capa_dry_net + wetdiag(ji,jg,jv)*(so_capa_wet - so_capa_dry_net)
+                  profil_froz2 = 0.
+               ENDIF
+               !
+               ! 3. Calculate the heat conductivity with allowance for permafrost (Farouki,
+               ! 1981, Cold Reg. Sci. Technol.)
+               !
+               ! 3.1. unfrozen fraction
+               p = poros_net(ji,jg,jv)
+               x = (ptn(ji,jg,jv)-(ZeroCelsius-fr_dT/2.)) / fr_dT * p
+               x = MIN( p, MAX( 0., x ) )
+               !++cdk: DKorig: x = (ptn(ji,jg)-(ZeroCelsius-fr_dT/2.)) / fr_dT * poros
+               !++cdk: DKorig: x = MIN( poros, MAX( 0., x ) )
+
+               ! 3.2. saturated conductivity
+               csat = cond_solid_net**(1.-p) * cond_ice**(p-x) * cond_water**x
+               !++cdk: DKorig: csat = cond_solid**(1.-poros) * cond_ice**(poros-x)
+               !* cond_water**x
+
+               ! 3.3. unsaturated conductivity
+               pkappa2 = (csat - so_cond_dry_net)*wetdiaglong(ji,jg,jv) + so_cond_dry_net
+               !++cdk: DKorig: pkappa(ji,jg) = (csat - so_cond_dry)*humdiag(ji,jg)
+               !+ so_cond_dry
+               !
+             ENDIF !! There part without moss
+
+             IF ( x_moss .GE. (1. - min_sechiba )) THEN              !! Only moss
+               pcapa(ji,jg,jv) = pcapa1
+               profil_froz(ji,jg,jv) = profil_froz1
+               IF (ok_freeze_thermix) pcappa_supp(ji,jg,jv)= pcappa_supp1
+               pkappa(ji,jg,jv) = pkappa1
+             ELSEIF ( x_moss .LE. min_sechiba ) THEN !! Only soil (original)
+               pcapa(ji,jg,jv) = pcapa2
+               profil_froz(ji,jg,jv) = profil_froz2
+               IF (ok_freeze_thermix) pcappa_supp(ji,jg,jv)= pcappa_supp2
+               pkappa(ji,jg,jv) = pkappa2
+             ELSE !! Mixt of moss and soil
+               pcapa(ji,jg,jv) = pcapa1 * x_moss + pcapa2 * (1. - x_moss)
+               profil_froz(ji,jg,jv) = profil_froz1 * x_moss + profil_froz2 * (1. - x_moss)  !! Thericaly profil_froz1=profil_froz2... but in case
+               IF (ok_freeze_thermix) pcappa_supp(ji,jg,jv)= pcappa_supp1 * x_moss + pcappa_supp2 * (1. - x_moss)
+               pkappa(ji,jg,jv) = 1 / ( x_moss / pkappa1 + (1. - x_moss) / pkappa2 )
+             ENDIF
+            ENDIF
           ENDDO
          ENDDO
         ENDDO
 
         pcapa_en(:,:,:) = pcapa(:,:,:)
 
-
    END SUBROUTINE thermosoil_getdiff
 
 
 !
-     SUBROUTINE thermosoil_getdiff_thinsnow (kjpindex, ptn, wetdiaglong, snowdz, pkappa, pcapa, pcapa_en,profil_froz)
+!     SUBROUTINE thermosoil_getdiff_thinsnow (kjpindex, ptn, wetdiaglong, snowdz, pkappa, pcapa, pcapa_en,profil_froz)  !! 20-01-2016 - Arsene - Remove ptn and profil_froz because profil_froz is alway compute in thermosoil_getdiff (but only if ok_freeze_thermix... why here was compute in all case) ?  AND NEVER USE ??????
+     SUBROUTINE thermosoil_getdiff_thinsnow (kjpindex, wetdiaglong, snowdz, pkappa, pcapa, pcapa_en)   !! 20-01-2016 - Arsene - Remove ptn and profil_froz
    !
    ! Computes soil heat capacity and conductivity   
    !
-    INTEGER(i_std),INTENT(in)                           :: kjpindex
-    REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(in)        :: ptn
+    INTEGER(i_std),INTENT(in)                                   :: kjpindex
+!    REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(in)        :: ptn      !! 20-01-2016 - Arsene - remove because of profil_froz removing
     REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(in)        :: wetdiaglong
     REAL(r_std),DIMENSION(kjpindex,nsnow),INTENT (in)           :: snowdz
-    REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(out)       :: pcapa
-    REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(out)    :: pcapa_en
-    REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(out)    :: pkappa
+    REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(inout)     :: pcapa     !! 20-01-2016 - Arsene - change out for inout to use value from thermosoil_getdiff
+    REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(inout)     :: pcapa_en  !! 20-01-2016 - Arsene - change out for inout to use value from thermosoil_getdiff
+    REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(inout)     :: pkappa    !! 20-01-2016 - Arsene - change out for inout to use value from thermosoil_getdiff
 !modif bruno
-    REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(out)    :: profil_froz
+!    REAL(r_std),DIMENSION(kjpindex,ngrnd,nvm),INTENT(out)    :: profil_froz !! 20-01-2016 - Arsene - remove because of always compute in thermosoil_getdiff and not use... but here was compute in any case... TAKE CARE
     !    
     REAL                                                :: x
     REAL(r_std), DIMENSION(kjpindex)                    :: snow_h
@@ -2669,7 +2782,7 @@ endif
 
       snow_h(ji) = SUM(snowdz(ji,:))
 
-      IF (snow_h(ji) .LE. 0.01) THEN
+      IF (snow_h(ji) .LE. 0.01) THEN  !! 20-01-2016 - Arsene - IF no "inout" add before, that mean when no snow... no value for pkappa, pcapa, ???
 
          !
          !  1.1. The first level
@@ -2692,43 +2805,44 @@ endif
           DO jg = 1, 1
            IF (veget_mask_2d(ji,jv)) THEN
             !
-            ! 2. Calculate frozen profile for hydrolc.f90
-        !
-            IF (ptn(ji,jg,jv) .LT. ZeroCelsius-fr_dT/2.) THEN
-                profil_froz(ji,jg,jv) = 1.
-
-                 ELSEIF (ptn(ji,jg,jv) .GT. ZeroCelsius+fr_dT/2.) THEN
-                profil_froz(ji,jg,jv) = 0.
-                 ELSE
-
-                   ! x is the unfrozen fraction of soil water              
-                   x = (ptn(ji,jg,jv)-(ZeroCelsius-fr_dT/2.)) / fr_dT   
-              profil_froz(ji,jg,jv) = (1. - x)
-
-            ENDIF
+            ! 2. Calculate frozen profile for hydrolc.f90   !! 20-01-2016 - Arsene - Remove because alway compute in thermosoil_getdiff... but her is compute in any case... ? + Not use ?
+            !
+!            IF (ptn(ji,jg,jv) .LT. ZeroCelsius-fr_dT/2.) THEN
+!                profil_froz(ji,jg,jv) = 1.
+!
+!            ELSEIF (ptn(ji,jg,jv) .GT. ZeroCelsius+fr_dT/2.) THEN
+!                profil_froz(ji,jg,jv) = 0.
+!            ELSE
+!
+!                ! x is the unfrozen fraction of soil water              
+!                x = (ptn(ji,jg,jv)-(ZeroCelsius-fr_dT/2.)) / fr_dT   
+!                profil_froz(ji,jg,jv) = (1. - x)
+!
+!            ENDIF
 
             ! 3. heat capacity calculation
-        !
+            !
             ! 3.0 old heat capacity calculation
-            pcapa(ji,jg,jv) = so_capa_dry + wetdiaglong(ji,jg,jv)*(so_capa_wet - so_capa_dry)
+!            pcapa(ji,jg,jv) = so_capa_dry + wetdiaglong(ji,jg,jv)*(so_capa_wet - so_capa_dry)   !! 20-01-2016 - Arsene - Remove: use pcapa compute in hermosoil_getdiff
 
-        ! 3.1. Still some improvement from the old_version : Take into account the snow and soil fractions in the layer
+            ! 3.1. Still some improvement from the old_version : Take into account the snow and soil fractions in the layer
 
             pcapa(ji,jg,jv) = zx1(ji,jg) * sn_capa + zx2(ji,jg) * pcapa(ji,jg,jv)
 
-        ! 3.2. Calculate the heat capacity for energy conservation check 
-        !        (??, does not influence other results, just written to history file)
+            ! 3.2. Calculate the heat capacity for energy conservation check 
+            !        (??, does not influence other results, just written to history file)
 
-        IF ( zx1(ji,jg).GT.0. ) THEN
-               pcapa_en(ji,jg,jv) = sn_capa
-        ELSE
-               pcapa_en(ji,jg,jv) = pcapa(ji,jg,jv)
-        ENDIF
+            IF ( zx1(ji,jg).GT.0. ) THEN            !! 20-01-2016 - Arsene - It's like old version... do we have to stay with that ????
+                pcapa_en(ji,jg,jv) = sn_capa
+            ELSE
+                pcapa_en(ji,jg,jv) = pcapa(ji,jg,jv)
+            ENDIF
+
             !
             !4. heat conductivity calculation
-        !
+            !
             !4.0 old heat conductivity calculation
-            pkappa(ji,jg,jv) = so_cond_dry + wetdiaglong(ji,jg,jv)*(so_cond_wet - so_cond_dry)
+!            pkappa(ji,jg,jv) = so_cond_dry + wetdiaglong(ji,jg,jv)*(so_cond_wet - so_cond_dry)   !! 20-01-2016 - Arsene - Remove: use pkappa compute in hermosoil_getdiff
 
             !4.0 Still some improvement from the old_version : Take into account the snow and soil fractions in the layer
 

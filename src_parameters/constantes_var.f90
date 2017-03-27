@@ -839,7 +839,7 @@ MODULE constantes_var
 !! Arsene 16-10-2015 - For shrub allometry array
   INTEGER(i_std), SAVE :: shrub_allom_lig =200       !! Define the number of line for shrub_allom_array
 !$OMP THREADPRIVATE(shrub_allom_lig)
-  REAL(r_std), SAVE :: shrub_lim_maxdia = 0.96        !! Define the proportion of real maxdia (= maxdia * shrub_lim_maxdia )
+  REAL(r_std), SAVE :: shrub_lim_maxdia = 0.90        !! Define the proportion of real maxdia (= maxdia * shrub_lim_maxdia )
 !$OMP THREADPRIVATE(shrub_lim_maxdia)
 !! Arsene 16-10-2015 - For shrub allometry array
 
@@ -1134,9 +1134,9 @@ MODULE constantes_var
   REAL(r_std), SAVE, DIMENSION(3) :: leaf_age_crit_coeff = (/ 1.5, 0.75, 10./) !! (unitless)
 !$OMP THREADPRIVATE(leaf_age_crit_coeff)
 
-  REAL(r_std), SAVE, DIMENSION(4) :: npp0_c = (/20., 60., 130., 0.01/) !!(/days,days,days,unitless) !! Arsene 25-06-2014 NPPcumul
+  REAL(r_std), SAVE, DIMENSION(4) :: npp0_c = (/20., 60., 130., 0.005/) !!(/days,days,days,unitless) !! Arsene 25-06-2014 NPPcumul
 !$OMP THREADPRIVATE(npp0_c)                                                                         !! Arsene 25-06-2014 NPPcumul
-  REAL(r_std), SAVE :: llai_coef = 0.06                           !! (unitless)       !! Arsene 29-04-2015 LLAI_COEF for NVP turnover 
+  REAL(r_std), SAVE :: llai_coef = 0.014                           !! (unitless)       !! Arsene 29-04-2015 LLAI_COEF for NVP turnover 
 !$OMP THREADPRIVATE(llai_coef)                                                                         !! Arsene 29-04-2015 LLAI_COEF for NVP turnover
 !! Arsene 25-06-2014 NPPcumul. 1: nb of day before impact of npp0_cumu. 2:max of impact. 3: end of impact. 4: max dturnover(%) by day
 
@@ -1160,7 +1160,7 @@ MODULE constantes_var
                                                 !! (unitless)
 !$OMP THREADPRIVATE(leafage_old)
 
-  REAL(r_std), SAVE :: vcmax_offset = 0.3       !! offset of vcmax reduce by humrel_month (unitless) [0-1]   !! Arsene 30-04-2015 Add
+  REAL(r_std), SAVE :: vcmax_offset = 0.55      !! offset of vcmax reduce by humrel_month (unitless) [0-1]   !! Arsene 30-04-2015 Add
 !$OMP THREADPRIVATE(vcmax_offset)               !! offset of vcmax reduce by humrel_month (unitless) [0-1]   !! Arsene 30-04-2015 Add 
   REAL(r_std), SAVE :: humrel_mmin = 0.8        !! Below this value, impact of humrel_month (unitless) [0-1] !! Arsene 30-04-2015 Add
 !$OMP THREADPRIVATE(humrel_mmin)                !! Below this value, impact of humrel_month (unitless) [0-1] !! Arsene 30-04-2015 Add 

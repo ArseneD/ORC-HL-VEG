@@ -118,12 +118,12 @@ MODULE constantes_mtc
    REAL(r_std), PARAMETER, DIMENSION(nvmc)     ::    sla_max_mtc = &
   & (/ 1.5E-2,   1.53E-2,   2.6E-2,   9.26E-3,     2E-2, &
   &    2.6E-2,   9.26E-3,   2.6E-2,    1.9E-2,   2.6E-2, &
-  &    2.6E-2,    2.6E-2,   2.6E-2,    0.6E-2,   2.6E-2 /)               !! Arsene 24-02-2015 : + 2 PFT. Take care of value for moss... in test !
+  &    2.6E-2,    2.6E-2,   2.6E-2,    0.84E-2,   2.7E-2 /)               !! Arsene 24-02-2015 : + 2 PFT. Take care of value for moss... in test !
   ! miniimum specific leaf area (m**2/gC)
    REAL(r_std), PARAMETER, DIMENSION(nvmc)     ::    sla_min_mtc  = &
   & (/ 1.5E-2,   1.53E-2,   2.6E-2,   9.26E-3,     2E-2, &
   &    2.6E-2,   9.26E-3,   2.6E-2,    1.9E-2,   2.6E-2, & 
-  &    2.6E-2,    2.6E-2,   2.6E-2,    0.6E-2,   2.6E-2 /)               !! Arsene 24-02-2015 : + 2 PFT. Take care of value for moss... in test !
+  &    2.6E-2,    2.6E-2,   2.6E-2,    0.84E-2,   2.7E-2 /)               !! Arsene 24-02-2015 : + 2 PFT. Take care of value for moss... in test !
 !ENDJCADD
 
   CHARACTER(LEN=5), PARAMETER, DIMENSION(nvmc) :: type_of_lai_mtc  =  &  !! Type of behaviour of the LAI evolution algorithm
@@ -156,7 +156,7 @@ MODULE constantes_mtc
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: llaimax_mtc  =  &          !! laimax for maximum
   & (/ 0.0,   8.0,   8.0,   4.0,   4.5,   4.5,   4.0,  &                !! See also type of lai interpolation
   &    4.5,   4.0,   2.0,   2.0,   2.0,   2.0, &                        !! @tex $(m^2.m^{-2})$ @endtex
-  &    3.0,   3.5 /)                                                    !! Arsene 22-11-2013 : + 2 PFT
+  &    2.4,   3.5 /)                                                    !! Arsene 22-11-2013 : + 2 PFT
 
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: llaimin_mtc  = &           !! laimin for minimum lai
   & (/ 0.0,   8.0,   0.0,   4.0,   4.5,   0.0,   4.0,  &                !! See also type of lai interpolation (m^2.m^{-2})
@@ -166,7 +166,7 @@ MODULE constantes_mtc
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: height_presc_mtc  =  &     !! prescribed height of vegetation (m)
   & (/  0.0,   30.0,   30.0,   20.0,   20.0,   20.0,   15.0,  &         !! Value for height_presc : one for each vegetation type
   &    15.0,   15.0,    0.5,    0.6,    1.0,    1.0, &
-  &    0.2,    3.2 /)                                                   !! Arsene 22-11-2013 : + 2 PFT. Value for moss arround zmoss
+  &    0.2,    3.5 /)                                                   !! Arsene 22-11-2013 : + 2 PFT. Value for moss arround zmoss
 
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: rveg_mtc  =  &             !! Potentiometer to set vegetation resistance (unitless)
   & (/ 1.0,   1.0,   1.0,   1.0,   1.0,   1.0,   1.0,  &                !! Nathalie on March 28th, 2006 - from Fred Hourdin,
@@ -176,7 +176,7 @@ MODULE constantes_mtc
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: sla_mtc  =  &              !! specif leaf area @tex $(m^2.gC^{-1})$ @endtex
   & (/ 1.5E-2,   1.53E-2,   2.6E-2,   9.26E-3,     2E-2,   2.6E-2,   9.26E-3,  &
   &    2.6E-2,    1.9E-2,   2.6E-2,    2.6E-2,   2.6E-2,   2.6E-2, &
-  &    0.6E-2,    2.6E-2 /)                                             !! Arsene 22-11-2013 : + 2 PFT
+  &    0.84E-2,    2.7E-2 /)                                             !! Arsene 22-11-2013 : + 2 PFT
 !! pour les mousses test / 4 Arsene 11-06-2014 2.6E-2/4==> 0.65E-2 mais attention aux consequences.. test again on 09-01-2014
 !! Arsene 14-01-2014 Result test ==> around 0.473E (-> max 450) / 0.4 (around 500) ==> depend of the relation with lai_max (add for moss) and change the vcmax with
  
@@ -212,7 +212,7 @@ MODULE constantes_mtc
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: humcste_mtc  =  &         !! Root profile description for the different 
   & (/ 5.0,   0.4,   0.4,   1.0,   0.8,   0.8,   1.0,  &               !! vegetations types. @tex $(m^{-1})$ @endtex
   &    1.0,   0.8,   4.0,   1.0,   4.0,   1.0, &                       !! These are the factor in the exponential which gets       
-  &    50.0,   1.0  /)         !! Arsene 22-11-2013 : + 2 PFT          !! the root density as a function of depth
+  &    18.0,   1.0  /)         !! Arsene 22-11-2013 : + 2 PFT          !! the root density as a function of depth
                                                                        !! Values for dpu_max = 4.0  
   
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: humcste_cwrr  =  &        !! Root profile description for the different
@@ -389,7 +389,7 @@ MODULE constantes_mtc
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: Vcmax25_mtc  =  &          !! Maximum rate of Rubisco activity-limited carboxylation at 25°C
   & (/ undef,   65.0,    65.0,    45.0,   45.0,   55.0,   45.0,  &      !! @tex $(\mu mol.m^{-2}.s^{-1})$ @endtex
   &     45.0,   35.0,    70.0,    70.0,   70.0,   70.0, &
-  &     35.0,   45.0  /)                                                !! Arsene 24-02-2015 : +2 PFT Note ==> have to test this values !
+  &     28.0,   38.0  /)                                                !! Arsene 24-02-2015 : +2 PFT Note ==> have to test this values !
 
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: arJV_mtc    = &            !! a coefficient of the linear regression (a+bT) defining the Jmax25/Vcmax25 ratio (mu mol e- (mu mol CO2)-1)
   & (/undef,    2.59,    2.59,    2.59,    2.59,    2.59,    2.59,  &   !! See Table 3 of Kattge & Knorr (2007)
@@ -424,12 +424,12 @@ MODULE constantes_mtc
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: b1_mtc  = &                !! Empirical factor involved in the calculation of fvpd (-)
   & (/undef,    0.14,    0.14,    0.14,    0.14,    0.14,  0.14,  &     !! See Table 2 of Yin et al. (2009)
   &    0.14,    0.14,    0.14,    0.20,    0.14,    0.20, &
-  &    0.30,    0.14  /)                                                !! Arsene 24-02-2015 : +2 PFT           
+  &    0.41,    0.14  /)                                                !! Arsene 24-02-2015 : +2 PFT           
 
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: g0_mtc  = &                !! Residual stomatal conductance when irradiance approaches zero (mol CO2 m−2 s−1 bar−1)
   & (/undef, 0.00625, 0.00625, 0.00625, 0.00625, 0.00625, 0.00625,  &   !! Value from ORCHIDEE - No other reference.
   & 0.00625, 0.00625, 0.00625, 0.01875, 0.00625, 0.01875, &             !! modofy to account for the conversion for conductance to H2O to CO2 
-  & 0.1, 0.00625  /)                                                !! Arsene 24-02-2015 : +2 PFT 
+  & 0.052, 0.00625  /)                                                !! Arsene 24-02-2015 : +2 PFT 
 
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: h_protons_mtc  = &         !! Number of protons required to produce one ATP (mol mol-1)
   & (/undef,      4.,      4.,      4.,      4.,      4.,    4.,  &     !! See Table 2 of Yin et al. (2009) - h parameter
@@ -511,7 +511,7 @@ MODULE constantes_mtc
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: frac_growthresp_mtc  =  &     !! fraction of GPP which is lost as growth respiration
   & (/  undef,   0.28,   0.28,   0.28,   0.28,   0.28,   0.28,  &
   &      0.28,   0.28,   0.28,   0.28,   0.28,   0.28, &
-  &      0.28,   0.28   /)                                                 !! Arsene 24-02-2015 : + 2 PFT 
+  &      0.28,   0.59   /)                                                 !! Arsene 24-02-2015 : + 2 PFT 
 
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: maint_resp_slope_c_mtc  =  &  !! slope of maintenance respiration coefficient (1/K),
   & (/  undef,   0.20,   0.20,   0.16,   0.16,   0.16,   0.16,  &          !! constant c of aT^2+bT+c, tabulated
@@ -531,7 +531,7 @@ MODULE constantes_mtc
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: cm_zero_leaf_mtc  =   &                  !! maintenance respiration coefficient
   & (/   undef,   2.35E-3,   2.62E-3,   1.01E-3,   2.35E-3,   2.62E-3,   1.01E-3,  &  !! at 0 deg C,for leaves, tabulated, 
   &    2.62E-3,   2.05E-3,   2.62E-3,   2.62E-3,   2.62E-3,   2.62E-3, &              !! @tex $(gC.gC^{-1}.day^{-1})$ @endtex
-  &    2.62E-3,   2.62E-3   /)                                                        !! Arsene 22-11-2013 : + 2 PFT
+  &    2.57E-3,   2.62E-3   /)                                                        !! Arsene 22-11-2013 : + 2 PFT
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: cm_zero_sapabove_mtc =  &                !! maintenance respiration coefficient 
   & (/   undef,   1.19E-4,   1.19E-4,   1.19E-4,   1.19E-4,   1.19E-4,   1.19E-4,  &  !! at 0 deg C, for sapwood above,
   &    1.19E-4,   1.19E-4,   1.19E-4,   1.19E-4,   1.19E-4,   1.19E-4, &              !! tabulated, @tex $(gC.gC^{-1}.day^{-1})$ @endtex
@@ -613,7 +613,7 @@ MODULE constantes_mtc
   REAL(r_std), PARAMETER, DIMENSION (nvmc) :: lai_max_mtc  =  &          !! maximum LAI, PFT-specific 
   & (/ undef,   7.0,   7.0,   5.0,   5.0,   5.0,   4.5,  &               !! @tex $(m^2.m^{-2})$ @endtex
   &      4.5,   3.0,   2.5,   2.5,   5.0,   5.0, &
-  &      2.5,   3.5  /)                                                  !! Arsene 22-11-2013 : + 2 PFT
+  &      3.06,  2.5  /)                                                  !! Arsene 22-11-2013 : + 2 PFT
 
   INTEGER(i_std), PARAMETER, DIMENSION(nvmc) :: pheno_type_mtc  =  &     !! type of phenology (0-4, unitless)
   & (/  0,   1,   3,   1,   1,   2,   1,  &                              !! 0=bare ground 1=evergreen,  2=summergreen, 
@@ -708,7 +708,7 @@ MODULE constantes_mtc
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: leafagecrit_mtc  =  &          !! critical leaf age, tabulated (days)
   & (/  undef,   730.0,   180.0,   910.0,   730.0,   180.0,   910.0,  &
   &     180.0,   180.0,   120.0,   120.0,    90.0,    90.0, &
-  &     730.0,   180.0  /)                                                  !! Arsene 22-11-2013 : + 2 PFT
+  &     470.0,   180.0  /)                                                  !! Arsene 22-11-2013 : + 2 PFT
 !! Arsene 03-06-2014 change 120 to 730 for moss
 
   CHARACTER(LEN=6), PARAMETER, DIMENSION(nvmc) :: senescence_type_mtc  =  & !! type of senescence, tabulated (unitless)
@@ -768,7 +768,7 @@ MODULE constantes_mtc
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: residence_time_mtc  =  &    !! residence time of trees (years)
   & (/  undef,   30.0,   30.0,   40.0,   40.0,   40.0,   80.0,  &
   &      80.0,   80.0,    0.0,    0.0,    0.0,    0.0, &
-  &       0.0,   80.0  /)                                                !! Arsene 22-11-2013 : + 2 PFT
+  &       0.0,   32.0  /)                                                !! Arsene 22-11-2013 : + 2 PFT
 
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: tmin_crit_mtc  =  &
   & (/  undef,     0.0,     0.0,   -30.0,   -14.0,   -30.0,   -45.0,  &  !! critical tmin, tabulated (C)

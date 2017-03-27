@@ -82,9 +82,11 @@ MODULE pft_parameters_var
   LOGICAL, ALLOCATABLE, SAVE, DIMENSION(:) :: natural               !! natural? (true/false)
 !$OMP THREADPRIVATE(natural)
 
-  LOGICAL, ALLOCATABLE, SAVE, DIMENSION(:) :: vascular               !! vascular? (true/false)   !! Arsene 18-02-2014
-!$OMP THREADPRIVATE(vascular)                                                                    !! Arsene 18-02-2014
+  LOGICAL, ALLOCATABLE, SAVE, DIMENSION(:) :: vascular              !! vascular? (true/false)   !! Arsene 18-02-2014
+!$OMP THREADPRIVATE(vascular)                                                                   !! Arsene 18-02-2014
 
+  LOGICAL, ALLOCATABLE, SAVE, DIMENSION(:) :: permafrost_veg_exists !! permafrost_veg_exists? (true/false)   !! Arsene 17-03-2016
+!$OMP THREADPRIVATE(permafrost_veg_exists)                                                                   !! Arsene 17-03-2016
 !JCADD
   ! Is the vegetation type a managed grassland ?
   LOGICAL,ALLOCATABLE, SAVE, DIMENSION (:) :: is_grassland_manag
@@ -172,6 +174,28 @@ MODULE pft_parameters_var
                                                                 !! as it will be used in condveg_snow (unitless)
                                                                 !! Source : Values are from the Thesis of S. Chalita (1992)
 !$OMP THREADPRIVATE(snowa_dec)
+
+!! Arsene 16-07-2016 - Add new Albedo - START
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: snowa_aged_vis !! Minimum snow albedo value for each vegetation type
+                                                                 !! after aging (dirty old snow), visible albedo (unitless)
+                                                                 !! Source : Values are from the Thesis of S. Chalita (1992)
+!$OMP THREADPRIVATE(snowa_aged_vis)
+
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: snowa_aged_nir !! Minimum snow albedo value for each vegetation type
+                                                                 !! after aging (dirty old snow), near infrared albedo (unitless)
+                                                                 !! Source : Values are from the Thesis of S. Chalita (1992)
+!$OMP THREADPRIVATE(snowa_aged_nir)
+
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: snowa_dec_vis  !! Decay rate of snow albedo value for each vegetation type
+                                                                 !! as it will be used in condveg_snow, visible albedo (unitless)
+                                                                 !! Source : Values are from the Thesis of S. Chalita (1992)
+!$OMP THREADPRIVATE(snowa_dec_vis)
+
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: snowa_dec_nir  !! Decay rate of snow albedo value for each vegetation type
+                                                                 !! as it will be used in condveg_snow, near infrared albedo (unitless)
+                                                                 !! Source : Values are from the Thesis of S. Chalita (1992)
+!$OMP THREADPRIVATE(snowa_dec_nir)
+!! Arsene 16-07-2016 - Add new Albedo - END
 
   REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: alb_leaf_vis  !! leaf albedo of vegetation type, visible albedo (unitless)
 !$OMP THREADPRIVATE(alb_leaf_vis)
@@ -280,7 +304,11 @@ MODULE pft_parameters_var
   REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: ext_coeff     !! extinction coefficient of the Monsi&Saeki relationship (1953)
                                                                 !! (unitless)
 !$OMP THREADPRIVATE(ext_coeff)
-
+!! Arsene 16-07-2016 - Add new Albedo - START
+  REAL(r_std), ALLOCATABLE, SAVE, DIMENSION(:) :: ext_coeff_vegetfrac     !! extinction coefficient used for the calculation of the 
+                                                                !! bare soil fraction (unitless)
+!$OMP THREADPRIVATE(ext_coeff_vegetfrac)
+!! Arsene 16-07-2016 - Add new Albedo - END
 
   !
   ! ALLOCATION (stomate)

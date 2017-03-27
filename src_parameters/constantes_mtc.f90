@@ -137,6 +137,12 @@ MODULE constantes_mtc
   &    .TRUE.,   .TRUE.,   .TRUE.,   .TRUE.,   .TRUE.,    .TRUE.,  &
   &    .FALSE.,  .TRUE.  /)                                             !! Arsene 18-02-2014 : + 2 PFT
 
+!! Arsene 17-03-2014 Add here, to be adaptable at PFT number (before in constante_var)
+  LOGICAL, PARAMETER, DIMENSION(nvmc) :: permafrost_veg_exists_mtc = &  !! permafrost_veg_exists? (true/false) ! set all as true to avoid masking     !! Arsene 05-03-2015 remove 13 to nvm
+   & (/ .TRUE.,  .TRUE.,   .TRUE.,   .TRUE.,   .TRUE.,    .TRUE.,   .TRUE.,  &
+   &    .TRUE.,  .TRUE.,   .TRUE.,   .TRUE.,   .TRUE.,    .TRUE.,  &
+   &    .TRUE., .TRUE.   /)                       !! Arsene 05-03-2015 Add 2 PFT
+
   LOGICAL, PARAMETER, DIMENSION(nvmc) :: natural_mtc =  &               !! natural?  (true/false)
   & (/ .TRUE.,   .TRUE.,   .TRUE.,   .TRUE.,   .TRUE.,    .TRUE.,   .TRUE.,  &
   &    .TRUE.,   .TRUE.,   .TRUE.,   .TRUE.,   .FALSE.,   .FALSE., &
@@ -236,6 +242,28 @@ MODULE constantes_mtc
   &    0.11,   0.11,   0.52,   0.52,   0.52,   0.52, &               !! Source : Values are from the Thesis of S. Chalita (1992)
   &    0.52,   0.11  /)                                              !! Arsene 22-11-2013 : + 2 PFT
 
+!! Arsene 16-07-2016 - Add new Albedo - START
+  REAL(r_std), PARAMETER, DIMENSION(nvmc) :: snowa_aged_vis_mtc  =  &  !! Minimum snow albedo value for each vegetation type
+  & (/ 0.50,    0.0,    0.0,   0.15,   0.14,   0.14,   0.15,  &        !! after aging (dirty old snow) (unitless), visible albedo
+  &    0.14,   0.22,   0.35,   0.35,   0.35,   0.35, &                 !! Source : Values are from the Thesis of S. Chalita (1992), optimized on 04/07/2016
+  &    0.35,   0.14  /)                                                !! Arsene 16-07-2016 : + 2 PFT
+
+  REAL(r_std), PARAMETER, DIMENSION(nvmc) :: snowa_aged_nir_mtc  =  &  !! Minimum snow albedo value for each vegetation type
+  & (/ 0.35,    0.0,    0.0,   0.14,   0.14,   0.14,   0.14,  &        !! after aging (dirty old snow) (unitless), near infrared albedo
+  &    0.14,   0.14,   0.18,   0.18,   0.18,   0.18, &                 !! Source : Values are from the Thesis of S. Chalita (1992)
+  &    0.18,   0.14  /)                                                !! Arsene 16-07-2016 : + 2 PFT
+
+  REAL(r_std), PARAMETER, DIMENSION(nvmc) :: snowa_dec_vis_mtc  =  &   !! Decay rate of snow albedo value for each vegetation type
+  & (/ 0.45,    0.0,    0.0,   0.10,   0.06,   0.11,   0.10,  &        !! as it will be used in condveg_snow (unitless), visible albedo
+  &    0.11,   0.18,   0.60,   0.60,   0.60,   0.60, &                 !! Source : Values are from the Thesis of S. Chalita (1992), optimized on 04/07/2016
+  &    0.60,   0.11  /)                                                !! Arsene 16-07-2016 : + 2 PFT
+
+  REAL(r_std), PARAMETER, DIMENSION(nvmc) :: snowa_dec_nir_mtc  =  &   !! Decay rate of snow albedo value for each vegetation type
+  & (/ 0.45,    0.0,    0.0,   0.06,   0.06,   0.11,   0.06,  &        !! as it will be used in condveg_snow (unitless), near infrared albedo
+  &    0.11,   0.11,   0.52,   0.52,   0.52,   0.52, &                 !! Source : Values are from the Thesis of S. Chalita (1992)
+  &    0.52,   0.11  /)                                                !! Arsene 16-07-2016 : + 2 PFT
+!! Arsene 16-07-2016 - Add new Albedo - END
+
   REAL(r_std), PARAMETER, DIMENSION(nvmc) :: alb_leaf_vis_mtc  =  &  !! leaf albedo of vegetation type, visible albedo 
   & (/ 0.00,   0.04,   0.06,   0.06,   0.06,   0.06,   0.06,  &      !! (unitless)
   &    0.06,   0.06,   0.10,   0.10,   0.10,   0.10, &
@@ -245,6 +273,17 @@ MODULE constantes_mtc
   & (/ 0.00,   0.20,   0.22,   0.22,   0.22,   0.22,   0.22,  &      !! (unitless)
   &    0.22,   0.22,   0.30,   0.30,   0.30,   0.30, &
   &    0.30,   0.22  /)                                              !! Arsene 22-11-2013 : + 2 PFT
+
+!! NEW ALBEDO FOR LEAF
+!  REAL(r_std), PARAMETER, DIMENSION(nvmc) :: alb_leaf_vis_mtc  =  &    !! leaf albedo of vegetation type, visible albedo, optimized on 04/07/2016
+!  & (/ 0.00,   0.0397, 0.0474, 0.0386, 0.0484, 0.0411, 0.041,  &       !! (unitless)
+!  &    0.0541, 0.0435, 0.0524, 0.0508, 0.0509, 0.0606  /)
+
+!  REAL(r_std), PARAMETER, DIMENSION(nvmc) :: alb_leaf_nir_mtc  =  &    !! leaf albedo of vegetation type, near infrared albedo, optimized on 04/07/2016
+!  & (/ 0.00,   0.227,  0.214,  0.193,  0.208,  0.244,  0.177,  &       !! (unitless)
+!  &    0.218,  0.213,  0.252,  0.265,  0.272,  0.244  /)
+
+
 
 
   !
@@ -445,6 +484,13 @@ MODULE constantes_mtc
   & (/ 0.5,   0.5,   0.5,   0.5,   0.5,   0.5,   0.5,  &             !! relationship (1953) (unitless)
   &    0.5,   0.5,   0.5,   0.5,   0.5,   0.5,  &
   &    0.5,   0.5   /)                                               !! Arsene 22-11-2013 : + 2 PFT
+
+!! Arsene 16-07-2016 - Add new Albedo - START
+  REAL(r_std), PARAMETER, DIMENSION(nvmc) :: ext_coeff_vegetfrac_mtc  =  &     !! extinction coefficient used for defining the fraction
+  & (/ 1.0,   1.0,   1.0,   1.0,   1.0,   1.0,   1.0,  &                       !!  of bare soil (unitless)
+  &    1.0,   1.0,   1.0,   1.0,   1.0,   1.0,  &
+  &    0.5,   0.5   /)                                                         !! Arsene 22-11-2013 : + 2 PFT
+!! Arsene 16-07-2016 - Add new Albedo - END
 
   !
   ! ALLOCATION (stomate)

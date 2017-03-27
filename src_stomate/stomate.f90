@@ -2194,7 +2194,7 @@ SUBROUTINE stomate_main &
          & (kjpindex,dtradia,lai,t2m,tlong_ref,stempdiag,height,veget_cov_max, &
          & rprof,biomass,resp_maint_part_radia, &
 !JCADD
-         & sla_calc)
+         & sla_calc,humrel_month)  !! Arsène 25-04-2016 - Add humrel_month for dessication impact on resp
 !ENDJCADD
  
     ! Aggregate maintenance respiration across the different plant parts 

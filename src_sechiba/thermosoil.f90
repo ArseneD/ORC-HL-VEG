@@ -468,9 +468,10 @@ CONTAINS
 
     !! 0.4 Local variables
 
-    REAL(r_std),DIMENSION (kjpindex,ngrnd)                :: temp             !! buffer
-    REAL(r_std),DIMENSION (kjpindex,ngrnd-1)              :: temp1            !! buffer
-    REAL(r_std),DIMENSION (kjpindex)                      :: temp2            !! buffer
+!! Arsene 28-11-2016 - Remove because not longer use
+!    REAL(r_std),DIMENSION (kjpindex,ngrnd)                :: temp             !! buffer
+!    REAL(r_std),DIMENSION (kjpindex,ngrnd-1)              :: temp1            !! buffer
+!    REAL(r_std),DIMENSION (kjpindex)                      :: temp2            !! buffer
     CHARACTER(LEN=80)                                     :: var_name         !! To store variables names for I/O
 
     !##Tao
@@ -516,7 +517,7 @@ CONTAINS
 
         
         CALL thermosoil_var_init (kjpindex, zz, zz_coef, dz1, dz2, pkappa, pcapa, pcapa_en, &
-        &        shumdiag_perma, stempdiag, snow, &
+        &        shumdiag_perma, stempdiag, rest_id, kjit, snow,  &  !! Arsene 28-11-2016 - Add rest_id and kjit for *appa initalization
 !Isa
         & profil_froz,pb,snowtemp,snowrho,snowdz,&
         & thawed_humidity,organic_layer_thick, soilc_total, veget_max_bg, height) !! 18-01-2016 Arsene - add height for moss depth
@@ -568,109 +569,119 @@ CONTAINS
          IF (ldrestart_read) THEN
            IF (long_print) WRITE (numout,*) ' we have to READ a restart file for THERMOSOIL variables'
 
-           var_name= 'cgrnd'
-           CALL ioconf_setatt_p('UNITS', '-')
-           CALL ioconf_setatt_p('LONG_NAME','Cgrnd coefficient.')
-           IF ( ok_var(var_name) ) THEN
-              CALL restget_p (rest_id, var_name, nbp_glo, ngrnd-1, 1, kjit, .TRUE., temp1, "gather", nbp_glo, index_g)
-              IF (MINVAL(temp1) < MAXVAL(temp1) .OR. MAXVAL(temp1) .NE. val_exp) THEN
-                 DO m=1,nvm
-                    cgrnd(:,:,m)=temp1(:,:)
-                 END DO
-              ENDIF
-           ENDIF
+          !! Arsene 28-11-2016 - CARE !!! All of the variable below was not initialised or are aready initialised ...
+                                      !!! And the function ok_var(var_name) do not work (result = FALSE all time)
 
-           var_name= 'dgrnd'
-           CALL ioconf_setatt_p('UNITS', '-')
-           CALL ioconf_setatt_p('LONG_NAME','Dgrnd coefficient.')
-           IF ( ok_var(var_name) ) THEN
-              CALL restget_p (rest_id, var_name, nbp_glo, ngrnd-1, 1, kjit, .TRUE., temp1, "gather", nbp_glo, index_g)
-              IF (MINVAL(temp1) < MAXVAL(temp1) .OR. MAXVAL(temp1) .NE. val_exp) THEN
-                DO m=1,nvm
-                    dgrnd(:,:,m)=temp1(:,:)
-                END DO
-              ENDIF
-           ENDIF
+           !! Arsene 28-11-2016 - #1 Some var are already initialized in thermosoil_coef:
+           !!                         zdz1, zdz2, cgrnd, cgrnd, z1 and they are present in the restart
 
-           var_name= 'z1'
-           CALL ioconf_setatt_p('UNITS', '-')
-           CALL ioconf_setatt_p('LONG_NAME','?.')
-           IF ( ok_var(var_name) ) THEN
-              CALL restget_p (rest_id, var_name, nbp_glo, 1, 1, kjit, .TRUE., temp2, "gather", nbp_glo, index_g)
-              IF (MINVAL(temp2) < MAXVAL(temp2) .OR. MAXVAL(temp2) .NE. val_exp) THEN
-                 z1(:)=temp2(:)
-              ENDIF
-           ENDIF
+!           var_name= 'cgrnd'
+!           CALL ioconf_setatt_p('UNITS', '-')
+!           CALL ioconf_setatt_p('LONG_NAME','Cgrnd coefficient.')
+!           IF ( ok_var(var_name) ) THEN
+!              CALL restget_p (rest_id, var_name, nbp_glo, ngrnd-1, 1, kjit, .TRUE., temp1, "gather", nbp_glo, index_g)
+!              IF (MINVAL(temp1) < MAXVAL(temp1) .OR. MAXVAL(temp1) .NE. val_exp) THEN
+!                 DO m=1,nvm
+!                    cgrnd(:,:,m)=temp1(:,:)
+!                 END DO
+!              ENDIF
+!           ENDIF
 
-           var_name= 'pcapa'
-           CALL ioconf_setatt_p('UNITS', '-')
-           CALL ioconf_setatt_p('LONG_NAME','?.')
-           IF ( ok_var(var_name) ) THEN
-              CALL restget_p (rest_id, var_name, nbp_glo, ngrnd, 1, kjit, .TRUE., temp, "gather", nbp_glo, index_g)
-              IF (MINVAL(temp) < MAXVAL(temp) .OR. MAXVAL(temp) .NE. val_exp) THEN
-                 DO m=1,nvm
-                    pcapa(:,:,m)=temp(:,:)
-                 END DO
-              ENDIF
-           ENDIF
+!           var_name= 'dgrnd'
+!           CALL ioconf_setatt_p('UNITS', '-')
+!           CALL ioconf_setatt_p('LONG_NAME','Dgrnd coefficient.')
+!           IF ( ok_var(var_name) ) THEN
+!              CALL restget_p (rest_id, var_name, nbp_glo, ngrnd-1, 1, kjit, .TRUE., temp1, "gather", nbp_glo, index_g)
+!              IF (MINVAL(temp1) < MAXVAL(temp1) .OR. MAXVAL(temp1) .NE. val_exp) THEN
+!                DO m=1,nvm
+!                    dgrnd(:,:,m)=temp1(:,:)
+!                END DO
+!              ENDIF
+!           ENDIF
 
-           var_name= 'pcapa_en'
-           CALL ioconf_setatt_p('UNITS', '-')
-           CALL ioconf_setatt_p('LONG_NAME','?.')
-           IF ( ok_var(var_name) ) THEN
-              CALL restget_p (rest_id, var_name, nbp_glo, ngrnd, 1, kjit, .TRUE., temp, "gather", nbp_glo, index_g)
-              IF (MINVAL(temp) < MAXVAL(temp) .OR. MAXVAL(temp) .NE. val_exp) THEN
-                 DO m=1,nvm
-                    pcapa_en(:,:,m)=temp(:,:)
-                 END DO
-              ENDIF
-           ENDIF
+!           var_name= 'z1'
+!           CALL ioconf_setatt_p('UNITS', '-')
+!           CALL ioconf_setatt_p('LONG_NAME','?.')
+!           IF ( ok_var(var_name) ) THEN
+!              CALL restget_p (rest_id, var_name, nbp_glo, 1, 1, kjit, .TRUE., temp2, "gather", nbp_glo, index_g)
+!              IF (MINVAL(temp2) < MAXVAL(temp2) .OR. MAXVAL(temp2) .NE. val_exp) THEN
+!                 z1(:)=temp2(:)
+!              ENDIF
+!           ENDIF
 
-           var_name= 'pkappa'
-           CALL ioconf_setatt_p('UNITS', '-')
-           CALL ioconf_setatt_p('LONG_NAME','?.')
-           IF ( ok_var(var_name) ) THEN
-              CALL restget_p (rest_id, var_name, nbp_glo, ngrnd, 1, kjit, .TRUE., temp, "gather", nbp_glo, index_g)
-              IF (MINVAL(temp) < MAXVAL(temp) .OR. MAXVAL(temp) .NE. val_exp) THEN
-                 DO m=1,nvm
-                    pkappa(:,:,m)=temp(:,:)
-                 END DO
-              ENDIF
-           ENDIF
+           !! Arsene 28-11-2016 - #2 Some var are already initialized in thermosoil_var_init and thermosoil_coef: BUT ONLY IF ok_explicitsnow 
+           !!                         pcapa, pcapa_en, pkappa and they are present in the restart
+           !!                         ==> put in thermosoil_var_init
+!           var_name= 'pcapa'
+!           CALL ioconf_setatt_p('UNITS', '-')
+!           CALL ioconf_setatt_p('LONG_NAME','?.')
+!           IF ( ok_var(var_name) ) THEN
+!              CALL restget_p (rest_id, var_name, nbp_glo, ngrnd, 1, kjit, .TRUE., temp, "gather", nbp_glo, index_g)
+!              IF (MINVAL(temp) < MAXVAL(temp) .OR. MAXVAL(temp) .NE. val_exp) THEN
+!                 DO m=1,nvm
+!                    pcapa(:,:,m)=temp(:,:)
+!                 END DO
+!              ENDIF
+!           ENDIF
 
-           var_name= 'zdz1'
-           CALL ioconf_setatt_p('UNITS', '-')
-           CALL ioconf_setatt_p('LONG_NAME','?.')
-           IF ( ok_var(var_name) ) THEN
-              CALL restget_p (rest_id, var_name, nbp_glo, ngrnd-1, 1, kjit, .TRUE., temp1, "gather", nbp_glo, index_g)
-              IF (MINVAL(temp1) < MAXVAL(temp1) .OR. MAXVAL(temp1) .NE. val_exp) THEN
-                 DO m=1,nvm
-                    zdz1(:,:,m)=temp1(:,:)
-                 END DO
-              ENDIF
-           ENDIF
+!           var_name= 'pcapa_en'
+!           CALL ioconf_setatt_p('UNITS', '-')
+!           CALL ioconf_setatt_p('LONG_NAME','?.')
+!           IF ( ok_var(var_name) ) THEN
+!              CALL restget_p (rest_id, var_name, nbp_glo, ngrnd, 1, kjit, .TRUE., temp, "gather", nbp_glo, index_g)
+!              IF (MINVAL(temp) < MAXVAL(temp) .OR. MAXVAL(temp) .NE. val_exp) THEN
+!                 DO m=1,nvm
+!                    pcapa_en(:,:,m)=temp(:,:)
+!                 END DO
+!              ENDIF
+!           ENDIF
 
-           var_name= 'zdz2'
-           CALL ioconf_setatt_p('UNITS', '-')
-           CALL ioconf_setatt_p('LONG_NAME','?.')
-           IF ( ok_var(var_name) ) THEN
-              CALL restget_p (rest_id, var_name, nbp_glo, ngrnd, 1, kjit, .TRUE., temp, "gather", nbp_glo, index_g)
-              IF (MINVAL(temp) < MAXVAL(temp) .OR. MAXVAL(temp) .NE. val_exp) THEN
-                 DO m=1,nvm
-                    zdz2(:,:,m)=temp(:,:)
-                 END DO
-              ENDIF
-           ENDIF
+!           var_name= 'pkappa'
+!           CALL ioconf_setatt_p('UNITS', '-')
+!           CALL ioconf_setatt_p('LONG_NAME','?.')
+!           IF ( ok_var(var_name) ) THEN
+!              CALL restget_p (rest_id, var_name, nbp_glo, ngrnd, 1, kjit, .TRUE., temp, "gather", nbp_glo, index_g)
+!              IF (MINVAL(temp) < MAXVAL(temp) .OR. MAXVAL(temp) .NE. val_exp) THEN
+!                 DO m=1,nvm
+!                    pkappa(:,:,m)=temp(:,:)
+!                 END DO
+!              ENDIF
+!           ENDIF
 
-           var_name='temp_sol_beg'
-           CALL ioconf_setatt_p('UNITS', 'K')
-           CALL ioconf_setatt_p('LONG_NAME','Old Surface temperature')
-           IF ( ok_var(var_name) ) THEN
-              CALL restget_p (rest_id, var_name, nbp_glo, 1, 1, kjit, .TRUE., temp2, "gather", nbp_glo, index_g)
-              IF (MINVAL(temp2) < MAXVAL(temp2) .OR. MAXVAL(temp2) .NE. val_exp) THEN
-                 temp_sol_beg(:) = temp2(:)
-              ENDIF
-           ENDIF
+!           var_name= 'zdz1'
+!           CALL ioconf_setatt_p('UNITS', '-')
+!           CALL ioconf_setatt_p('LONG_NAME','?.')
+!           IF ( ok_var(var_name) ) THEN
+!              CALL restget_p (rest_id, var_name, nbp_glo, ngrnd-1, 1, kjit, .TRUE., temp1, "gather", nbp_glo, index_g)
+!              IF (MINVAL(temp1) < MAXVAL(temp1) .OR. MAXVAL(temp1) .NE. val_exp) THEN
+!                 DO m=1,nvm
+!                    zdz1(:,:,m)=temp1(:,:)
+!                 END DO
+!              ENDIF
+!           ENDIF
+
+!           var_name= 'zdz2'
+!           CALL ioconf_setatt_p('UNITS', '-')
+!           CALL ioconf_setatt_p('LONG_NAME','?.')
+!           IF ( ok_var(var_name) ) THEN
+!              CALL restget_p (rest_id, var_name, nbp_glo, ngrnd, 1, kjit, .TRUE., temp, "gather", nbp_glo, index_g)
+!              IF (MINVAL(temp) < MAXVAL(temp) .OR. MAXVAL(temp) .NE. val_exp) THEN
+!                 DO m=1,nvm
+!                    zdz2(:,:,m)=temp(:,:)
+!                 END DO
+!              ENDIF
+!           ENDIF
+
+!           !! Arsene 28-11-2016 - #3 the variable is alrady initialyse in thermosoil_energy.... soooooooo
+!           var_name='temp_sol_beg'
+!           CALL ioconf_setatt_p('UNITS', 'K')
+!           CALL ioconf_setatt_p('LONG_NAME','Old Surface temperature')
+!           IF ( ok_var(var_name) ) THEN
+!              CALL restget_p (rest_id, var_name, nbp_glo, 1, 1, kjit, .TRUE., temp2, "gather", nbp_glo, index_g)
+!              IF (MINVAL(temp2) < MAXVAL(temp2) .OR. MAXVAL(temp2) .NE. val_exp) THEN
+!                 temp_sol_beg(:) = temp2(:)
+!              ENDIF
+!           ENDIF
 
         ENDIF !ldrestart_read
 
@@ -1506,7 +1517,7 @@ CONTAINS
 !_ ================================================================================================================================
 
   SUBROUTINE thermosoil_var_init(kjpindex, zz, zz_coef, dz1, dz2, pkappa, pcapa, pcapa_en, &
-  &     shumdiag_perma, stempdiag,&
+  &     shumdiag_perma, stempdiag, rest_id, kjit, &  !! Arsene 28-11-2016 - Add rest_id and kjit for *appa initalization
  !Isa
   & snow, profil_froz,pb,snowtemp,snowrho,snowdz, &
   & thawed_humidity,organic_layer_thick, soilc_total, veget_max, height) !! 18-01-2016 Arsene - add height for moss depth
@@ -1521,7 +1532,10 @@ CONTAINS
                                                                                   !! variables of thermosoil_main for more 
                                                                                   !! explanations) 
     REAL(r_std), DIMENSION (kjpindex,nvm), INTENT(in)        :: height            !! Height of vegetation type !! 18-01-2016 Arsene - add height for moss depth
-    
+
+   INTEGER(i_std),INTENT (in)                                :: rest_id           !! Restart_ file and history file identifier !! Arsene 28-11-2016 - Add for *appa initalization
+   INTEGER(i_std), INTENT(in)                                :: kjit              !! Time step number (unitless)               !! Arsene 28-11-2016 - Add for *appa initalization
+
     !! 0.2 Output variables
 
     REAL(r_std), DIMENSION (ngrnd), INTENT(out)              :: zz                !! depths of the layers'numerical nodes 
@@ -1556,8 +1570,11 @@ CONTAINS
     REAL(r_std), DIMENSION(kjpindex,nvm), INTENT (in)        :: veget_max         !!Fraction of vegetation type 
     REAL(r_std), DIMENSION(kjpindex),   INTENT (in)          :: thawed_humidity   !!specified humidity of thawed soil
     ! local declaration
-    INTEGER(i_std)                                :: ier, ji, jg, jv
+    INTEGER(i_std)                                :: ier, ji, jg, jvi, m          !! Arsene 28-11-2016 - Add m  for *appa initalization 
     REAL(r_std)                                    :: sum
+
+!    REAL(r_std),DIMENSION (kjpindex,ngrnd)                   :: temp              !! buffer !! Arsene 28-11-2016 - Add for *appa initalization
+    CHARACTER(LEN=10)                                        :: part_str          !! string suffix indicating an index !! buffer !! Arsene 28-11-2016 - Add for *appa initalization
     !
     !
   !! 1. Initialization of the parameters of the vertical discretization and of the attenuation depths
@@ -1601,11 +1618,6 @@ CONTAINS
       zz_coef(jg) = zz_coef(jg) / cstgrnd * lskin 
       dz2(jg)     = dz2(jg) /  cstgrnd * lskin
     ENDDO
-    DO jg=1,ngrnd
-    ENDDO
-
-    DO jg=1,ngrnd
-    ENDDO
 
     !! 2.4 Computing some usefull constants for the numerical scheme
     DO jg=1,ngrnd-1
@@ -1641,7 +1653,84 @@ CONTAINS
        !    CALL thermosoil_getdiff_old_thermix_trunc2( kjpindex, pkappa, pcapa, pcapa_en )
        !else
        !    CALL thermosoil_getdiff_old_thermix_with_snow( kjpindex, ptn, wetdiaglong, snow, pkappa, pcapa, pcapa_en,profil_froz )
-       !endif 
+       !endif
+
+      !! Arsene 28-11-2016 - CARE !!! All of the variable below was not initialised initialised ... if not ok_explicitsnow
+                                  !!! And the function ok_var(var_name) do not work (result = FALSE all time)
+
+      !! Arsene 28-11-2016 - CARE !!! With the add of explicit snow, they remove all three var compute... so, just useless !
+
+      !! Arsene 28-11-2016 - #1 initalise the variable - ADD - Care: remplace in all case juste after
+      pcapa(:,:,:)=2100000  !zero
+      pcapa_en(:,:,:)=2100000 !zero
+      pkappa(:,:,:)=0.9 !zero
+
+      !! Arsene 28-11-2016 - #2 find in the restart file... - ADD
+
+      DO m=1,nvm
+         WRITE(part_str,'(I2)') m
+         IF ( m < 10 ) part_str(1:1) = '0'
+         var_name = 'pcapa_'//part_str(1:LEN_TRIM(part_str))
+         CALL ioconf_setatt_p('UNITS', '-')
+         CALL ioconf_setatt_p('LONG_NAME','pcapa') 
+         CALL restget_p (rest_id, var_name, nbp_glo, ngrnd, 1, kjit, .TRUE., pcapa(:,:,m), "gather", nbp_glo, index_g)
+      ENDDO
+
+!      var_name= 'pcapa'
+!      CALL ioconf_setatt_p('UNITS', '-')
+!      CALL ioconf_setatt_p('LONG_NAME','?.')
+!!      IF ( ok_var(var_name) ) THEN
+!         CALL restget_p (rest_id, var_name, nbp_glo, ngrnd, 1, kjit, .TRUE., temp, "gather", nbp_glo, index_g)
+!          IF (MINVAL(temp) < MAXVAL(temp) .OR. MAXVAL(temp) .NE. val_exp) THEN
+!            DO m=1,nvm
+!               pcapa(:,:,m)=temp(:,:)
+!            END DO
+!         ENDIF
+!!      ENDIF                         
+
+      DO m=1,nvm
+         WRITE(part_str,'(I2)') m
+         IF ( m < 10 ) part_str(1:1) = '0'
+         var_name = 'pcapa_en_'//part_str(1:LEN_TRIM(part_str))
+         CALL ioconf_setatt_p('UNITS', '-')
+         CALL ioconf_setatt_p('LONG_NAME','pcapa_en')
+         CALL restget_p (rest_id, var_name, nbp_glo, ngrnd, 1, kjit, .TRUE., pcapa_en(:,:,m), "gather", nbp_glo, index_g)
+      ENDDO
+
+!      var_name= 'pcapa_en'
+!      CALL ioconf_setatt_p('UNITS', '-')
+!      CALL ioconf_setatt_p('LONG_NAME','?.')
+!!      IF ( ok_var(var_name) ) THEN
+!         CALL restget_p (rest_id, var_name, nbp_glo, ngrnd, 1, kjit, .TRUE., temp, "gather", nbp_glo, index_g)
+!         IF (MINVAL(temp) < MAXVAL(temp) .OR. MAXVAL(temp) .NE. val_exp) THEN
+!            DO m=1,nvm
+!               pcapa_en(:,:,m)=temp(:,:)
+!            END DO
+!         ENDIF
+!!      ENDIF
+
+      DO m=1,nvm
+         WRITE(part_str,'(I2)') m
+         IF ( m < 10 ) part_str(1:1) = '0'
+         var_name = 'pkappa_'//part_str(1:LEN_TRIM(part_str))
+         CALL ioconf_setatt_p('UNITS', '-')
+         CALL ioconf_setatt_p('LONG_NAME','pkappa')
+         CALL restget_p (rest_id, var_name, nbp_glo, ngrnd, 1, kjit, .TRUE., pkappa(:,:,m), "gather", nbp_glo, index_g)
+      ENDDO
+
+!      var_name= 'pkappa'
+!      CALL ioconf_setatt_p('UNITS', '-')
+!      CALL ioconf_setatt_p('LONG_NAME','?.')
+!!      IF ( ok_var(var_name) ) THEN
+!         CALL restget_p (rest_id, var_name, nbp_glo, ngrnd, 1, kjit, .TRUE., temp, "gather", nbp_glo, index_g)
+!         IF (MINVAL(temp) < MAXVAL(temp) .OR. MAXVAL(temp) .NE. val_exp) THEN
+!            DO m=1,nvm
+!               pkappa(:,:,m)=temp(:,:)
+!               END DO
+!            ENDIF
+!!      ENDIF
+      !! Arsene 28-11-2016 - STOP ADD
+
     endif
 
   !! 3. Diagnostics : consistency checks on the vertical grid.
@@ -1978,6 +2067,7 @@ endif
         ENDDO
       ENDDO
     ENDDO
+
   !! 2. Put the soil temperatures onto the diagnostic axis 
   
     !! Put the soil temperatures onto the diagnostic axis for convenient

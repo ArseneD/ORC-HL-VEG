@@ -291,6 +291,7 @@ CONTAINS
    type_of_lai(:) = type_of_lai_mtc(pft_to_mtc(:))
    natural(:) = natural_mtc(pft_to_mtc(:))
    vascular(:) = vascular_mtc(pft_to_mtc(:))        !! Arsene 18-02-2014
+   permafrost_veg_exists(:) = permafrost_veg_exists_mtc(pft_to_mtc(:))  !! Arsene 17-03-2016
 !JCADD
       is_grassland_manag(:) = is_grassland_manag_mtc(pft_to_mtc(:))
       is_grassland_cut(:) = is_grassland_cut_mtc(pft_to_mtc(:))
@@ -347,6 +348,7 @@ CONTAINS
    theta(:)      = theta_mtc(pft_to_mtc(:))        
    alpha_LL(:)   = alpha_LL_mtc(pft_to_mtc(:))
    ext_coeff(:) = ext_coeff_mtc(pft_to_mtc(:))
+   ext_coeff_vegetfrac(:) = ext_coeff_vegetfrac_mtc(pft_to_mtc(:))  !! Arsene 16-07-2016 - Add new Albedo
    !
    !! Define labels from physiologic characteristics 
    !
@@ -403,6 +405,12 @@ CONTAINS
       !
       snowa_aged(:) = snowa_aged_mtc(pft_to_mtc(:))
       snowa_dec(:) = snowa_dec_mtc(pft_to_mtc(:)) 
+!! Arsene 16-07-2016 - Add new Albedo - START
+      snowa_aged_vis(:) = snowa_aged_vis_mtc(pft_to_mtc(:))
+      snowa_aged_nir(:) = snowa_aged_nir_mtc(pft_to_mtc(:))
+      snowa_dec_vis(:) = snowa_dec_vis_mtc(pft_to_mtc(:))
+      snowa_dec_nir(:) = snowa_dec_nir_mtc(pft_to_mtc(:))
+!! Arsene 16-07-2016 - Add new Albedo - END
       alb_leaf_vis(:) = alb_leaf_vis_mtc(pft_to_mtc(:))  
       alb_leaf_nir(:) = alb_leaf_nir_mtc(pft_to_mtc(:))
       !-
@@ -632,6 +640,16 @@ CONTAINS
       STOP 'pft_parameters_alloc'
    END IF
 !! Arsene 18-02-2014
+
+!! Arsene 17-03-2016
+   ALLOCATE(permafrost_veg_exists(nvm),stat=ier)
+   l_error = l_error .OR. (ier /= 0)
+   IF (l_error) THEN
+      WRITE(numout,*) ' Memory allocation error for permafrost_veg_exists. We stop. We need nvm words = ',nvm
+      STOP 'pft_parameters_alloc'
+   END IF
+!! Arsene 17-03-2016
+
 
 !JCADD
    ALLOCATE(is_grassland_manag(nvm),stat=ier)
@@ -905,6 +923,15 @@ CONTAINS
       STOP 'pft_parameters_alloc'
    END IF
 
+!! Arsene 16-07-2016 - Add new Albedo - START
+   ALLOCATE(ext_coeff_vegetfrac(nvm),stat=ier)
+   l_error = l_error .OR. (ier /= 0)
+   IF (l_error) THEN
+      WRITE(numout,*) ' Memory allocation error for ext_coeff_vegetfrac. We stop. We need nvm words = ',nvm
+      STOP 'pft_parameters_alloc'
+   END IF
+!! Arsene 16-07-2016 - Add new Albedo - END
+
    ALLOCATE(veget_ori_fixed_test_1(nvm),stat=ier)
    l_error = l_error .OR. (ier /= 0)
    IF (l_error) THEN
@@ -1047,6 +1074,36 @@ CONTAINS
          WRITE(numout,*) ' Memory allocation error for snowa_dec. We stop. We need nvm words = ',nvm
          STOP 'pft_parameters_alloc'
       END IF
+
+!! Arsene 16-07-2016 - Add new Albedo - START
+      ALLOCATE(snowa_aged_vis(nvm),stat=ier)
+      l_error = l_error .OR. (ier /= 0)
+      IF (l_error) THEN
+         WRITE(numout,*) ' Memory allocation error for snowa_aged_vis. We stop. We need nvm words = ',nvm
+         STOP 'pft_parameters_alloc'
+      END IF
+
+      ALLOCATE(snowa_aged_nir(nvm),stat=ier)
+      l_error = l_error .OR. (ier /= 0)
+      IF (l_error) THEN
+         WRITE(numout,*) ' Memory allocation error for snowa_aged_nir. We stop. We need nvm words = ',nvm
+         STOP 'pft_parameters_alloc'
+      END IF
+
+      ALLOCATE(snowa_dec_vis(nvm),stat=ier)
+      l_error = l_error .OR. (ier /= 0)
+      IF (l_error) THEN
+         WRITE(numout,*) ' Memory allocation error for snowa_dec_vis. We stop. We need nvm words = ',nvm
+         STOP 'pft_parameters_alloc'
+      END IF
+
+      ALLOCATE(snowa_dec_nir(nvm),stat=ier)
+      l_error = l_error .OR. (ier /= 0)
+      IF (l_error) THEN
+         WRITE(numout,*) ' Memory allocation error for snowa_dec_nir. We stop. We need nvm words = ',nvm
+         STOP 'pft_parameters_alloc'
+      END IF
+!! Arsene 16-07-2016 - Add new Albedo - END
 
       ALLOCATE(alb_leaf_vis(nvm),stat=ier)
       l_error = l_error .OR. (ier /= 0)
@@ -1868,6 +1925,16 @@ CONTAINS
       CALL getin_p('VASCULAR',vascular)
 !! Arsene 18-02-2014
 
+!! Arsene 17-03-2016
+      !Config Key   = permafrost_veg_exists
+      !Config Desc  = permafrost_veg_exists?
+      !Config if    = OK_SECHIBA
+      !Config Def   = y, y, y, y, y, y, y, y, y, y, y, y, y 
+      !Config Help  =
+      !Config Units = [BOOLEAN]
+      CALL getin_p('PERMAFROST_VEG_EXISTS',permafrost_veg_exists)
+!! Arsene 17-03-2016
+
       
       !
       ! Photosynthesis
@@ -2160,6 +2227,16 @@ CONTAINS
       !Config Help  =
       !Config Units = [-]
       CALL getin_p('EXT_COEFF',ext_coeff)
+
+!! Arsene 16-07-2016 - Add new Albedo - START
+      !Config Key   = EXT_COEFF_VEGETFRAC
+      !Config Desc  = extinction coefficient used for the calculation of the bare soil fraction 
+      !Config if    = OK_SECHIBA or OK_STOMATE
+      !Config Def   = 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.
+      !Config Help  =
+      !Config Units = [-]
+      CALL getin_p('EXT_COEFF_VEGETFRAC',ext_coeff_vegetfrac)
+!! Arsene 16-07-2016 - Add new Albedo - END
      
       !
       ! Water-hydrology - sechiba
@@ -2303,6 +2380,42 @@ CONTAINS
       !Config Help  = Values are from the Thesis of S. Chalita (1992)
       !Config Units = [-]
       CALL getin_p('SNOWA_DEC',snowa_dec)
+
+!! Arsene 16-07-2016 - Add new Albedo - START
+      !Config Key   = SNOWA_AGED_VIS
+      !Config Desc  = Minimum snow albedo value for each vegetation type after aging (dirty old snow), visible albedo
+      !Config if    = OK_SECHIBA
+      !! Config Def   = 0.35, 0., 0., 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.18, 0.18, 0.18, 0.18
+      !Config Def   = 0.5, 0., 0., 0.15, 0.14, 0.14, 0.15, 0.14, 0.22, 0.35, 0.35, 0.35, 0.35
+      !Config Help  = Values are from the Thesis of S. Chalita (1992), optimized on 04/07/2016
+      !Config Units = [-]
+      CALL getin_p('SNOWA_AGED_VIS',snowa_aged_vis)
+
+      !Config Key   = SNOWA_AGED_NIR
+      !Config Desc  = Minimum snow albedo value for each vegetation type after aging (dirty old snow), near infrared albedo
+      !Config if    = OK_SECHIBA
+      !Config Def   = 0.35, 0., 0., 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.18, 0.18, 0.18, 0.18
+      !Config Help  = Values are from the Thesis of S. Chalita (1992)
+      !Config Units = [-]
+      CALL getin_p('SNOWA_AGED_NIR',snowa_aged_nir)
+
+      !Config Key   = SNOWA_DEC_VIS
+      !Config Desc  = Decay rate of snow albedo value for each vegetation type as it will be used in condveg_snow, visible albedo
+      !Config if    = OK_SECHIBA
+      !! Config Def   = 0.45, 0.,  0., 0.06, 0.06, 0.11, 0.06, 0.11, 0.11, 0.52 ,0.52, 0.52, 0.52
+      !Config Def   = 0.45, 0., 0., 0.1, 0.06, 0.11, 0.10, 0.11, 0.18, 0.60, 0.60, 0.60, 0.60
+      !Config Help  = Values are from the Thesis of S. Chalita (1992), optimized on 04/07/2016
+      !Config Units = [-]
+      CALL getin_p('SNOWA_DEC_VIS',snowa_dec_vis)
+
+      !Config Key   = SNOWA_DEC_NIR
+      !Config Desc  = Decay rate of snow albedo value for each vegetation type as it will be used in condveg_snow, near infrared albedo
+      !Config if    = OK_SECHIBA
+      !Config Def   = 0.45, 0.,  0., 0.06, 0.06, 0.11, 0.06, 0.11, 0.11, 0.52 ,0.52, 0.52, 0.52
+      !Config Help  = Values are from the Thesis of S. Chalita (1992)
+      !Config Units = [-]
+      CALL getin_p('SNOWA_DEC_NIR',snowa_dec_nir)
+!! Arsene 16-07-2016 - Add new Albedo - END
 
       !Config Key   = ALB_LEAF_VIS
       !Config Desc  = leaf albedo of vegetation type, visible albedo
@@ -2509,8 +2622,14 @@ CONTAINS
       !Config Units = [m^2/gC]
       CALL getin_p('SLA',sla)
 
-      CALL getin_p('availability_fact',availability_fact)
-
+!      CALL getin_p('availability_fact',availability_fact) !! 27-04-2016 Arsene. Remove bad way, and add this:
+      !Config Key   = AVAILABILITY_FACT 
+      !Config Desc  = 
+      !Config If    = OK_STOMATE 
+      !Config Def   = 0.1
+      !Config Help  = 
+      !Config Units = [-]   
+      CALL getin_p('AVAILABILITY_FACT', availability_fact)
 
       !
       ! Allocation - stomate
@@ -3047,6 +3166,7 @@ CONTAINS
    IF (ALLOCATED(is_shrub)) DEALLOCATE(is_shrub)        !! Arsene 31-07-2014 modifications
    IF (ALLOCATED(natural)) DEALLOCATE(natural)
    IF (ALLOCATED(vascular)) DEALLOCATE(vascular)        !! Arsene 18-02-2014
+   IF (ALLOCATED(permafrost_veg_exists)) DEALLOCATE(permafrost_veg_exists)        !! Arsene 17-03-2016
    IF (ALLOCATED(is_deciduous)) DEALLOCATE(is_deciduous)
    IF (ALLOCATED(is_evergreen)) DEALLOCATE(is_evergreen)
    IF (ALLOCATED(is_needleleaf)) DEALLOCATE(is_needleleaf)
@@ -3089,6 +3209,7 @@ CONTAINS
    IF (ALLOCATED(theta)) DEALLOCATE(theta)
    IF (ALLOCATED(alpha_LL)) DEALLOCATE(alpha_LL)
    IF (ALLOCATED(ext_coeff)) DEALLOCATE(ext_coeff)
+   IF (ALLOCATED(ext_coeff_vegetfrac)) DEALLOCATE(ext_coeff_vegetfrac)  !! Arsene 16-07-2016 - Add new Albedo
    IF (ALLOCATED(rveg_pft)) DEALLOCATE(rveg_pft)
    IF (ALLOCATED(rstruct_const)) DEALLOCATE(rstruct_const)
    IF (ALLOCATED(kzero)) DEALLOCATE(kzero)
@@ -3096,6 +3217,12 @@ CONTAINS
    IF (ALLOCATED(throughfall_by_pft)) DEALLOCATE(throughfall_by_pft)
    IF (ALLOCATED(snowa_aged)) DEALLOCATE(snowa_aged)
    IF (ALLOCATED(snowa_dec)) DEALLOCATE(snowa_dec)
+!! Arsene 16-07-2016 - Add new Albedo - START
+   IF (ALLOCATED(snowa_aged_vis)) DEALLOCATE(snowa_aged_vis)
+   IF (ALLOCATED(snowa_aged_nir)) DEALLOCATE(snowa_aged_nir)
+   IF (ALLOCATED(snowa_dec_vis)) DEALLOCATE(snowa_dec_vis)
+   IF (ALLOCATED(snowa_dec_nir)) DEALLOCATE(snowa_dec_nir)
+!! Arsene 16-07-2016 - Add new Albedo - END
    IF (ALLOCATED(alb_leaf_vis)) DEALLOCATE(alb_leaf_vis)
    IF (ALLOCATED(alb_leaf_nir)) DEALLOCATE(alb_leaf_nir)   
    IF (ALLOCATED(em_factor_isoprene)) DEALLOCATE(em_factor_isoprene)

@@ -490,6 +490,24 @@ CONTAINS
         !Config Units = [cm]  
         CALL getin_p('SNOWCRI_ALB',snowcri_alb)
         !
+!! Arsene 22-11-2016 - Add for frac_snow_veg such as Boone 2002 - START
+        !Config Key   = SNOWCRIT_Z0ALB1
+        !Config Desc  = Critical parameter value for computation of snow fraction on vegetation
+        !Config If    = OK_SECHIBA & NEW_FRAC_SNOW_VEG
+        !Config Def   = 5. 
+        !Config Help  = 
+        !Config Units = [-]  
+        CALL getin_p('SNOWCRIT_Z0ALB1',snowcrit_z0alb1)
+        !
+        !Config Key   = SNOWCRIT_Z0ALB2
+        !Config Desc  = Critical parameter value for computation of snow fraction on vegetation
+        !Config If    = OK_SECHIBA & NEW_FRAC_SNOW_VEG
+        !Config Def   = 1. 
+        !Config Help  = 
+        !Config Units = [-]  
+        CALL getin_p('SNOWCRIT_Z0ALB2',snowcrit_z0alb2)
+!! Arsene 22-11-2016 - Add for frac_snow_veg such as Boone 2002 - END 
+        !
         !
         !Config Key   = VIS_DRY
         !Config Desc  = The correspondance table for the soil color numbers and their albedo 
@@ -578,6 +596,18 @@ CONTAINS
         !Config Units = [FLAG]
         CALL getin_p('ALB_BARE_MODEL',alb_bare_model)
         !
+!! Arsene 16-07-2016 - Add new Albedo - START
+        !Config Key   = ALB_BG_MODIS
+        !Config Desc  = Read bare soil albedo from file with background MODIS data
+        !Config Def   = n
+        !Config if    = OK_SECHIBA
+        !Config Help  = If TRUE, the bare soil albedo is read from file
+        !Config         based on background MODIS data.  
+        !Config         If FALSE, computaion depends on ALB_BARE_MODEL
+        !Config Units = [FLAG]
+        CALL getin_p('ALB_BG_MODIS',alb_bg_modis)
+!! Arsene 16-07-2016 - Add new Albedo - END
+        !
         !Config Key   = Z0CDRAG_AVE
         !Config Desc  = Average method for z0
         !Config Def   = y
@@ -597,7 +627,7 @@ CONTAINS
         !Config Def   = TRUE
         !Config Help  = 
         !Config Units = [FLAG]
-        CALL getin_p('NEW_LITTER_DISCRET', new_frac_snow_veg)
+        CALL getin_p('NEW_FRAC_SNOW_VEG', new_frac_snow_veg)
 !! Arsene 29-12-2015 - Change the calculation of frac_snow_veg (condveg)
         !
         !Config Key   = IMPOSE_AZE
@@ -1170,7 +1200,7 @@ CONTAINS
        !Config Def   = 0.1
        !Config Help  = 
        !Config Units = [-]   
-!       CALL getin_p('AVAILABILITY_FACT', availability_fact)  
+!       CALL getin_p('AVAILABILITY_FACT', availability_fact)  !! 27-04-2016 Arsene. Already comment. But now add in pft_parameters.f90
        !
        !Config Key   = REF_GREFF
        !Config Desc  = Asymptotic maximum mortality rate

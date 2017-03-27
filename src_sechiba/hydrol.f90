@@ -3372,7 +3372,6 @@ CONTAINS
        ENDDO
     ENDDO
 
-
        ! An additional exponential factor for ks depending on the amount of roots in the soil 
        ! through a geometric average over the vegets
        !!??Aurelien: Pkoi utiliser ks_usda?

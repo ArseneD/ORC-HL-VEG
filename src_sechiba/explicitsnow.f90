@@ -261,9 +261,11 @@ CONTAINS
             snowheat(ji,:) = snow3lheat_1d(snowliq(ji,:),snowrho(ji,:),snowdz(ji,:),snowtemp(ji,:))
         ENDDO
         ! calculate the coefficients related to the snowpack
+
         CALL explicitsnow_coef(kjpindex, dtradia,pb, temp_sol_new,snowdz,snowrho, &
              & cgrnd_soil,dgrnd_soil,zdz1_soil,zdz2_soil,gtemp,gthick,snowtemp, &
              & snowflx,snowcap,cgrnd_snow,dgrnd_snow,lambda_snow,pkappa_snow)
+
 
    !3. on land ice (using the default ORCHIDEE snow scheme)
 
@@ -1665,6 +1667,7 @@ CONTAINS
     !! Computation of the apparent snow-surface heat flux (> towards the snow) and
     !! apparent surface heat capacity, used at the next timestep by enerbil to
     !! compute the surface temperature.
+
     DO ji = 1,kjpindex
       snowflx(ji) = zero
       snowcap(ji) = zero
@@ -1739,7 +1742,9 @@ CONTAINS
     INTEGER(i_std)                                           :: ji, jg
 !_
 !================================================================================================================================
+
   !! 1. Computes the soil temperatures ptn.
+
     DO ji = 1,kjpindex
       IF (SUM(snowdz(ji,:)) .GT. 0) THEN
         snowtemp(ji,1) = (lambda_snow(ji) * cgrnd_snow(ji,1) + (temp_sol_new(ji)+temp_sol_add(ji))) &

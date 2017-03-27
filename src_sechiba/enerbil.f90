@@ -247,7 +247,7 @@ MODULE enerbil
 !_ ================================================================================================================================
     
     !! 1. Run the initialisation routines 
-    
+
     IF (l_first_enerbil) THEN
 
         IF (long_print) WRITE (numout,*) ' l_first_enerbil : call enerbil_init '
@@ -312,7 +312,7 @@ MODULE enerbil
 
 
     !! 4. Computes psnew (the surface static energy at the 'new' timestep) 
-    
+
     ! Computes psnew (the surface static energy at the 'new' timestep), qsol_sat_new (the surface
     ! saturated humidity at the 'new' timestep), temp_sol_new (the surface temperature at the 'new'
     ! timestep), qair_new (the lowest atmospheric humidity at the 'new' timestep) and epot_air_new
@@ -321,6 +321,7 @@ MODULE enerbil
        & epot_air, petAcoef, petBcoef, qair, peqAcoef, peqBcoef, soilflx, rau, u, v, q_cdrag, vbeta,&
        & valpha, vbeta1, vbeta5, soilcap, lwdown, swnet, psnew, qsol_sat_new, temp_sol_new, &
        & qair_new, epot_air_new, snowdz, snowflx,snowcap)
+
 
     ! 2.1 computes surface temperature and humidity for a saturated surface
     !
@@ -684,9 +685,10 @@ MODULE enerbil
 
        ! initialises temp_sol_new 
        temp_sol_new(:) = temp_sol(:)
+
     ENDIF
 
-    IF (long_print) WRITE (numout,*) ' enerbil_init done '
+    iF (long_print) WRITE (numout,*) ' enerbil_init done '
 
   END SUBROUTINE enerbil_init
 
@@ -1144,6 +1146,7 @@ MODULE enerbil
       !!     \input{enerbilsurftemp13.tex}
       !! \endlatexonly
       psnew(ji) =  psold(ji) + dtheta
+
       
       !! The new surface saturated humidity can be calculated by equation (69)
       !! of (Dufresne & Ghattas, 2009), in which we substitute dtheta for the
@@ -1158,8 +1161,9 @@ MODULE enerbil
       !! \latexonly 
       !!     \input{enerbilsurftemp15.tex}
       !! \endlatexonly
+
       temp_sol_new(ji) = psnew(ji) / cp_air
-      
+
       !! 4.5 Calculation of new evaporation potential and new evaporation latent heat
       !! flux (???)
       !! \latexonly 
@@ -1862,7 +1866,7 @@ MODULE enerbil
     IF  (ok_explicitsnow) THEN
        !! Case with explicit snow activated :
        !! Surface temperature is forced to zero celcius if its value is larger than melting point 
-       
+
        DO ji=1,kjpindex 
           IF  (SUM(snowdz(ji,:)) .GT. 0.0) THEN
              IF (temp_sol_new(ji) .GE. tp_00) THEN
@@ -1884,7 +1888,9 @@ MODULE enerbil
           !! \latexonly 
           !!     \input{enerbilfusion2.tex}
           !! \endlatexonly
+
           temp_sol_new(ji) = temp_sol_new(ji) - ((tot_melt(ji) * chalfu0) / soilcap(ji))
+
        END DO
     ENDIF
            

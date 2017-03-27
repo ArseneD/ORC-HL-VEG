@@ -475,6 +475,12 @@ MODULE constantes_var
                                             !! albedo (see header of subroutine)
                                             !! (true/false)
 !$OMP THREADPRIVATE(alb_bare_model)
+!! Arsene 16-07-2016 - Add new Albedo - START
+  LOGICAL, SAVE :: alb_bg_modis = .FALSE.   !! Switch for choosing values of bare soil 
+                                            !! albedo read from file
+                                            !! (true/false)
+!$OMP THREADPRIVATE(alb_bg_modis)
+!! Arsene 16-07-2016 - Add new Albedo - END
   LOGICAL, SAVE :: impaze = .FALSE.         !! Switch for choosing surface parameters
                                             !! (see header of subroutine).  
                                             !! (true/false)
@@ -499,6 +505,12 @@ MODULE constantes_var
 !$OMP THREADPRIVATE(tcst_snowa)
   REAL(r_std), SAVE :: snowcri_alb = 10.                 !! Critical value for computation of snow albedo (cm)
 !$OMP THREADPRIVATE(snowcri_alb)
+!! Arsene 22-11-2016 - Add for frac_snow_veg such as Boone 2002 - START
+  REAL(r_std), SAVE :: snowcrit_z0alb1 = 5.              !! Critical parameter value for computation of snow fraction on vegetation (-)
+!$OMP THREADPRIVATE(snowcrit_z0alb1)
+  REAL(r_std), SAVE :: snowcrit_z0alb2 = 1.              !! Critical parameter value for computation of snow fraction on vegetation (-)
+!$OMP THREADPRIVATE(snowcrit_z0alb2)
+!! Arsene 22-11-2016 - Add for frac_snow_veg such as Boone 2002 - END 
   REAL(r_std), SAVE :: fixed_snow_albedo = undef_sechiba !! To choose a fixed snow albedo value (unitless)
 !$OMP THREADPRIVATE(fixed_snow_albedo)
   REAL(r_std), SAVE :: z0_scal = 0.15                    !! Surface roughness height imposed (m)
@@ -1246,9 +1258,10 @@ MODULE constantes_var
   LOGICAL, SAVE           :: writehist_deltaC_litter = .false.
   LOGICAL, SAVE           :: writehist_gascoeff = .false.
 
-  LOGICAL,PARAMETER,DIMENSION(15) :: permafrost_veg_exists = &  !!! set all as true to avoid masking     !! Arsene 05-03-2015 remove 13 to nvm
-   & (/ .TRUE., .TRUE., .TRUE., .TRUE., .TRUE.,  .TRUE., &
-   &    .TRUE., .TRUE.,  .TRUE.,  .TRUE., .TRUE., .TRUE., .TRUE., .TRUE., .TRUE. /)                       !! Arsene 05-03-2015 Add 2 PFT
+! Arsene 17-03-2016 - Remove and place in constante_mtc to be PFT adaptable
+!  LOGICAL,PARAMETER,DIMENSION(16) :: permafrost_veg_exists = &  !!! set all as true to avoid masking     !! Arsene 05-03-2015 remove 13 to nvm
+!   & (/ .TRUE., .TRUE., .TRUE., .TRUE., .TRUE.,  .TRUE., &
+!   &    .TRUE., .TRUE.,  .TRUE.,  .TRUE., .TRUE., .TRUE., .TRUE., .TRUE., .TRUE., .TRUE. /)                       !! Arsene 05-03-2015 Add 2 PFT
 
 
 !pss:+

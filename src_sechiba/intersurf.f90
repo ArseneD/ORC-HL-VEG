@@ -542,9 +542,10 @@ CONTAINS
     emis(:,:)         = undef_sechiba 
     cdrag(:,:)        = undef_sechiba 
     !
+
+
     DO ik=1, kjpindex
       
-    
        j = ((kindex(ik)-1)/iim) + 1
        i = (kindex(ik) - (j-1)*iim)
 
@@ -563,6 +564,7 @@ CONTAINS
        cdrag(i,j)        = zcdrag(ik)
 
     ENDDO
+
     !
     ! Modified fields for variables scattered during the writing
     !

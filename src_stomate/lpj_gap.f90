@@ -237,7 +237,6 @@ CONTAINS
                 mortality(:,j) = dt/(residence_time(j)*one_year)
 
              ENDWHERE
-
           ENDIF ! .NOT.  lpj_gap_const_mort
 
           !! 1.3 Mortality in DGVM
@@ -261,7 +260,7 @@ CONTAINS
                 !! Arsene 07-04-2015 - Calcul the min temperature between tair and tsnow ==> If anywhere critical temps...
                 tmin_all(:) = t2m_min_daily(:)
                 DO i = 1, nsnow
-                    WHERE ( (snowdz_min(:,i) .LT. min_stomate) .AND. ( snowtemp_min(:,i) .LT. tmin_all(:) ))
+                    WHERE ( (snowdz_min(:,i) .GT. 0.01) .AND. ( snowtemp_min(:,i) .LT. tmin_all(:) )) !! Only if >1cm of snow
                         tmin_all(:) = snowtemp_min(:,i)
                     ENDWHERE
                 ENDDO !! Arsene 07-04-2015
@@ -288,6 +287,13 @@ CONTAINS
                 mortality(:,j) = MIN(un,(0.01*(-3+ZeroCelsius-Tmin_spring(:,j))*Tmin_spring_time(:,j)/40+mortality(:,j) ) )
              ENDWHERE
           ENDIF
+
+          !! Arsene 23-08-2016 ADD - start
+          !! If the mortality is very important, kill the PFT
+          WHERE ( mortality(:,j) .GT. 0.95 )
+               mortality(:,j)=1.
+          ENDWHERE
+          !! Arsene 23-08-2016 ADD - end
 
           !! 1.4 Update biomass and litter pools 
           !    Update biomass and litter pool after dying and transfer recently died biomass to litter

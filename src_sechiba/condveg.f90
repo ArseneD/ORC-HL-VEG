@@ -76,6 +76,10 @@ MODULE condveg
 !$OMP THREADPRIVATE(soilalb_wet)
   REAL(r_std), ALLOCATABLE, SAVE    :: soilalb_moy(:,:)                 !! Albedo values for the mean bare soil (unitless)
 !$OMP THREADPRIVATE(soilalb_moy)
+!! Arsene 16-07-2016 - Add new Albedo - START
+  REAL(r_std), ALLOCATABLE, SAVE    :: soilalb_bg(:,:)                  !! Albedo values for the background bare soil (unitless)
+!$OMP THREADPRIVATE(soilalb_bg)
+!! Arsene 16-07-2016 - Add new Albedo - END
   REAL(r_std), ALLOCATABLE, SAVE    :: alb_bare(:,:)                    !! Mean bare soil albedo for visible and near-infrared 
                                                                         !! range (unitless) 
 !$OMP THREADPRIVATE(alb_bare)
@@ -178,8 +182,15 @@ CONTAINS
              & drysoil_frac, zlev, height,  emis, albedo, z0, roughheight, snowdz)    !! Arsene 24-03-2015 Add snowdz
 
          ! Call subroutine 'condveg snow'
-         CALL condveg_snow (ldrestart_read, kjpindex, veget, veget_max, frac_nobio, totfrac_nobio, &
-             snowdz, snow_age, snow_nobio, snow_nobio_age, albedo, albedo_snow, albedo_glob, z0) !! Arsene 13-01-2016 - change snow for snowdz & add z0
+!! Arsene 16-07-2016 - Add new Albedo - START
+         IF ( alb_bg_modis ) THEN
+           CALL condveg_snow_modis (ldrestart_read, kjpindex, veget, veget_max, frac_nobio, totfrac_nobio, &
+               snowdz, snow_age, snow_nobio, snow_nobio_age, albedo, albedo_snow, albedo_glob, z0)
+         ELSE
+!! Arsene 16-07-2016 - Add new Albedo - END
+           CALL condveg_snow (ldrestart_read, kjpindex, veget, veget_max, frac_nobio, totfrac_nobio, &
+               snowdz, snow_age, snow_nobio, snow_nobio_age, albedo, albedo_snow, albedo_glob, z0) !! Arsene 13-01-2016 - change snow for snowdz & add z0
+         ENDIF !! Arsene 16-07-2016 - Add new Albedo
 
         RETURN
 
@@ -192,8 +203,15 @@ CONTAINS
          & drysoil_frac, zlev, height,  emis, albedo, z0, roughheight, snowdz)   !! Arsene 24-03-2015 Add snowdz
 
     ! Update snow parameters by calling subroutine 'condveg_snow'
-    CALL condveg_snow (ldrestart_read, kjpindex, veget, veget_max, frac_nobio, totfrac_nobio, &
-         snowdz, snow_age, snow_nobio, snow_nobio_age, albedo, albedo_snow, albedo_glob, z0) !! Arsene 13-01-2016 - change snow for snowdz & add z0
+!! Arsene 16-07-2016 - Add new Albedo - START
+    IF ( alb_bg_modis ) THEN
+      CALL condveg_snow_modis (ldrestart_read, kjpindex, veget, veget_max, frac_nobio, totfrac_nobio, &
+           snowdz, snow_age, snow_nobio, snow_nobio_age, albedo, albedo_snow, albedo_glob, z0)
+    ELSE
+!! Arsene 16-07-2016 - Add new Albedo - END
+      CALL condveg_snow (ldrestart_read, kjpindex, veget, veget_max, frac_nobio, totfrac_nobio, &
+           snowdz, snow_age, snow_nobio, snow_nobio_age, albedo, albedo_snow, albedo_glob, z0) !! Arsene 13-01-2016 - change snow for snowdz & add z0
+    ENDIF !! Arsene 16-07-2016 - Add new Albedo
 
     !! 3. Call subroutines to write restart files and data
 
@@ -208,6 +226,12 @@ CONTAINS
        !
        var_name = 'soilalbedo_moy'
        CALL restput_p (rest_id, var_name, nbp_glo, 2, 1, kjit, soilalb_moy, 'scatter',  nbp_glo, index_g)
+       !
+!! Arsene 16-07-2016 - Add new Albedo - START
+    IF ( alb_bg_modis ) THEN
+       CALL restput_p (rest_id, 'soilalbedo_bg', nbp_glo, 2, 1, kjit, soilalb_bg, 'scatter',  nbp_glo, index_g)
+    ENDIF
+!! Arsene 16-07-2016 - Add new Albedo - END
        !
        RETURN
        !
@@ -335,6 +359,17 @@ CONTAINS
         END IF
        soilalb_moy(:,:) = val_exp
 
+!! Arsene 16-07-2016 - Add new Albedo - START
+       ! background albedo map
+       ALLOCATE (soilalb_bg(kjpindex,2),stat=ier)
+        IF (ier.NE.0) THEN
+          WRITE (numout,*) ' error in soilalb_bg allocation. We stop.We need kjpindex*2 words = ',kjpindex*2
+          STOP 'condveg_init'
+        END IF
+       soilalb_bg(:,:) = val_exp
+!! Arsene 16-07-2016 - Add new Albedo - END
+
+
        ! Snow albedo of vegetative PFTs
        ALLOCATE (albedo_snow(kjpindex),stat=ier)
        IF (ier.NE.0) THEN
@@ -385,6 +420,21 @@ CONTAINS
        CALL ioconf_setatt_p('UNITS', '-')
        CALL ioconf_setatt_p('LONG_NAME','Mean bare soil albedo')
        CALL restget_p (rest_id, var_name, nbp_glo, 2, 1, kjit, .TRUE., soilalb_moy, "gather", nbp_glo, index_g)
+
+!! Arsene 16-07-2016 - Add new Albedo - START
+    ! background albedo map
+    IF ( alb_bg_modis ) THEN
+       ! Read background albedo from restart file
+       CALL ioconf_setatt_p('UNITS', '-')
+       CALL ioconf_setatt_p('LONG_NAME','Background soil albedo')
+       CALL restget_p (rest_id, 'soilalbedo_bg', nbp_glo, 2, 1, kjit, .TRUE., soilalb_bg, "gather", nbp_glo, index_g)
+
+       IF ( ALL(soilalb_bg(:,:) == val_exp) ) THEN
+          ! Variable not found in restart file. Read and interpolate it from file.
+          CALL condveg_background_soilalb(kjpindex, lalo, neighbours, resolution, contfrac)
+       END IF
+    ENDIF
+!! Arsene 16-07-2016 - Add new Albedo - END
        
        ! check if we have real values and not only missing values
        IF ( MINVAL(soilalb_wet) .EQ. MAXVAL(soilalb_wet) .AND. MAXVAL(soilalb_wet) .EQ. val_exp .OR.&
@@ -858,7 +908,8 @@ CONTAINS
       ELSE
         !! Arsene 13-01-2016 - New version of frac_snow_veg with real snow depth and vegetation impact
         !! Chalita and Treut 1994 for initial principe, Douville and al, 1995 and Boone 2002 for vegetation (from Pitman et al, 1995)
-        frac_snow_veg(ji) = MIN(MAX(SUM(snowdz(ji,:)),zero)/(MAX(SUM(snowdz(ji,:)),zero)+z0(ji)*5),un)
+        frac_snow_veg(ji) = (MIN(MAX(SUM(snowdz(ji,:)),zero)/(MAX(SUM(snowdz(ji,:)),zero)+z0(ji)*snowcrit_z0alb1),un)) & 
+                                & **snowcrit_z0alb2
       
       ENDIF
     ENDDO
@@ -912,7 +963,292 @@ CONTAINS
     IF (long_print) WRITE (numout,*) ' condveg_snow done '
 
   END SUBROUTINE condveg_snow
-  
+ 
+!! Arsene 16-07-2016 - Add new Albedo - START
+
+!! ==============================================================================================================================\n
+!! SUBROUTINE   : condveg_snow_modis
+!!
+!>\BRIEF        Calcuating snow albedo and snow cover fraction, which are then used to 
+!! update the gridbox surface albedo following Chalita and Treut (1994).
+!!
+!! DESCRIPTION  : The snow albedo scheme presented below belongs to prognostic albedo 
+!! category, i.e. the snow albedo value at a time step depends on the snow albedo value 
+!! at the previous time step.
+!!
+!! First, the following formula (described in Chalita and Treut 1994) is used to describe 
+!! the change in snow albedo with snow age on each PFT and each non-vegetative surfaces, 
+!! i.e. continental ice, lakes, etc.: \n 
+!! \latexonly 
+!! \input{SnowAlbedo.tex}
+!! \endlatexonly
+!! \n
+!! Where snowAge is snow age, tcstSnowa is a critical aging time (tcstSnowa=5 days)
+!! snowaIni and snowaIni+snowaDec corresponds to albedos measured for aged and
+!! fresh snow respectively, and their values for each PFT and each non-vegetative surfaces 
+!! is precribed in in constantes_veg.f90.\n
+!! In order to estimate gridbox snow albedo, snow albedo values for each PFT and 
+!! each  non-vegetative surfaces with a grid box are weightedly summed up by their 
+!! respective fractions.\n
+!! Secondly, the snow cover fraction is computed as:
+!! \latexonly 
+!! \input{SnowFraction.tex}
+!! \endlatexonly
+!! \n
+!! Where fracSnow is the fraction of snow on total vegetative or total non-vegetative
+!! surfaces, snow is snow mass (kg/m^2) on total vegetated or total nobio surfaces.\n 
+!! Finally, the surface albedo is then updated as the weighted sum of fracSnow, total
+!! vegetated fraction, total nobio fraction, gridbox snow albedo, and previous
+!! time step surface albedo.
+!!
+!! RECENT CHANGE(S): None
+!!
+!! MAIN OUTPUT VARIABLE(S): :: albedo; surface albedo. :: albedo_snow; snow
+!! albedo
+!!
+!! REFERENCE(S) :  
+!! Chalita, S. and H Le Treut (1994), The albedo of temperate and boreal forest and 
+!!  the Northern Hemisphere climate: a sensitivity experiment using the LMD GCM,
+!!  Climate Dynamics, 10 231-240.
+!!
+!! FLOWCHART    : None
+!! \n
+!_ ================================================================================================================================
+
+  SUBROUTINE condveg_snow_modis  (ldrestart_read, kjpindex, veget, veget_max, frac_nobio, totfrac_nobio, &
+                            snowdz, snow_age, snow_nobio, snow_nobio_age, albedo, albedo_snow, albedo_glob, z0) !! Arsene 13-01-2016 - change snow for snowdz & add z0
+
+
+    !! 0. Variable and parameter declaration
+
+    !! 0.1 Input variables
+
+    INTEGER(i_std), INTENT(in)                          :: kjpindex        !! Domain size - Number of land pixels  (unitless)
+    LOGICAL, INTENT(in)                                 :: ldrestart_read  !! Logical for _restart_ file to read (true/false)
+    REAL(r_std),DIMENSION (kjpindex,nvm), INTENT (in)   :: veget           !! PFT coverage fraction of a PFT (= ind*cn_ind) 
+                                                                           !! (m^2 m^{-2})   
+    REAL(r_std),DIMENSION (kjpindex,nvm), INTENT(in)    :: veget_max
+    REAL(r_std),DIMENSION (kjpindex,nnobio), INTENT(in) :: frac_nobio      !! Fraction of non-vegetative surfaces, i.e. 
+                                                                           !! continental ice, lakes, etc. (unitless)     
+    REAL(r_std),DIMENSION (kjpindex), INTENT(in)        :: totfrac_nobio   !! Total fraction of non-vegetative surfaces, i.e. 
+                                                                           !! continental ice, lakes, etc. (unitless)   
+!    REAL(r_std),DIMENSION (kjpindex), INTENT(in)        :: snow            !! Snow mass in vegetation (kg m^{-2})           
+    REAL(r_std),DIMENSION (kjpindex,nsnow),INTENT(in)   :: snowdz          !! snow depth (m) !! Arsene 13-01-2016 - change snow for snowdz because is the original variable needed 
+    REAL(r_std),DIMENSION (kjpindex), INTENT (in)       :: z0              !! Roughness (m)
+
+
+    REAL(r_std),DIMENSION (kjpindex,nnobio), INTENT(in) :: snow_nobio      !! Snow mass on continental ice, lakes, etc. (kg m^{-2})      
+    REAL(r_std),DIMENSION (kjpindex), INTENT(in)        :: snow_age        !! Snow age (days)        
+    REAL(r_std),DIMENSION (kjpindex,nnobio), INTENT(in) :: snow_nobio_age  !! Snow age on continental ice, lakes, etc. (days)    
+
+    !! 0.2 Output variables
+
+    REAL(r_std),DIMENSION (kjpindex,2), INTENT (inout)  :: albedo          !! Albedo (unitless ratio)          
+    REAL(r_std),DIMENSION (kjpindex), INTENT (out)      :: albedo_snow     !! Snow albedo (unitless ratio)    !! Arsene 16-07-2016 - Add new Albedo : with "2" dim 
+    REAL(r_std),DIMENSION (kjpindex), INTENT (out)      :: albedo_glob     !! Mean albedo (unitless ratio)    !! Arsene 16-07-2016 - Not present in original new Albedo 
+
+    !! 0.3 Modified variables
+
+    !! 0.4 Local variables
+
+    INTEGER(i_std)                                      :: ji, jv, jb      !! indices (unitless)
+    REAL(r_std), DIMENSION(kjpindex)                    :: frac_snow_veg   !! Fraction of snow on vegetation (unitless ratio)
+    REAL(r_std), DIMENSION(kjpindex,nnobio)             :: frac_snow_nobio !! Fraction of snow on continental ice, lakes, etc. 
+                                                                           !! (unitless ratio)
+    REAL(r_std), DIMENSION(kjpindex,2)                  :: snowa_veg       !! Albedo of snow covered area on vegetation        !! Arsene 16-07-2016 - Add new Albedo - Add "2" dim
+                                                                           !! (unitless ratio)
+    REAL(r_std), DIMENSION(kjpindex,nnobio,2)           :: snowa_nobio     !! Albedo of snow covered area on continental ice,  !! Arsene 16-07-2016 - Add new Albedo - Add "2" dim
+                                                                           !! lakes, etc. (unitless ratio)     
+    REAL(r_std), DIMENSION(kjpindex)                    :: fraction_veg    !! Total vegetation fraction (unitless ratio)
+    REAL(r_std), DIMENSION(kjpindex)                    :: agefunc_veg     !! Age dependency of snow albedo on vegetation 
+                                                                           !! (unitless)
+    REAL(r_std), DIMENSION(kjpindex,nnobio)             :: agefunc_nobio   !! Age dependency of snow albedo on ice, 
+                                                                           !! lakes, .. (unitless)
+    REAL(r_std)                                         :: alb_nobio       !! Albedo of continental ice, lakes, etc. 
+                                                                           !!(unitless ratio)
+!! Arsene 16-07-2016 - Add new Albedo - START
+    REAL(r_std),DIMENSION (nvm,2)                       :: snowa_aged_tmp  !! spectral domains (unitless) 
+    REAL(r_std),DIMENSION (nvm,2)                       :: snowa_dec_tmp
+!! Arsene 16-07-2016 - Add new Albedo - END
+
+!_ ================================================================================================================================
+
+    !! 1.Reset output variable (::albedo_snow ::albedo_glob) 
+
+    DO ji = 1, kjpindex
+     albedo_snow(ji) = zero
+     albedo_glob(ji) = zero
+    ENDDO
+
+    !! 2. Calculate snow albedos on both total vegetated and total nobio surfaces
+
+
+!! Arsene 16-07-2016 - Add new Albedo - START
+    !! Initialise _tmp
+    snowa_aged_tmp(:,ivis) = snowa_aged_vis(:)
+    snowa_aged_tmp(:,inir) = snowa_aged_nir(:)
+    snowa_dec_tmp(:,ivis) = snowa_dec_vis(:)
+    snowa_dec_tmp(:,inir) = snowa_dec_nir(:)
+!! Arsene 16-07-2016 - Add new Albedo - END
+
+    ! The snow albedo could be either prescribed (in condveg_init.f90) or 
+    !  calculated following Chalita and Treut (1994).
+    ! Check if the precribed value fixed_snow_albedo exists
+    IF (ABS(fixed_snow_albedo - undef_sechiba) .GT. EPSILON(undef_sechiba)) THEN
+      snowa_veg(:,:) = fixed_snow_albedo      !! Arsene 16-07-2016 - Add new Albedo - Add "2" dim
+      snowa_nobio(:,:,:) = fixed_snow_albedo  !! Arsene 16-07-2016 - Add new Albedo - Add "2" dim
+    ELSE ! calculated following Chalita and Treut (1994)
+
+      !! 2.1 Calculate age dependence
+
+      ! On vegetated surfaces
+      DO ji = 1, kjpindex
+        agefunc_veg(ji) = EXP(-snow_age(ji)/tcst_snowa)
+      ENDDO
+
+      ! On non-vegtative surfaces
+      DO jv = 1, nnobio ! Loop over # nobio types
+        DO ji = 1, kjpindex
+          agefunc_nobio(ji,jv) = EXP(-snow_nobio_age(ji,jv)/tcst_snowa)
+        ENDDO
+      ENDDO
+
+      !! 2.1 Calculate snow albedo  !! Arsene important changes between MICT & MICTv5... ==> Where is the snow albedo of Tao ? NO FUNCTION OF IS_TREE 
+
+      ! For  vegetated surfaces
+      fraction_veg(:) = un - totfrac_nobio(:)
+      snowa_veg(:,:) = zero    !! Arsene 16-07-2016 - Add new Albedo - Add "2" dim
+      IF (control%ok_dgvm) THEN
+        DO jb = 1, 2           !! Arsene 16-07-2016 - Add new Albedo - Add "2" dim
+          DO ji = 1, kjpindex
+            IF ( fraction_veg(ji) .GT. min_sechiba ) THEN
+!MM veget(:,1) BUG ??!!!!!!!!!!!
+               snowa_veg(ji,jb) = snowa_veg(ji,jb) + &  !! Arsene 16-07-2016 - Add new Albedo
+                    tot_bare_soil(ji)/fraction_veg(ji) * ( snowa_aged_tmp(1,jb)+snowa_dec_tmp(1,jb)*agefunc_veg(ji) )
+            ENDIF
+          ENDDO
+        ENDDO                  !! Arsene 16-07-2016 - Add new Albedo
+
+        DO jb = 1, 2           !! Arsene 16-07-2016 - Add new Albedo - Add "2" dim
+          DO jv = 2, nvm
+            DO ji = 1, kjpindex
+               IF ( fraction_veg(ji) .GT. min_sechiba ) THEN
+                  snowa_veg(ji,jb) = snowa_veg(ji,jb) + & !! Arsene 16-07-2016 - Add new Albedo
+                       veget(ji,jv)/fraction_veg(ji) * ( snowa_aged_tmp(jv,jb)+snowa_dec_tmp(jv,jb)*agefunc_veg(ji) )
+               ENDIF
+            ENDDO
+          ENDDO
+        ENDDO                  !! Arsene 16-07-2016 - Add new Albedo - Add "2" dim
+      ELSE
+        DO jb = 1, 2           !! Arsene 16-07-2016 - Add new Albedo - Add "2" dim
+          DO jv = 1, nvm
+            DO ji = 1, kjpindex
+               IF ( fraction_veg(ji) .GT. min_sechiba ) THEN
+                  snowa_veg(ji,jb) = snowa_veg(ji,jb) + & !! Arsene 16-07-2016 - Add new Albedo
+                       veget_max(ji,jv)/fraction_veg(ji) * ( snowa_aged_tmp(jv,jb)+snowa_dec_tmp(jv,jb)*agefunc_veg(ji) )
+               ENDIF
+            ENDDO
+          ENDDO
+        ENDDO                  !! Arsene 16-07-2016 - Add new Albedo - Add "2" dim
+      ENDIF
+      !
+      ! snow albedo on other surfaces
+      !
+      DO jb = 1, 2             !! Arsene 16-07-2016 - Add new Albedo - Add "2" dim
+        DO jv = 1, nnobio
+          DO ji = 1, kjpindex
+            snowa_nobio(ji,jv,jb) = ( snowa_aged_tmp(1,jb) + snowa_dec_tmp(1,jb) * agefunc_nobio(ji,jv) ) !! Arsene 16-07-2016 - Add new Albedo
+          ENDDO
+        ENDDO
+      ENDDO                    !! Arsene 16-07-2016 - Add new Albedo - Add "2" dim
+    ENDIF
+
+    !! 3. Calculate snow cover fraction for both total vegetated and total non-vegtative surfaces.\n
+
+    DO ji  = 1, kjpindex
+
+      IF ( .NOT.new_frac_snow_veg ) THEN
+        !! Arsene 13-01-2016 - remove old version to be more realistic (use snowdz) and take into account vegetation
+        ! original: frac_snow_veg(:) = MIN(MAX(snow(:),zero)/(MAX(snow(:),zero)+snowcri_alb),un) !! use snowdz... because use snow mass is stupid   
+!        frac_snow_veg(ji) = MIN(MAX(SUM(snowdz(ji,:)),zero)/(MAX(SUM(snowdz(ji,:)),zero)+snowcri_alb),un)
+        frac_snow_veg(ji) = MIN(MAX(SUM(snowdz(ji,:)),zero)/(MAX(SUM(snowdz(ji,:)),zero)+snowcri_alb*sn_dens/100.0),un)    !! Arsene 16-07-2016 - Add new Albedo
+      ELSE
+        !! Arsene 13-01-2016 - New version of frac_snow_veg with real snow depth and vegetation impact
+        !! Chalita and Treut 1994 for initial principe, Douville and al, 1995 and Boone 2002 for vegetation (from Pitman et al, 1995)
+        frac_snow_veg(ji) = (MIN(MAX(SUM(snowdz(ji,:)),zero)/(MAX(SUM(snowdz(ji,:)),zero)+z0(ji)*snowcrit_z0alb1),un)) & 
+                                & **snowcrit_z0alb2
+
+      ENDIF
+    ENDDO
+
+    DO jv = 1, nnobio
+      frac_snow_nobio(:,jv) = MIN(MAX(snow_nobio(:,jv),zero)/(MAX(snow_nobio(:,jv),zero)+snowcri_alb*sn_dens/100.0),un)    !! Arsene 16-07-2016 - Add new Albedo
+!      frac_snow_nobio(:,jv) = MIN(MAX(snow_nobio(:,jv),zero)/(MAX(snow_nobio(:,jv),zero)+snowcri_alb),un)
+    ENDDO
+
+
+    !! 4. Update surface albedo
+
+    ! Update surface albedo using the weighted sum of previous time step surface albedo,
+    ! total vegetated fraction, total nobio fraction, snow cover fraction (both vegetated and 
+    ! non-vegetative surfaces), and snow albedo (both vegetated and non-vegetative surfaces). 
+    ! Although both visible and near-infrared surface albedo are presented, their calculations 
+    ! are the same.
+    DO jb = 1, 2
+
+      albedo(:,jb) = ( fraction_veg(:) ) * &
+                         ( (un-frac_snow_veg(:)) * albedo(:,jb) + &
+                           ( frac_snow_veg(:)  ) * snowa_veg(:,jb)    )   !! Arsene 16-07-2016 - Add new Albedo - Add "2" dim
+
+!      albedo_snow(:) =  albedo_snow(:) + (fraction_veg(:)) * (frac_snow_veg(:)) * snowa_veg(:) !! Arsene 16-07-2016 - Add new Albedo - Remove
+      !
+      DO jv = 1, nnobio ! Loop over # nobio surfaces
+        ! 
+        IF ( jv .EQ. iice ) THEN
+          alb_nobio = alb_ice(jb)
+        ELSE
+          WRITE(numout,*) 'jv=',jv
+          STOP 'DO NOT KNOW ALBEDO OF THIS SURFACE TYPE'
+        ENDIF
+        !
+        albedo(:,jb) = albedo(:,jb) + &
+                       ( frac_nobio(:,jv) ) * &
+                         ( (un-frac_snow_nobio(:,jv)) * alb_nobio + &
+                           ( frac_snow_nobio(:,jv)  ) * snowa_nobio(:,jv,jb)   )  !! Arsene 16-07-2016 - Add new Albedo - Add "2" dim
+!        albedo_snow(:) = albedo_snow(:) + &                                     !! Arsene 16-07-2016 - Add new Albedo - Remove
+!                         ( frac_nobio(:,jv) ) * ( frac_snow_nobio(:,jv) ) * &   !! Arsene 16-07-2016 - Add new Albedo - Remove
+!                           snowa_nobio(:,jv)                                    !! Arsene 16-07-2016 - Add new Albedo - Remove
+        albedo_glob(:) = albedo_glob(:) + albedo(:,jb)
+
+      ENDDO
+
+    END DO
+
+    DO ji = 1, kjpindex 
+!      albedo_snow(ji) = (albedo_snow(ji))/2.    !! Arsene 16-07-2016 - Add new Albedo - Remove
+      albedo_glob(ji) = (albedo_glob(ji))/2. 
+    ENDDO
+
+    ! Calculate snow albedo
+    DO jb = 1, 2     !! Arsene 16-07-2016 - Add new Albedo - ADD ALL - Same idea but nir and vis seperate
+       albedo_snow(:) =  albedo_snow(:) + fraction_veg(:) * frac_snow_veg(:) * snowa_veg(:,jb)  !! Arsene 16-07-2016 - Add new Albedo - In original new Albedo: albedo_snow(:,jb) =  fraction_veg(:) * ....
+       DO jv = 1, nnobio
+          albedo_snow(:) = albedo_snow(:) + &   !! Arsene 16-07-2016 - Add new Albedo - In original new Albedo: albedo_snow(:,jb) = albedo_snow(:,jb) + 
+               frac_nobio(:,jv) * frac_snow_nobio(:,jv) * snowa_nobio(:,jv,jb)
+       ENDDO
+    ENDDO
+
+    DO ji = 1, kjpindex    !! Arsene 16-07-2016 - Add new Albedo - In original new Albedo: not present
+      albedo_snow(ji) = (albedo_snow(ji))/2. 
+      albedo_glob(ji) = (albedo_glob(ji))/2.
+    ENDDO
+
+    IF (long_print) WRITE (numout,*) ' condveg_snow_modis done '
+
+  END SUBROUTINE condveg_snow_modis
+
+!! Arsene 16-07-2016 - Add new Albedo - END
+ 
 !! ==============================================================================================================================
 !! SUBROUTINE   : condveg_soilalb
 !!
@@ -1192,6 +1528,206 @@ CONTAINS
 
   END SUBROUTINE condveg_soilalb
 
+!! Arsene 16-07-2016 - Add new Albedo - START
+
+!! ==============================================================================================================================
+!! SUBROUTINE   : condveg_background_soilalb
+!!
+!>\BRIEF        This subroutine reads the albedo of bare soil
+!!
+!! DESCRIPTION  This subroutine reads the background albedo map in 0.5 x 0.5 deg resolution 
+!! derived from JRCTIP product to be used as bare soil albedo. These values are then interpolated
+!! to the model's resolution.\n
+!!
+!! RECENT CHANGE(S): None
+!!
+!! MAIN OUTPUT VARIABLE(S): soilalb_bg for visible and near-infrared range 
+!!
+!! REFERENCES   : None
+!!
+!! FLOWCHART    : None
+!! \n
+!_ ================================================================================================================================
+
+  SUBROUTINE condveg_background_soilalb(nbpt, lalo, neighbours, resolution, contfrac)
+
+    !! 0. Variable and parameter declaration
+
+    !! 0.1 Input variables
+
+    INTEGER(i_std), INTENT(in)                    :: nbpt                  !! Number of points for which the data needs to be 
+                                                                           !! interpolated (unitless)             
+    REAL(r_std), INTENT(in)                       :: lalo(nbpt,2)          !! Vector of latitude and longitudes (degree)        
+    INTEGER(i_std), INTENT(in)                    :: neighbours(nbpt,8)!! Vector of neighbours for each grid point 
+                                                                           !! (1=N, 2=E, 3=S, 4=W)  
+    REAL(r_std), INTENT(in)                       :: resolution(nbpt,2)    !! The size of each grid cell in X and Y (km)
+    REAL(r_std), INTENT(in)                       :: contfrac(nbpt)        !! Fraction of land in each grid cell (unitless)   
+
+    !! 0.4 Local variables
+
+    INTEGER(i_std)                                :: nbvmax                !! nbvmax for interpolation (unitless). It is the 
+                                                                           !! dimension of the variables in which we store the list
+                                                                           !! of points of the source grid which fit into one grid 
+                                                                           !! box of the target. 
+    CHARACTER(LEN=80)                             :: filename              !! Filename of background albedo
+    INTEGER(i_std)                                :: iml, jml, lml, tml    !! Indices
+    INTEGER(i_std)                                :: fid, ib, ip, jp, fopt !! Indices
+    INTEGER(i_std)                                :: ilf, ks               !! Indices
+    REAL(r_std)                                   :: totarea               !! Help variable to compute average bare soil albedo 
+    REAL(r_std), ALLOCATABLE, DIMENSION(:)        :: lat_lu, lon_lu        !! Latitudes and longitudes read from input file
+    REAL(r_std), ALLOCATABLE, DIMENSION(:,:)      :: lat_rel, lon_rel      !! Help variable to read file data and allocate memory
+    REAL(r_std), ALLOCATABLE, DIMENSION(:,:)      :: mask_lu               !! Help variable to read file data and allocate memory
+    INTEGER(i_std), ALLOCATABLE, DIMENSION(:,:)   :: mask
+    REAL(r_std), ALLOCATABLE, DIMENSION(:,:)      :: bg_alb_vis,bg_alb_nir !! Help variable to read file data and allocate memory
+    REAL(r_std), ALLOCATABLE, DIMENSION(:,:)      :: sub_area              !! Help variable to read file data and allocate memory
+    INTEGER(i_std), ALLOCATABLE, DIMENSION(:,:,:) :: sub_index             !! Help variable to read file data and allocate memory
+    CHARACTER(LEN=30)                             :: callsign              !! Help variable to read file data and allocate memory
+    LOGICAL                                       :: ok_interpol           !! Optional return of aggregate_2d
+    INTEGER                                       :: ALLOC_ERR             !! Help varialbe to count allocation error
+!_ ================================================================================================================================
+
+  !! 1. Open file and allocate memory
+
+  ! Open file with background albedo
+
+  !Config Key   = ALB_BG_FILE
+  !Config Desc  = Name of file from which the background albedo is read 
+  !Config Def   = alb_bg_jrctip.nc
+  !Config If    = 
+  !Config Help  = The name of the file to be opened to read background albedo 
+  !Config Units = [FILE]
+  !
+  filename = 'alb_bg_jrctip.nc'
+  CALL getin_p('ALB_BG_FILE',filename)
+
+  ! Read data from file
+  IF (is_root_prc) CALL flininfo(filename, iml, jml, lml, tml, fid)
+  CALL bcast(iml)
+  CALL bcast(jml)
+  CALL bcast(lml)
+  CALL bcast(tml)
+
+  ALLOCATE(lon_lu(iml), STAT=ALLOC_ERR)
+  IF (ALLOC_ERR /= 0) CALL ipslerr_p(3,'condveg_background_soilalb','Problem in allocation of variable lon_lu','','')
+
+  ALLOCATE(lat_lu(jml), STAT=ALLOC_ERR)
+  IF (ALLOC_ERR /= 0) CALL ipslerr_p(3,'condveg_background_soilalb','Problem in allocation of variable lat_lu','','')
+
+  ALLOCATE(mask_lu(iml,jml), STAT=ALLOC_ERR)
+  IF (ALLOC_ERR /= 0) CALL ipslerr_p(3,'condveg_background_soilalb','Pb in allocation for mask_lu','','')
+
+  ALLOCATE(bg_alb_vis(iml,jml), STAT=ALLOC_ERR)
+  IF (ALLOC_ERR /= 0) CALL ipslerr_p(3,'condveg_background_soilalb','Pb in allocation for bg_alb_vis','','')
+
+  ALLOCATE(bg_alb_nir(iml,jml), STAT=ALLOC_ERR)
+  IF (ALLOC_ERR /= 0) CALL ipslerr_p(3,'condveg_background_soilalb','Pb in allocation for bg_alb_nir','','')
+
+  IF (is_root_prc) THEN
+     CALL flinget(fid, 'longitude', iml, 0, 0, 0, 1, 1, lon_lu)
+     CALL flinget(fid, 'latitude', jml, 0, 0, 0, 1, 1, lat_lu)
+     CALL flinget(fid, 'mask', iml, jml, 0, 0, 1, 1, mask_lu)
+     CALL flinget(fid, 'bg_alb_vis', iml, jml, lml, tml, 1, 1, bg_alb_vis)
+     CALL flinget(fid, 'bg_alb_nir', iml, jml, lml, tml, 1, 1, bg_alb_nir)
+     CALL flinclo(fid)
+  ENDIF
+
+  CALL bcast(lon_lu)
+  CALL bcast(lat_lu)
+  CALL bcast(mask_lu)
+  CALL bcast(bg_alb_vis)
+  CALL bcast(bg_alb_nir)
+
+  ALLOCATE(lon_rel(iml,jml), STAT=ALLOC_ERR)
+  IF (ALLOC_ERR /= 0) CALL ipslerr_p(3,'condveg_background_soilalb','Pb in allocation for lon_rel','','')
+
+  ALLOCATE(lat_rel(iml,jml), STAT=ALLOC_ERR)
+  IF (ALLOC_ERR /= 0) CALL ipslerr_p(3,'condveg_background_soilalb','Pb in allocation for lat_rel','','')
+
+  ALLOCATE(mask(iml,jml), STAT=ALLOC_ERR)
+  IF (ALLOC_ERR /= 0) CALL ipslerr_p(3,'condveg_background_soilalb','Problem in allocation of variable mask','','')
+
+  DO jp=1,jml
+     lon_rel(:,jp) = lon_lu(:)
+  ENDDO
+  DO ip=1,iml
+     lat_rel(ip,:) = lat_lu(:)
+  ENDDO
+
+  mask(:,:) = zero
+  WHERE (mask_lu(:,:) > zero )
+     mask(:,:) = un
+  ENDWHERE
+
+  ! Set nbvmax to 200 for interpolation
+  ! This number is the dimension of the variables in which we store 
+  ! the list of points of the source grid which fit into one grid box of the target. 
+  nbvmax = 200
+  callsign = 'Background soil albedo'
+
+  ! Start interpolation
+  ok_interpol=.FALSE.
+  DO WHILE ( .NOT. ok_interpol )
+     WRITE(numout,*) "Projection arrays for ",callsign," : "
+     WRITE(numout,*) "nbvmax = ",nbvmax
+
+     ALLOCATE(sub_area(nbpt,nbvmax), STAT=ALLOC_ERR)
+     IF (ALLOC_ERR /= 0) CALL ipslerr_p(3,'condveg_background_soilalb','Pb in allocation for sub_area','','')
+     sub_area(:,:)=zero
+
+     ALLOCATE(sub_index(nbpt,nbvmax,2), STAT=ALLOC_ERR)
+     IF (ALLOC_ERR /= 0) CALL ipslerr_p(3,'condveg_background_soilalb','Pb in allocation for sub_index','','')
+     sub_index(:,:,:)=0
+
+     CALL aggregate_p(nbpt, lalo, neighbours, resolution, contfrac, &
+          iml, jml, lon_rel, lat_rel, mask, callsign, &
+          nbvmax, sub_index, sub_area, ok_interpol)
+
+     IF ( .NOT. ok_interpol ) THEN
+        DEALLOCATE(sub_area)
+        DEALLOCATE(sub_index)
+        nbvmax = nbvmax * 2
+     ENDIF
+  ENDDO
+
+  ! Compute the average
+  soilalb_bg(:,:) = zero
+  DO ib = 1, nbpt
+     fopt = COUNT(sub_area(ib,:) > zero)
+     IF ( fopt > 0 ) THEN
+        totarea = zero
+        DO ilf = 1, fopt
+           ip = sub_index(ib,ilf,1)
+           jp = sub_index(ib,ilf,2)
+           soilalb_bg(ib,ivis) = soilalb_bg(ib,ivis) + bg_alb_vis(ip,jp) * sub_area(ib,ilf)
+           soilalb_bg(ib,inir) = soilalb_bg(ib,inir) + bg_alb_nir(ip,jp) * sub_area(ib,ilf)
+           totarea = totarea + sub_area(ib,ilf)
+        ENDDO
+        ! Normalize
+        soilalb_bg(ib,:) = soilalb_bg(ib,:)/totarea
+     ELSE
+        ! Set defalut value for points where the interpolation fail
+        WRITE(numout,*) 'On point ', ib, ' no points were found for interpolation data. Mean value is used.'
+        WRITE(numout,*) 'Location : ', lalo(ib,2), lalo(ib,1)
+        soilalb_bg(ib,ivis) = 0.129
+        soilalb_bg(ib,inir) = 0.247
+     ENDIF
+  ENDDO
+
+  DEALLOCATE (lat_lu)
+  DEALLOCATE (lat_rel)
+  DEALLOCATE (lon_lu)
+  DEALLOCATE (lon_rel)
+  DEALLOCATE (mask_lu)
+  DEALLOCATE (mask)
+  DEALLOCATE (bg_alb_vis)
+  DEALLOCATE (bg_alb_nir)
+  DEALLOCATE (sub_area)
+  DEALLOCATE (sub_index)
+
+  END SUBROUTINE condveg_background_soilalb
+
+!! Arsene 16-07-2016 - Add new Albedo - END
+
 
 !! ==============================================================================================================================
 !! SUBROUTINE   : condveg_z0logz
@@ -1270,7 +1806,7 @@ CONTAINS
     ! Calculate the roughness (m) of bare soil, z0_bare
     ! taken from constantes_veg.f90    
     z0(:) = tot_bare_soil(:) * LOG(z0_bare)
-write(*,*) "zo", z0, "LOG(z0_bare)", LOG(z0_bare)
+!write(*,*) "zo", z0, "LOG(z0_bare)", LOG(z0_bare)
     ! Define fraction of bare soil
     sumveg(:) = tot_bare_soil(:)
 
@@ -1341,10 +1877,10 @@ write(*,*) "zo", z0, "LOG(z0_bare)", LOG(z0_bare)
        ! Weighted height of vegetation with maximal cover fraction
        ave_height(:) = ave_height(:) + veget_max(:,jv)*height2(:)
        
-write(*,*) "MAX", MAX(height(:,jv)*z0_over_height,z0_bare), "LOG", LOG( MAX(height(:,jv)*z0_over_height,z0_bare) )
+!write(*,*) "MAX", MAX(height(:,jv)*z0_over_height,z0_bare), "LOG", LOG( MAX(height(:,jv)*z0_over_height,z0_bare) )
 
     ENDDO !Loop over # vegetative PFTs
-read(*,*)    
+
     !! 3. Calculate the mean roughness length of non-vegetative surfaces \n
 
     ! Search for pixels with vegetated part to normalise 
@@ -1394,19 +1930,17 @@ read(*,*)
               height2(:) = height(:,jv) - snowdzsum(:)
 
           ELSEWHERE ( height(:,jv) .LE. ( snowdzsum(:) * (1.-z0_sensib) ) ) 
-!          ELSEWHERE ( height(:,jv) .LE. ( snowdzsum(:) * 1. ) ) 
               height2(:) = zero
 
           ELSEWHERE
               !! Equation de la droite y = ax + b ==> a = (y2-y1)/(x2-x1)  // b = y1x2-x1y2 / (x2-x1)
-              !! With x2 = 1,3snowdz ; x1 = 0,7snowdz or snowdz ; y1 = 0. ; y2 = 0,3 dz ; x = heigt
+              !! With x2=snowdz(1+z0_sensib) ; x1=snowdz(1-z0_sensib) ; y1=0. ; y2= snowdz*z0_sensib ; y=height2 ; x = height
               !! so, 
-              !! height2(:) = ( z0_sensib*snowdzsum(:) * height(:,jv) - (snowdzsum(:)*(1.-z0_sensib) * &
-              !!                & z0_sensib*snowdzsum(:) ) ) / ( 2*snowdzsum(:) )
+              !! height2(:) = (snowdz*z0_sensib x height - snowdz(1-z0_sensib) * snowdz*z0_sensib) /
+              !!                & (snowdz(1+z0_sensib) - snowdz(1-z0_sensib)
 
-              height2(:) = ( z0_sensib * height(:,jv) - (snowdzsum(:)*(1.-z0_sensib) * z0_sensib ) ) / 2
+              height2(:) = ( height(:,jv) + snowdzsum(:) * ( z0_sensib - 1. ) ) / 2.
 
-!              height2(:) = ( z0_sensib * height(:,jv) - (snowdzsum(:)* z0_sensib ) )                             
 
           ENDWHERE
 
@@ -1584,7 +2118,7 @@ read(*,*)
     ! Calculate roughness for non-vegetative surfaces
     ! with the von Karman constant 
     z0(:) = tot_bare_soil(:) * (ct_karman/LOG(ztmp(:)/z0_bare))**2
-write(*,*) "z0", z0, "z0 bare", (ct_karman/LOG(ztmp(:)/z0_bare))**2, "ztmp", ztmp
+!write(*,*) "z0", z0, "z0 bare", (ct_karman/LOG(ztmp(:)/z0_bare))**2, "ztmp", ztmp
     ! Fraction of bare soil
     sumveg(:) = tot_bare_soil(:)
 
@@ -1711,19 +2245,16 @@ write(*,*) "z0", z0, "z0 bare", (ct_karman/LOG(ztmp(:)/z0_bare))**2, "ztmp", ztm
               height2(:) = height(:,jv) - snowdzsum(:)
 
           ELSEWHERE ( height(:,jv) .LE. ( snowdzsum(:) * (1.-z0_sensib) ) ) 
-!          ELSEWHERE ( height(:,jv) .LE. ( snowdzsum(:) * 1. ) ) 
               height2(:) = zero
 
           ELSEWHERE
               !! Equation de la droite y = ax + b ==> a = (y2-y1)/(x2-x1)  // b = y1x2-x1y2 / (x2-x1)
-              !! With x2 = 1,3snowdz ; x1 = 0,7snowdz or snowdz ; y1 = 0. ; y2 = 0,3 dz ; x = heigt
+              !! With x2=snowdz(1+z0_sensib) ; x1=snowdz(1-z0_sensib) ; y1=0. ; y2= snowdz*z0_sensib ; y=height2 ; x = height
               !! so, 
-              !! height2(:) = ( z0_sensib*snowdzsum(:) * height(:,jv) - (snowdzsum(:)*(1.-z0_sensib) * &
-              !!                & z0_sensib*snowdzsum(:) ) ) / ( 2*snowdzsum(:) )
+              !! height2(:) = (snowdz*z0_sensib x height - snowdz(1-z0_sensib) * snowdz*z0_sensib) /
+              !!                & (snowdz(1+z0_sensib) - snowdz(1-z0_sensib)
 
-              height2(:) = ( z0_sensib * height(:,jv) - (snowdzsum(:)*(1.-z0_sensib) * z0_sensib ) ) / 2
-
-!              height2(:) = ( z0_sensib * height(:,jv) - (snowdzsum(:)* z0_sensib ) )                             
+              height2(:) = ( height(:,jv) + snowdzsum(:) * ( z0_sensib - 1. ) ) / 2.
 
           ENDWHERE
 
@@ -1863,14 +2394,31 @@ write(*,*) "z0", z0, "z0 bare", (ct_karman/LOG(ztmp(:)/z0_bare))**2, "ztmp", ztm
 
     DO ks = 1, 2! Loop over # of spectra
 
-       ! If 'alb_bare_model' is set to TRUE,  the soil albedo calculation depends on soil moisture
-       ! If 'alb_bare_model' is set to FALSE, the mean soil albedo is used without the dependance on soil moisture
-       ! see subroutine 'conveg_soilalb'
-       IF ( alb_bare_model ) THEN
-          alb_bare(:,ks) = soilalb_wet(:,ks) + drysoil_frac(:) * (soilalb_dry(:,ks) -  soilalb_wet(:,ks))
-       ELSE
-          alb_bare(:,ks) = soilalb_moy(:,ks)
-       ENDIF
+!! Arsene 16-07-2016 - Add new Albedo - START
+       ! If alb_bg_modis=TRUE, the background soil albedo map for the current simulated month is used
+       ! If alb_bg_modis=FALSE and alb_bare_model=TRUE, the soil albedo calculation depends on soil moisture
+       ! If alb_bg_modis=FALSE and alb_bare_model=FALSE, the mean soil albedo is used without the dependance on soil moisture
+       ! see subroutines 'condveg_soilalb' and 'condveg_background_soilalb'
+        IF ( alb_bg_modis ) THEN
+           alb_bare(:,ks) = soilalb_bg(:,ks)
+        ELSE
+           IF ( alb_bare_model ) THEN
+              alb_bare(:,ks) = soilalb_wet(:,ks) + drysoil_frac(:) * (soilalb_dry(:,ks) -  soilalb_wet(:,ks))
+           ELSE
+              alb_bare(:,ks) = soilalb_moy(:,ks)
+           ENDIF
+        ENDIF
+
+!! Arsene 16-07-2016 - Add new Albedo - Remove
+!       ! If 'alb_bare_model' is set to TRUE,  the soil albedo calculation depends on soil moisture
+!       ! If 'alb_bare_model' is set to FALSE, the mean soil albedo is used without the dependance on soil moisture
+!       ! see subroutine 'conveg_soilalb'
+!       IF ( alb_bare_model ) THEN
+!          alb_bare(:,ks) = soilalb_wet(:,ks) + drysoil_frac(:) * (soilalb_dry(:,ks) -  soilalb_wet(:,ks))
+!       ELSE
+!          alb_bare(:,ks) = soilalb_moy(:,ks)
+!       ENDIF
+!! Arsene 16-07-2016 - Add new Albedo - END
 
        ! Soil albedo is weighed by fraction of bare soil          
        albedo(:,ks) = tot_bare_soil(:) * alb_bare(:,ks)

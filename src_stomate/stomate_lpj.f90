@@ -1034,6 +1034,15 @@ CONTAINS
                           height(ji,j) = (1-biomass_loss)*height(ji,j)
                      ENDIF
 
+
+                     !! Arsene 23-08-2016 ADD - start
+                     !! ## If we delete a very important part of shrubs, kill the PFT via ind
+                     IF ( control%ok_dgvm .AND. biomass_loss.gt.0.95 ) THEN
+                         ind(ji,j) = zero
+                         biomass_loss=1.
+                     ENDIF
+                     !! Arsene 23-08-2016 ADD - end
+
                      !! ## Simultanément, après avoir diminuer la hauteur on doit diminuer la biomasse (dans un cylindre, si uniquement height diminue ==> propotionnel à la biomasse
                      !! ## 2 méthodes : 1) on diminue seulement la biomasse en surface (ileaf, isapabove, iheartabove, ifruit et ?icarbres?): plus réaliste 
                      !! ##                  ==> pb: c'est woodmass_ind qui détermine le diamétre et la hauteur. Si en surface biomasse = 0, on a malgrès tout woodmass_ind non nul donc dia et heigth >0...
@@ -1141,6 +1150,32 @@ CONTAINS
          sla_calc)
 !ENDJCADD
        !WRITE(numout,*) 'zd bio17 light biomass(1,10,ileaf,icarbon)',biomass(1,10,ileaf,icarbon)
+
+!! 23-08-2016 Arsene ADD - START
+       !! 11.1.bis Give elimited attribute if nonsence PFT
+
+       ! Update height and cn_ind
+       CALL crown (npts, PFTpresent, &
+            ind, biomass, woodmass_ind, &
+            veget_max, cn_ind, height, dia_cut) !! Arsene 27-08-2015 - Add dia_cut
+
+       DO j = 2,nvm ! loop over PFTs
+
+          ! Test the value of new theorical (lpj_cover)cf  veget_frac and chech if the difference is too important
+!*!          IF ( natural(j) ) THEN    !! Cette partie est potentiellement a reconsidere, car cn_ind evolue encore apres... Mettre juste avant CALL gap ? (ralonge le temps de calcul)
+!*!             WHERE ( veget_max_old(:,j)/(ind(:,j)*cn_ind(:,j)) .GT. 1./(min_stomate*10000.) ) !! il faut passer par un GT... comment le définir ?
+!*!                ind(j,:)=zero
+!*!             ENDWHERE
+!*!          ENDIF ==> MARCHE PAS. Probablement à cause d'estabish ou kill... ou "ind" qui est trop faible Vérif que inf est pas trop faible avant 
+
+          ! Test the value of height is compatible with survive  
+          IF (  is_tree(j) .OR. is_shrub(j) ) THEN  ! ELSE KILL NVPS
+             WHERE ( height(:,j) .LT. min_stomate*10000 )
+                 ind(:,j)=zero
+             ENDWHERE
+          ENDIF
+       ENDDO
+!! 23-08-2016 Arsene ADD - END
 
        !! 11.2 Reset attributes for eliminated PFTs
        CALL kill (npts, 'light     ', lm_lastyearmax, &

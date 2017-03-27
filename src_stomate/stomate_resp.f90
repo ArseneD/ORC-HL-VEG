@@ -122,7 +122,7 @@ CONTAINS
   SUBROUTINE maint_respiration ( npts,dt,lai, t2m,tlong_ref,stempdiag,height,veget_max,&
        rprof,biomass,resp_maint_part_radia, &
 !JCADD
-       sla_calc)
+       sla_calc,humrel_month) !! Arsène 25-04-2016 - Add humrel_month for dessication impact on resp
 !ENDJCADD
 !! 0. Variable and parameter declaration
 
@@ -141,6 +141,8 @@ CONTAINS
                                                                     !! in slowproc.f90 (m)
     REAL(r_std), DIMENSION(npts,nvm,nparts,nelements),INTENT(in) :: biomass   !! PFT total biomass calculated in stomate_alloc.f90 
                                                                     !! @tex $(gC.m^{-2})$ @endtex
+    REAL(r_std), DIMENSION(npts,nbdl), INTENT(in)      :: humrel_month            !!  Arsène 25-04-2016 - Add humrel_month for dessication impact on resp
+
 
     !! 0.2 Output variables
 
@@ -350,6 +352,15 @@ CONTAINS
 
                    resp_maint_part_radia(i,j,k) = coeff_maint(i,j,k) * biomass(i,j,k,icarbon) * &
                         ( maint_resp_min_vmax*lai(i,j) + maint_resp_coeff*(un - exp(-ext_coeff(j)*lai(i,j))) ) / lai(i,j)
+
+                   !! Arsene 25-06-2016 - Add for dessication of NVPs - START
+                   IF ( .NOT. vascular(j) .AND. humrel_month(i,j) .LE. humrel_mmin ) THEN 
+                        resp_maint_part_radia(i,j,k) = resp_maint_part_radia(i,j,k) * &
+                                                ( vcmax_offset + ((1 - vcmax_offset) / humrel_mmin ) * humrel_month(i,j))
+                   ENDIF
+                   !! Arsene 25-06-2016 - Add for dessication of NVPs - END
+
+
                 ELSE
                    resp_maint_part_radia(i,j,k) = zero
                 ENDIF

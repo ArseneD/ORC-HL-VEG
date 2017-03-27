@@ -540,61 +540,72 @@ CONTAINS
        !! 1.2 Initialize some variables of energy budget from restart file     
        IF (ldrestart_read) THEN
           
+          !! Arsene 28-11-2016 - CARE !!! All of the variable below was not initialised
+                                      !!! And the function ok_var(var_name) do not work (result = FALSE all time)
+
+          !! Arsene 28-11-2016 - #1 initialize the variables - ADD
+          soilcap(:)=zero    ! sommething better ? 20 000
+          soilflx(:)=zero
+          snowcap(:)=zero    ! sommething better ? 60 000
+          snowflx(:)=zero
+          shumdiag(:,:)=zero ! sommething better ? 0.5
+
+          !! Arsene 28-11-2016 - #2 Take data from restart (take care)
           IF (long_print) WRITE (numout,*) ' we have to read a restart file for SECHIBA variables'
           var_name='soilcap' ;
           CALL ioconf_setatt_p('UNITS', '-')
           CALL ioconf_setatt_p('LONG_NAME','Soil calorific capacity')
           soilcap1=val_exp
-          IF ( ok_var(var_name) ) THEN
+!          IF ( ok_var(var_name) ) THEN    !! Arsene 28-11-2016 - remove
              CALL restget_p (rest_id, var_name, nbp_glo, 1, 1, kjit, .TRUE., soilcap1, "gather", nbp_glo, index_g)
              IF (MINVAL(soilcap1) < MAXVAL(soilcap1) .OR. MAXVAL(soilcap1) < val_exp) THEN
                 soilcap(:) = soilcap1(:)
              ENDIF
-          ENDIF
-          
+!          ENDIF                           !! Arsene 28-11-2016 - remove
+
           var_name='soilflx' ;
           CALL ioconf_setatt_p('UNITS', '-')
           CALL ioconf_setatt_p('LONG_NAME','Soil flux')
           soilflx1=val_exp
-          IF ( ok_var(var_name) ) THEN
+!          IF ( ok_var(var_name) ) THEN    !! Arsene 28-11-2016 - remove
              CALL restget_p (rest_id, var_name, nbp_glo, 1, 1, kjit, .TRUE., soilflx1, "gather", nbp_glo, index_g)
              IF (MINVAL(soilflx1) < MAXVAL(soilflx1)  .OR. MAXVAL(soilflx1) < val_exp) THEN
                 soilflx(:) = soilflx1(:)
              ENDIF
-          ENDIF
+!          ENDIF                           !! Arsene 28-11-2016 - remove
          
           var_name='snowcap' ;
           CALL ioconf_setatt_p('UNITS', '-')
           CALL ioconf_setatt_p('LONG_NAME','Snow surface calorific capacity')
           snowcap1=val_exp
-          IF ( ok_var(var_name) ) THEN
+!          IF ( ok_var(var_name) ) THEN    !! Arsene 28-11-2016 - remove
              CALL restget_p (rest_id, var_name, nbp_glo, 1, 1, kjit, .TRUE.,snowcap1, "gather", nbp_glo, index_g)
              IF (MINVAL(snowcap1) < MAXVAL(snowcap1) .OR. MAXVAL(snowcap1) < val_exp) THEN
                 snowcap(:) = snowcap1(:)
              ENDIF
-          ENDIF
+!          ENDIF                           !! Arsene 28-11-2016 - remove
 
           var_name='snowflx' ;
           CALL ioconf_setatt_p('UNITS', '-')
           CALL ioconf_setatt_p('LONG_NAME','Snow surface flux')
           snowflx1=val_exp
-          IF ( ok_var(var_name) ) THEN
+!          IF ( ok_var(var_name) ) THEN    !! Arsene 28-11-2016 - remove
              CALL restget_p (rest_id, var_name, nbp_glo, 1, 1, kjit, .TRUE.,snowflx1, "gather", nbp_glo, index_g)
              IF (MINVAL(snowflx1) < MAXVAL(snowflx1)  .OR. MAXVAL(snowflx1) < val_exp) THEN
                 snowflx(:) = snowflx1(:)
              ENDIF
-          ENDIF
- 
+!          ENDIF                           !! Arsene 28-11-2016 - remove
+
           var_name='shumdiag' ;
           CALL ioconf_setatt_p('UNITS', '-')
           CALL ioconf_setatt_p('LONG_NAME','Relative soil moisture')
           shumdiag1=val_exp
-          IF ( ok_var(var_name) ) THEN
+!          IF ( ok_var(var_name) ) THEN    !! Arsene 28-11-2016 - remove
              CALL restget_p (rest_id, var_name, nbp_glo, nbdl, 1, kjit, .TRUE., shumdiag1, "gather", nbp_glo, index_g)
              IF (MINVAL(shumdiag1) < MAXVAL(shumdiag1) .OR. MAXVAL(shumdiag1) < val_exp) THEN
                 shumdiag(:,:) = shumdiag1(:,:)
              ENDIF
-          ENDIF
+!          ENDIF                           !! Arsene 28-11-2016 - remove
        ENDIF ! ldrestart_read
 
        !! 1.3 Initialize stomate's variables
@@ -638,33 +649,44 @@ CONTAINS
        !! 1.6 Initialize some hydrological variables from restart file
        IF (ldrestart_read) THEN
           
+          !! Arsene 28-11-2016 - CARE !!! All of the variable below was not initialised
+                                      !!! And the function ok_var(var_name) do not work (result = FALSE all time)
+
+          !! Arsene 28-11-2016 - #1 initialize the variables - ADD
+          runoff(:)=zero
+          drainage(:)=zero
+          
+          !! Arsene 28-11-2016 - #2 Take data from restart (take care)
+
           var_name='runoff' ;
           CALL ioconf_setatt_p('UNITS', 'mm/d')
           CALL ioconf_setatt_p('LONG_NAME','Complete runoff')
           runoff1=val_exp
-          IF ( ok_var(var_name) ) THEN
+!          IF ( ok_var(var_name) ) THEN     !! Arsene 28-11-2016 - remove
              CALL restget_p (rest_id, var_name, nbp_glo, 1, 1, kjit, .TRUE., runoff1, "gather", nbp_glo, index_g)
              IF (MINVAL(runoff1) < MAXVAL(runoff1) .OR. MAXVAL(runoff1) < val_exp) THEN
                 runoff(:) = runoff1(:)
              ENDIF
-          ENDIF
+!          ENDIF                            !! Arsene 28-11-2016 - remove
 
           var_name='drainage' ;
           CALL ioconf_setatt_p('UNITS', 'mm/d')
           CALL ioconf_setatt_p('LONG_NAME','Deep drainage')
           drainage1=val_exp
-          IF ( ok_var(var_name) ) THEN
+!          IF ( ok_var(var_name) ) THEN     !! Arsene 28-11-2016 - remove
              CALL restget_p (rest_id, var_name, nbp_glo, 1, 1, kjit, .TRUE., drainage1, "gather", nbp_glo, index_g)
              IF (MINVAL(drainage1) < MAXVAL(drainage1) .OR. MAXVAL(drainage1) < val_exp) THEN
                 drainage(:) = drainage1(:)
              ENDIF
-          ENDIF
+!          ENDIF                            !! Arsene 28-11-2016 - remove
 
-          IF ( ok_var("shumdiag") ) THEN
-             IF (MINVAL(shumdiag1) < MAXVAL(shumdiag1) .OR. MAXVAL(shumdiag1) < val_exp) THEN
-                shumdiag(:,:) = shumdiag1(:,:)
-             ENDIF
-          ENDIF
+          !! Arsene 28-11-2016 - #3 Remove because already initialized before - REMOVE
+!          IF ( ok_var("shumdiag") ) THEN
+!             IF (MINVAL(shumdiag1) < MAXVAL(shumdiag1) .OR. MAXVAL(shumdiag1) < val_exp) THEN
+!                shumdiag(:,:) = shumdiag1(:,:)
+!             ENDIF
+!          ENDIF
+
        ENDIF ! ldrestart_read
  
        !! 1.7 Initialize remaining hydrological variables
@@ -709,40 +731,42 @@ CONTAINS
 
        ENDIF
 
+       !! Arsene 28-11-2016 - #3 Remove because already initialized before - REMOVE
        !! 1.8 Initialize some water balance variables from restart file
-       IF (ldrestart_read) THEN
+!       IF (ldrestart_read) THEN
           
-          IF ( ok_var("runoff") ) THEN
-             IF (MINVAL(runoff1) < MAXVAL(runoff1) .OR. MAXVAL(runoff1) < val_exp) THEN
-                runoff(:) = runoff1(:)
-             ENDIF
-          ENDIF
+          !! Arsene 28-11-2016 - #3 Remove because already initialized before - REMOVE
+!          IF ( ok_var("runoff") ) THEN
+!             IF (MINVAL(runoff1) < MAXVAL(runoff1) .OR. MAXVAL(runoff1) < val_exp) THEN
+!                runoff(:) = runoff1(:)
+!             ENDIF
+!          ENDIF
 
-          IF ( ok_var("drainage") ) THEN
-             IF (MINVAL(drainage1) < MAXVAL(drainage1) .OR. MAXVAL(drainage1) < val_exp) THEN
-                drainage(:) = drainage1(:)
-             ENDIF
-          ENDIF
+!          IF ( ok_var("drainage") ) THEN
+!             IF (MINVAL(drainage1) < MAXVAL(drainage1) .OR. MAXVAL(drainage1) < val_exp) THEN
+!                drainage(:) = drainage1(:)
+!             ENDIF
+!          ENDIF
           
-          IF ( ok_var("shumdiag") ) THEN
-             IF (MINVAL(shumdiag1) < MAXVAL(shumdiag1) .OR. MAXVAL(shumdiag1) < val_exp) THEN
-                shumdiag(:,:) = shumdiag1(:,:)
-             ENDIF
-          ENDIF
+!          IF ( ok_var("shumdiag") ) THEN
+!             IF (MINVAL(shumdiag1) < MAXVAL(shumdiag1) .OR. MAXVAL(shumdiag1) < val_exp) THEN
+!                shumdiag(:,:) = shumdiag1(:,:)
+!             ENDIF
+!          ENDIF
 
-          IF ( ok_var("snowcap") ) THEN
-             IF (MINVAL(snowcap1) < MAXVAL(snowcap1) .OR. MAXVAL(snowcap1) < val_exp) THEN
-                snowcap(:) = snowcap1(:)
-             ENDIF
-          ENDIF
+!          IF ( ok_var("snowcap") ) THEN
+!             IF (MINVAL(snowcap1) < MAXVAL(snowcap1) .OR. MAXVAL(snowcap1) < val_exp) THEN
+!                snowcap(:) = snowcap1(:)
+!             ENDIF
+!          ENDIF
 
-          IF ( ok_var("snowflx") ) THEN
-             IF (MINVAL(snowflx1) < MAXVAL(snowflx1)  .OR. MAXVAL(snowflx1) < val_exp) THEN
-                snowflx(:) = snowflx1(:)
-             ENDIF
-          ENDIF
+!          IF ( ok_var("snowflx") ) THEN
+!             IF (MINVAL(snowflx1) < MAXVAL(snowflx1)  .OR. MAXVAL(snowflx1) < val_exp) THEN
+!                snowflx(:) = snowflx1(:)
+!             ENDIF
+!          ENDIF
 
-       ENDIF ! ldrestart_read
+!       ENDIF ! ldrestart_read
 
        !! 1.9 Initialize surface parameters (emissivity, albedo and roughness)
        CALL condveg_main (kjit, kjpindex, dtradia, ldrestart_read, ldrestart_write, index, &
@@ -1274,7 +1298,6 @@ CONTAINS
             & lalo, neighbours, resolution, ptnlev1, precip_rain, frac_age, &
             & rest_id, hist_id, hist2_id)
 
- 
        !! 3.2 Call energy budget to write restart files
        CALL enerbil_main (kjit, kjpindex, dtradia, ldrestart_read, ldrestart_write, &
             & index, indexveg, zlev, lwdown, swnet, epot_air, temp_air, u, v, petAcoef, petBcoef,&
@@ -1301,6 +1324,7 @@ CONTAINS
           evap_bare_lim(:) = -un
           k_litt(:) = huit
           shumdiag_perma(:,:)=shumdiag(:,:)
+
        ELSE
           !! 3.3.2 Call water balance from CWRR module (11 soil layers) to write restart file
           !WRITE(numout,*) 'zd hydrol_main 5 ','snowtemp(1,:)',snowtemp(1,:)

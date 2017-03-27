@@ -137,7 +137,7 @@ REAL(r_std),DIMENSION(kjpindex)              :: sum_veget
 !  ----------------------------------------
 !
 
-sum_veget=SUM(veget_max(:,2:13),2)
+sum_veget=SUM(veget_max(:,2:nvm),2)    !! Arsene 12-09-2016 modif 13 to nvm
 
 
 ! Grid cells number

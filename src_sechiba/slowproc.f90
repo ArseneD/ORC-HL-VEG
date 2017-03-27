@@ -1809,7 +1809,12 @@ SUBROUTINE slowproc_init (kjit, ldrestart_read, dtradia, date0, kjpindex, IndexL
        SUMveg = zero
        tot_bare_soil(ji) = veget_max(ji,1)
        DO jv = 2, nvm
-          veget(ji,jv) = veget_max(ji,jv) * ( un - exp( - lai(ji,jv) * ext_coeff(jv) ) )
+          IF ( alb_bg_modis ) THEN    !! Arsene 16-07-2016 - Add new Albedo
+            veget(ji,jv) = veget_max(ji,jv) * ( un - exp( - lai(ji,jv) * ext_coeff_vegetfrac(jv) ) )   !! Arsene 16-07-2016 - Add new Albedo
+          ELSE                        !! Arsene 16-07-2016 - Add new Albedo
+            veget(ji,jv) = veget_max(ji,jv) * ( un - exp( - lai(ji,jv) * ext_coeff(jv) ) )
+          ENDIF
+            
           tot_bare_soil(ji) = tot_bare_soil(ji) + (veget_max(ji,jv) - veget(ji,jv))
           SUMveg = SUMveg + veget(ji,jv)
        ENDDO

@@ -938,21 +938,23 @@ CONTAINS
 
                     !! ## On simule l'effet d'accumulation préférentiel de la neige sur les buissons via différence de dépôt de masse / pixel
                     !! ##    --> un facteur à z est ajouter afin de simuler le transfert de masse de neige au niveau des buissons (entre 0 et 0.5)
+                    !! Arsene 28-01-2018 Change limit 0.5 by 0.2 and the equation in order to take into account reviewer comment - START
                     IF ( za.GT.min_stomate .AND. (veget_layer(ji,2)+veget_layer(ji,3)).GT.min_stomate & 
-                                         & .AND. (veget_layer(ji,2)+veget_layer(ji,3)).LE.0.5 ) THEN
-                        za = za * (1 + veget_layer(ji,2) + veget_layer(ji,3))!! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
-                    ELSEIF ( za.GT.min_stomate .AND. (veget_layer(ji,2)+veget_layer(ji,3)).GT.0.5 & 
+                                         & .AND. (veget_layer(ji,2)+veget_layer(ji,3)).LE.0.2 ) THEN
+                        za = za * (1 + 4*(veget_layer(ji,2) + veget_layer(ji,3)))
+                    ELSEIF ( za.GT.min_stomate .AND. (veget_layer(ji,2)+veget_layer(ji,3)).GT.0.2 & 
                                          & .AND. (veget_layer(ji,2)+veget_layer(ji,3)).LT.1 ) THEN
-                        za = za * (2 - veget_layer(ji,2) - veget_layer(ji,3))!! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
+                        za = za * (2 - veget_layer(ji,2) - veget_layer(ji,3))
                     ENDIF
 
                     IF ( zb.GT.min_stomate .AND. (veget_layer(ji,2)+veget_layer(ji,3)).GT.min_stomate &
-                                         & .AND. (veget_layer(ji,2)+veget_layer(ji,3)).LE.0.5 ) THEN
-                        zb = zb * (1 + veget_layer(ji,2) + veget_layer(ji,3))!! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
-                    ELSEIF ( zb.GT.min_stomate .AND. (veget_layer(ji,2)+veget_layer(ji,3)).GT.0.5 & 
+                                         & .AND. (veget_layer(ji,2)+veget_layer(ji,3)).LE.0.2 ) THEN
+                        zb = zb * (1 + 4*(veget_layer(ji,2) + veget_layer(ji,3)))
+                    ELSEIF ( zb.GT.min_stomate .AND. (veget_layer(ji,2)+veget_layer(ji,3)).GT.0.2 & 
                                          & .AND. (veget_layer(ji,2)+veget_layer(ji,3)).LT.1 ) THEN
-                        zb = zb * (2 - veget_layer(ji,2) - veget_layer(ji,3))!! Arsene 02-04-2015 Ici on ne prend en compte que les shrub et non shrubs +  arbres... c'est bon ?
+                        zb = zb * (2 - veget_layer(ji,2) - veget_layer(ji,3))
                     ENDIF
+                    !! Arsene 28-01-2018 Change limit 0.5 by 0.2 and the equation in order to take into account reviewer comment - END
 
                      !! ## Si On a des températures inférieur à tmin_crit ET que l'on se situe à z < height (hauteur du buisson)
                      IF ( ( (ta .LT. tmin_crit(j)) .OR. (tb .LT. tmin_crit(j) ) ) & 
